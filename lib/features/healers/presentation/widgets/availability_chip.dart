@@ -4,12 +4,12 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
 
 class AvailabilityChip extends StatelessWidget {
-  final String date;
+  final String label;
   final bool isAvailable;
 
   const AvailabilityChip({
     super.key,
-    required this.date,
+    required this.label,
     required this.isAvailable,
   });
 
@@ -27,18 +27,19 @@ class AvailabilityChip extends StatelessWidget {
 
     return Container(
       width: 84.w,
-      padding: EdgeInsets.symmetric(vertical: 7.h,horizontal: 10.w),
+      padding: EdgeInsets.symmetric(vertical: 7.h, horizontal: 10.w),
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(8.r),
         border: Border.all(color: borderColor),
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            date,
+            label,
             style: AppTextStyles.bodySmall.copyWith(
-              color: isAvailable?AppColors.textPrimary: Color(0xff989C9F),
+              color: isAvailable ? AppColors.textPrimary : Color(0xff989C9F),
               fontSize: 11.sp,
             ),
           ),
@@ -46,8 +47,8 @@ class AvailabilityChip extends StatelessWidget {
           Text(
             isAvailable ? "Available" : "Unavailable",
             style: AppTextStyles.bodySmall.copyWith(
-              color:isAvailable? Color(0xffE81848): Color(0xff989C9F),
-              fontWeight:  FontWeight.w400,
+              color: isAvailable ? Color(0xffE81848) : Color(0xff989C9F),
+              fontWeight: FontWeight.w400,
               fontSize: 10.sp,
             ),
           ),

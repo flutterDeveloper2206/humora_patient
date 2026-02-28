@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import '../../../../core/constants/app_colors.dart';
-import '../../../../core/constants/app_text_styles.dart';
-import '../../../../common/widgets/common_image.dart';
-import '../../data/healer_model.dart';
+import 'package:humora_patient/core/constants/app_colors.dart';
+import 'package:humora_patient/core/constants/app_text_styles.dart';
+import 'package:humora_patient/common/widgets/common_image.dart';
+import 'package:humora_patient/features/healers/data/healer_model.dart';
+import 'package:humora_patient/features/healers/presentation/widgets/availability_chip.dart';
 import 'healer_rating_row.dart';
-import 'availability_chip.dart';
 
 class HealerCard extends StatelessWidget {
   final HealerModel healer;
@@ -18,7 +18,6 @@ class HealerCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: EdgeInsets.only(bottom: 16.h),
         padding: EdgeInsets.all(12.w),
         decoration: BoxDecoration(
           color: Color(0xFFF9FBFC),
@@ -169,6 +168,7 @@ class HealerCard extends StatelessWidget {
               ],
             ),
             // Availability Days
+            if(healer.availability.isNotEmpty)
             SizedBox(
               height: 48.h,
               child: ListView.separated(
@@ -179,7 +179,7 @@ class HealerCard extends StatelessWidget {
                 itemBuilder: (context, index) {
                   final avail = healer.availability[index];
                   return AvailabilityChip(
-                    date: avail.date,
+                    label: avail.date,
                     isAvailable: avail.isAvailable,
                   );
                 },

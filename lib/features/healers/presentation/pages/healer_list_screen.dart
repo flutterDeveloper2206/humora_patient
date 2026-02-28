@@ -30,10 +30,7 @@ class HealerListScreen extends StatelessWidget {
               size: 18.sp,
             ),
           ),
-          title: Text(
-            "Healers List",
-            style: AppTextStyles.titleMedium
-          ),
+          title: Text("Healers List", style: AppTextStyles.titleMedium),
           centerTitle: false,
           bottom: PreferredSize(
             preferredSize: Size.fromHeight(0.5.h),
@@ -79,14 +76,18 @@ class HealerListScreen extends StatelessWidget {
                     ),
                   ),
                   SizedBox(width: 12.w),
-                  CommonImage(path: 'assets/image/filter.png',height: 30.h,width: 30.h,)
+                  CommonImage(
+                    path: 'assets/image/filter.png',
+                    height: 30.h,
+                    width: 30.h,
+                  ),
                 ],
               ),
             ),
 
             // Statistics and Sorting
             Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20.w, ),
+              padding: EdgeInsets.symmetric(horizontal: 20.w),
               child: BlocBuilder<HealerBloc, HealerState>(
                 builder: (context, state) {
                   int count = 0;
@@ -110,7 +111,6 @@ class HealerListScreen extends StatelessWidget {
                             style: AppTextStyles.bodySmall.copyWith(
                               fontSize: 14.sp,
                               color: AppColors.textPrimary,
-
                             ),
                           ),
                           Icon(
@@ -125,8 +125,7 @@ class HealerListScreen extends StatelessWidget {
                 },
               ),
             ),
-SizedBox(height: 10.h,)
-,            // Healer List
+            SizedBox(height: 10.h), // Healer List
             Expanded(
               child: BlocBuilder<HealerBloc, HealerState>(
                 builder: (context, state) {
@@ -140,7 +139,9 @@ SizedBox(height: 10.h,)
                         return HealerCard(
                           healer: state.healers[index],
                           onTap: () {
-                            // Navigate to details
+                            context.push(
+                              '/healer-detail/${state.healers[index].id}',
+                            );
                           },
                         );
                       },

@@ -72,7 +72,7 @@ class _HealingFocusScreenState extends State<HealingFocusScreen> {
                 'icon': 'assets/images/right.png',
                 'title': "Thank You!",
                 'subtitle': "Based on your concern, we’ll match you\nwith Certified Healers who specialize\nin similar issues.",
-                'onButtonPressed': () => context.push('/healers-list'),
+                'onButtonPressed': () => context.push('/home'),
               },
             );          } else {
             _pageController.animateToPage(

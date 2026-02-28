@@ -45,6 +45,7 @@ dependencies:
   file_picker:
   intl:
   permission_handler:
+  image_picker: ^1.2.1
 
 dev_dependencies:
   flutter_test:
