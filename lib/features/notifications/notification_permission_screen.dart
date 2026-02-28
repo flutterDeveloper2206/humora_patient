@@ -50,7 +50,7 @@ class NotificationPermissionView extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               SizedBox(height: 60.h),
-              CommonImage(path: "assets/images/notification.png", width: 60.w),
+              CommonImage(path: "assets/image/notification.png", width: 60.w),
               SizedBox(height: 30.h),
               Text(
                 "Turn on\nnotifications?",

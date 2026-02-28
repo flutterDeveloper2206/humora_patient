@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:humora_patient/features/auth/screens/reset_password_screen.dart';
 import '../features/splash/screens/splash_screen.dart';
 import '../features/auth/screens/login_screen.dart';
 import '../features/auth/screens/otp_screen.dart';
@@ -52,6 +53,10 @@ class AppRouter {
         path: '/otp',
         builder: (context, state) =>
             OtpScreen(destination: state.extra as String? ?? ""),
+      ), GoRoute(
+        path: '/reset-password',
+        builder: (context, state) =>
+            ResetPasswordScreen(),
       ),
 
 

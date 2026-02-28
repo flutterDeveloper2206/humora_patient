@@ -94,7 +94,7 @@ class _FinishSignupScreenState extends State<FinishSignupScreen>
           listener: (context, state) {
             if (state is AuthAuthenticated) {
               CommonFlushbar.success(context, "Signup Completed!");
-              context.go('/reset-password');
+              context.push('/reset-password');
             } else if (state is AuthError) {
               CommonFlushbar.error(context, state.message);
             }
