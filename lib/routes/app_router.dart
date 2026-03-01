@@ -31,7 +31,7 @@ import '../features/home/presentation/pages/home_screen.dart';
 
 class AppRouter {
   static final GoRouter router = GoRouter(
-    initialLocation: '/home',
+    initialLocation: '/splash',
     // initialLocation: '/location-picker',
     routes: [
       GoRoute(path: '/home', builder: (context, state) => const HomeScreen()),
