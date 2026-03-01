@@ -70,7 +70,7 @@ class _SecurityNumberViewState extends State<SecurityNumberView> {
                 'title': "Congratulations!",
                 'subtitle': "Your bank details have been added\nsuccessfully.",
                 'onButtonPressed': () =>
-                    context.go('/experience-qualifications'),
+                    context.push('/experience-qualifications'),
               },
             );
           } else if (state.status == SecurityNumberStatus.error) {

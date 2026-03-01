@@ -23,7 +23,7 @@ class NotificationPermissionScreen extends StatelessWidget {
               if (state.status == NotificationPermissionStatus.granted ||
                   state.status == NotificationPermissionStatus.denied ||
                   state.status == NotificationPermissionStatus.skipped) {
-                // context.go('/dashboard');
+                // context.push('/dashboard');
                 context.push(
                   '/finish-signup',
 

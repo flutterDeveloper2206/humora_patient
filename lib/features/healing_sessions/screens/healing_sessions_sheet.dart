@@ -72,7 +72,7 @@ class _HealingSessionsSheetState extends State<HealingSessionsSheet> {
                   'subtitle':
                       "your request was not approved by out\nteam.Please try again.",
                   'buttonText': "Got it!",
-                  'onButtonPressed': () => context.go('/sessions'),
+                  'onButtonPressed': () => context.push('/sessions'),
                 },
               ),
             },

@@ -44,7 +44,7 @@ class EmptySessionsState extends StatelessWidget {
           const Spacer(),
           // Explore Healers Button
           GestureDetector(
-            onTap: () => context.go('/healers-list'),
+            onTap: () => context.push('/healers-list'),
             child: Container(
               height: 54.h,
               margin: EdgeInsets.only(bottom: 32.h),

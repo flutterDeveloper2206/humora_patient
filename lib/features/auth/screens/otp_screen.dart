@@ -161,7 +161,7 @@ class _OtpScreenState extends State<OtpScreen> {
                       'icon': 'assets/images/right.png',
                       'title': "You’re successfully signed in!",
                       'subtitle': "Fill up personal details",
-                      'onButtonPressed': () => context.go('/permissions'),
+                      'onButtonPressed': () => context.push('/permissions'),
                     },
                   );
                 },

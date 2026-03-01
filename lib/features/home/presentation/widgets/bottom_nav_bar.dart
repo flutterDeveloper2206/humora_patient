@@ -64,7 +64,7 @@ class HomeBottomNavBar extends StatelessWidget {
 
           // Floating Centered Button
           Positioned(
-            top: 0,
+            top: -10,
             child: GestureDetector(
               onTap: () => onTap(2),
               child: Container(
@@ -94,7 +94,7 @@ class HomeBottomNavBar extends StatelessWidget {
           ),
           // Wallet label manually placed
           Positioned(
-            bottom: 10.h,
+            bottom: 25.h,
             child: Text(
               "Wallet",
               style: AppTextStyles.bodySmall.copyWith(
@@ -190,7 +190,7 @@ class _BottomNavPainter extends CustomPainter {
     final path = MyShape().getOuterPath(host, guest);
 
     // Draw normal shadow
-    canvas.drawShadow(path, Colors.black.withOpacity(0.1), 8, true);
+    canvas.drawShadow(path, Colors.black, 8, true);
 
     // Draw background
     final paint = Paint()
@@ -209,55 +209,47 @@ class _BottomNavPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
-
 class MyShape extends CircularNotchedRectangle {
   @override
   Path getOuterPath(Rect host, Rect? guest) {
-    if (guest == null || !host.overlaps(guest)) {
-      return Path()..addRect(host);
-    }
+    final path = Path();
 
-    final double notchRadius = guest.width / 2.0;
+    final double centerX = host.width / 2;
 
-    const double s1 = 8.0;
-    const double s2 = 1.0;
+    // 🔥 Apple style tuning
+    const double curveWidth = 180;  // wider = smoother
+    const double curveHeight = 45;  // height of upward bump
 
-    final double r = notchRadius;
-    final double a = -1.0 * r - s2;
-    final double b = host.top - guest.center.dy;
+    path.moveTo(host.left, host.top);
 
-    final double n2 = math.sqrt(b * b * r * r * (a * a + b * b - r * r));
-    final double p2xA = ((a * r * r) - n2) / (a * a + b * b);
-    final double p2xB = ((a * r * r) + n2) / (a * a + b * b);
-    final double p2yA = math.sqrt(r * r - p2xA * p2xA);
-    final double p2yB = math.sqrt(r * r - p2xB * p2xB);
+    // Left flat part
+    path.lineTo(centerX - curveWidth / 2, host.top);
 
-    final List<Offset> p = List<Offset>.filled(6, Offset.zero);
+    // Smooth upward curve (convex)
+    path.cubicTo(
+      centerX - curveWidth * 0.20,
+      host.top,
+      centerX - curveWidth * 0.25,
+      host.top - curveHeight,
+      centerX,
+      host.top - curveHeight,
+    );
 
-    // p0, p1, and p2 are the control points for segment A.
-    p[0] = Offset(a - s1, b);
-    p[1] = Offset(a, b);
-    final double cmp = b < 0 ? -1.0 : 1.0;
-    p[2] = cmp * p2yA > cmp * p2yB ? Offset(p2xA, -p2yA) : Offset(p2xB, p2yB);
+    path.cubicTo(
+      centerX + curveWidth * 0.25,
+      host.top - curveHeight,
+      centerX + curveWidth * 0.18,
+      host.top,
+      centerX + curveWidth / 2,
+      host.top,
+    );
 
-    // p3, p4, and p5 are the control points for segment B, which is a mirror
-    // of segment A around the y axis.
-    p[3] = Offset(-1.0 * p[2].dx, p[2].dy);
-    p[4] = Offset(-1.0 * p[2].dx, p[1].dy);
-    p[5] = Offset(-1.0 * p[0].dx, p[0].dy);
+    // Right flat part
+    path.lineTo(host.right, host.top);
+    path.lineTo(host.right, host.bottom);
+    path.lineTo(host.left, host.bottom);
+    path.close();
 
-    // translate all points back to the absolute coordinate system.
-    for (int i = 0; i < p.length; i += 1) {
-      p[i] += guest.center;
-    }
-
-    return Path()
-      ..moveTo(host.left, host.top)
-      ..lineTo(p[1].dx, p[1].dy)
-      ..arcToPoint(p[4], radius: Radius.circular(notchRadius), clockwise: true)
-      ..lineTo(host.right, host.top)
-      ..lineTo(host.right, host.bottom)
-      ..lineTo(host.left, host.bottom)
-      ..close();
+    return path;
   }
 }

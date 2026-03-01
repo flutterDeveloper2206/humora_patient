@@ -29,7 +29,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
             if (state is ShowingPermissionDialog) {
               _showDialog(context, state.type);
             } else if (state is PermissionFlowFinished) {
-              context.go('/healing-focus');
+              context.push('/healing-focus');
             }
           },
           child: Container(),
