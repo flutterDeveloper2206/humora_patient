@@ -50,8 +50,10 @@ class _SwipeableButtonState extends State<SwipeableButton>
 
   @override
   void dispose() {
+
     _slideController.dispose();
     _loadingController.dispose();
+
     super.dispose();
   }
 
@@ -88,9 +90,13 @@ class _SwipeableButtonState extends State<SwipeableButton>
     });
 
     _loadingController.forward().then((_) {
+      _isLoading = false;
+
       widget.onSwipeComplete();
     });
   }
+
+
 
   void _resetSlide() {
     _slideController.forward(from: 0.0).then((_) {

@@ -656,6 +656,7 @@ class HealerDetailScreen extends StatelessWidget {
             child: Stack(
               children: [
                 Container(
+                  width: 100.w,
                   padding: EdgeInsets.symmetric(horizontal: 20.w),
                   decoration: BoxDecoration(
                     color: isSelected ? null : Colors.white,
@@ -704,7 +705,7 @@ class HealerDetailScreen extends StatelessWidget {
                         spacing: 6.0,
                       ),
                       child: Container(
-                        padding: EdgeInsets.symmetric(horizontal: 41.w),
+                        padding: EdgeInsets.symmetric(horizontal: 50.w),
                       ),
                     ),
                   ),
