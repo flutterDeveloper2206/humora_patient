@@ -120,7 +120,9 @@ class ReceiptView extends StatelessWidget {
     'imagePath': 'assets/image/paid.png',
     'icon': 'assets/images/right.png',
     'title': "Thank You!",
-    'subtitle': "Your session payment has been\ncompleted successfully. We look\nforward to serving you.",
+      'buttonText': "Got it!",
+
+      'subtitle': "Your session payment has been\ncompleted successfully. We look\nforward to serving you.",
     'onButtonPressed': () => context.push('/appointment-reminder')
                 ,
     },),

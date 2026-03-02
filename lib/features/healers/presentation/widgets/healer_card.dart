@@ -9,9 +9,10 @@ import 'healer_rating_row.dart';
 
 class HealerCard extends StatelessWidget {
   final HealerModel healer;
+  final bool isNext;
   final VoidCallback onTap;
 
-  const HealerCard({super.key, required this.healer, required this.onTap});
+  const HealerCard({super.key, required this.healer,this.isNext=true, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -64,6 +65,7 @@ class HealerCard extends StatelessWidget {
                                   fontSize: 15.sp,
                                 ),
                               ),
+                              if(isNext)
                               Icon(
                                 Icons.chevron_right,
                                 color: AppColors.textSecondary,

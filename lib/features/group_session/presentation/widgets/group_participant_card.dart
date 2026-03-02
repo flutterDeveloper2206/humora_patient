@@ -69,7 +69,7 @@ class GroupParticipantCard extends StatelessWidget {
             child: Container(
               padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.7),
+                color: Colors.white.withOpacity(0.8),
                 borderRadius: BorderRadius.circular(20.r),
               ),
               child: Row(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import '../../../common/widgets/common_button.dart';
@@ -19,6 +20,7 @@ class _OtpScreenState extends State<OtpScreen> {
     (_) => TextEditingController(),
   );
   final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
+  final List<String> _previousValues = List.generate(6, (_) => "");
 
   @override
   void dispose() {
@@ -90,31 +92,42 @@ class _OtpScreenState extends State<OtpScreen> {
                       children: List.generate(6, (index) {
                         return SizedBox(
                           width: 40.w,
-                          child: TextField(
-                            controller: _controllers[index],
-                            focusNode: _focusNodes[index],
-                            textAlign: TextAlign.center,
-                            keyboardType: TextInputType.number,
-                            maxLength: 1,
-                            style: AppTextStyles.h2.copyWith(
-                              fontWeight: FontWeight.w500,
-                            ),
-                            decoration: InputDecoration(
-                              counterText: "",
-                              border: InputBorder.none,
-                              hintText: "—",
-                              hintStyle: TextStyle(
-                                fontFamily: AppTextStyles.fontFamily,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                            onChanged: (value) {
-                              if (value.isNotEmpty && index < 5) {
-                                _focusNodes[index + 1].requestFocus();
-                              } else if (value.isEmpty && index > 0) {
-                                _focusNodes[index - 1].requestFocus();
+                          child: RawKeyboardListener(
+                            focusNode: FocusNode(),
+                            onKey: (event) {
+                              if (event.isKeyPressed(LogicalKeyboardKey.backspace)) {
+                                if (_controllers[index].text.isEmpty && index > 0) {
+                                  _controllers[index - 1].clear();
+                                  _focusNodes[index - 1].requestFocus();
+                                  _previousValues[index - 1] = "";
+                                }
                               }
                             },
+                            child: TextField(
+                              controller: _controllers[index],
+                              focusNode: _focusNodes[index],
+                              textAlign: TextAlign.center,
+                              keyboardType: TextInputType.number,
+                              maxLength: 1,
+                              style: AppTextStyles.h2.copyWith(
+                                fontWeight: FontWeight.w500,
+                              ),
+                              decoration: InputDecoration(
+                                counterText: "",
+                                border: InputBorder.none,
+                                hintText: "—",
+                                hintStyle: TextStyle(
+                                  fontFamily: AppTextStyles.fontFamily,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              onChanged: (value) {
+                                if (value.isNotEmpty && index < 5) {
+                                  _focusNodes[index + 1].requestFocus();
+                                }
+                                _previousValues[index] = value;
+                              },
+                            ),
                           ),
                         );
                       }),
@@ -161,6 +174,7 @@ class _OtpScreenState extends State<OtpScreen> {
                       'icon': 'assets/images/right.png',
                       'title': "You’re successfully signed in!",
                       'subtitle': "Fill up personal details",
+                      'buttonText': "Got it!",
                       'onButtonPressed': () => context.push('/permissions'),
                     },
                   );

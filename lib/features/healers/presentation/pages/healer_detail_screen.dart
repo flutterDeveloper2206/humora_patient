@@ -1,4 +1,5 @@
 import 'dart:ui' as ui;
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -7,6 +8,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import '../../../../common/widgets/common_image.dart';
 import '../../../../common/widgets/common_button.dart';
+import '../../../../common/widgets/swipeable_button.dart';
 import 'package:intl/intl.dart';
 import '../../data/healer_model.dart';
 import '../../bloc/healer_detail_bloc.dart';
@@ -648,49 +650,65 @@ class HealerDetailScreen extends StatelessWidget {
           final isDisabled = category == 'Evening';
 
           return GestureDetector(
-            onTap: isDisabled
-                ? null
-                : () => context.read<HealerDetailBloc>().add(
+            onTap: () => context.read<HealerDetailBloc>().add(
                     SelectTimeCategory(category),
                   ),
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 20.w),
-              decoration: BoxDecoration(
-                color: isSelected ? null : Colors.white,
-                gradient: isSelected
-                    ? const LinearGradient(
-                        transform: GradientRotation(7.2),
-                        colors: [
-                          Color(0xFF1F1F1F), // Base Dark
-                          Color(0xFF333333), // Base Dark
-                          Color(0xFF525252), // Central Shine
-                          Color(0xFF333333), // Base Dark
-                          Color(0xFF1F1F1F), // Base Dark
-                        ],
-                        stops: [0.0, 0.40, 0.55, 0.75, 1.0],
-                      )
-                    : null,
-                // color: isSelected ? const Color(0xFF333333) : Colors.white,
-                borderRadius: BorderRadius.circular(21.r),
-                border: Border.all(color: const Color(0xFFF0F0F0)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Color(0xfFFB5B5B26).withOpacity(0.15),
-                    blurRadius: 1.5,
-                    spreadRadius: 0,
-                    offset: const Offset(0, 0),
+            child: Stack(
+              children: [
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 20.w),
+                  decoration: BoxDecoration(
+                    color: isSelected ? null : Colors.white,
+                    gradient: isSelected
+                        ? const LinearGradient(
+                            transform: GradientRotation(7.2),
+                            colors: [
+                              Color(0xFF1F1F1F), // Base Dark
+                              Color(0xFF333333), // Base Dark
+                              Color(0xFF525252), // Central Shine
+                              Color(0xFF333333), // Base Dark
+                              Color(0xFF1F1F1F), // Base Dark
+                            ],
+                            stops: [0.0, 0.40, 0.55, 0.75, 1.0],
+                          )
+                        : null,
+                    borderRadius: BorderRadius.circular(21.r),
+                    border: Border.all(color: const Color(0xFFF0F0F0)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Color(0xfFFB5B5B26).withOpacity(0.15),
+                        blurRadius: 1.5,
+                        spreadRadius: 0,
+                        offset: const Offset(0, 0),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: Center(
-                child: Text(
-                  category,
-                  style: AppTextStyles.bodySmall.copyWith(
-                    fontSize: 11.sp,
-                    color: isSelected ? Colors.white : const Color(0xff2F2F2F),
+                  child: Center(
+                    child: Text(
+                      category,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        fontSize: 11.sp,
+                        color: isSelected ? Colors.white : const Color(0xff2F2F2F),
+                      ),
+                    ),
                   ),
                 ),
-              ),
+                // Diagonal stripes overlay for disabled state
+                if (isDisabled)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(21.r),
+                    child: CustomPaint(
+                      painter: DiagonalStrikesPainter(
+                        stripeColor: Color(0XFF5B5B5B26).withOpacity(0.15),
+                        stripeWidth: 3.0,
+                        spacing: 6.0,
+                      ),
+                      child: Container(
+                        padding: EdgeInsets.symmetric(horizontal: 41.w),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           );
         },
@@ -710,8 +728,20 @@ class HealerDetailScreen extends StatelessWidget {
           child: Container(
             padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 9.h),
             decoration: BoxDecoration(
-              color: isSelected ? const Color(0xFF333333) : Colors.white,
-              borderRadius: BorderRadius.circular(21.r),
+              color: isSelected ? null : Colors.white,
+              gradient: isSelected
+                  ? const LinearGradient(
+                transform: GradientRotation(7.2),
+                colors: [
+                  Color(0xFF1F1F1F), // Base Dark
+                  Color(0xFF333333), // Base Dark
+                  Color(0xFF525252), // Central Shine
+                  Color(0xFF333333), // Base Dark
+                  Color(0xFF1F1F1F), // Base Dark
+                ],
+                stops: [0.0, 0.40, 0.55, 0.75, 1.0],
+              )
+                  : null,              borderRadius: BorderRadius.circular(21.r),
               border: Border.all(color: const Color(0xFFF0F0F0)),
               boxShadow: [
                 BoxShadow(
@@ -1022,56 +1052,15 @@ class HealerDetailScreen extends StatelessWidget {
               ),
             ),
             SizedBox(width: 14.w),
-            // Book Now Button
+            // Book Now Button with Swipe
             Expanded(
-              child: GestureDetector(
-                onTap: () => context.push('/live-counselling-session'),
-                child: Container(
-                  height: 58.h,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(19.r),
-                    border: Border.all(
-                      color: const Color(0xFFFDE8ED),
-                      width: 1.5,
-                    ),
-                  ),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // Leading white circle with arrow
-                      Positioned(
-                        left: 6.w,
-                        child: CommonImage(
-                          path: 'assets/image/gradiantarrow.png',
-                          height: 43.h,
-                          width: 43.h,
-                        ),
-                      ),
-                      // Center content
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          CommonImage(
-                            path:
-                                'assets/image/material-symbols_menstrual-health-rounded.png',
-                            height: 16.h,
-                            width: 16.h,
-                            color: AppColors.white,
-                          ),
-                          SizedBox(width: 8.w),
-                          Text(
-                            'Book Now',
-                            style: AppTextStyles.bodySmall.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
+              child: SwipeableButton(
+                buttonText: 'Book Now',isShowIcon: true,
+                backgroundColor: AppColors.primary,
+                iconPath: 'assets/image/gradiantarrow.png',
+                onSwipeComplete: () {
+                  context.push('/live-counselling-session');
+                },
               ),
             ),
           ],
@@ -1104,46 +1093,117 @@ class _ExpandableDescriptionState extends State<ExpandableDescription> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final textSpan = TextSpan(text: widget.text, style: widget.style);
-        final textPainter = TextPainter(
-          text: textSpan,
+        final span = TextSpan(text: widget.text, style: widget.style);
+        final tp = TextPainter(
+          text: span,
           maxLines: 3,
           textDirection: ui.TextDirection.ltr,
         );
-        textPainter.layout(maxWidth: constraints.maxWidth);
+        tp.layout(maxWidth: constraints.maxWidth);
 
-        if (textPainter.didExceedMaxLines) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                widget.text,
-                style: widget.style,
-                maxLines: _isExpanded ? null : 3,
-                overflow: _isExpanded
-                    ? TextOverflow.visible
-                    : TextOverflow.ellipsis,
-              ),
-              GestureDetector(
-                onTap: () => setState(() => _isExpanded = !_isExpanded),
-                child: Padding(
-                  padding: EdgeInsets.only(top: 4.h),
-                  child: Text(
-                    _isExpanded ? 'Less' : 'More',
-                    style: widget.style.copyWith(
-                      color: Colors.blue,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14.sp,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          );
-        } else {
+        // if not overflow just render plain text
+        if (!tp.didExceedMaxLines) {
           return Text(widget.text, style: widget.style);
         }
+
+        if (_isExpanded) {
+          return RichText(
+            text: TextSpan(
+              style: widget.style,
+              children: [
+                TextSpan(text: widget.text),
+                TextSpan(
+                  text: '  Less',
+                  style: widget.style.copyWith(
+                    color: Color(0XFF3D71E2),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14.sp,
+                  ),
+                  recognizer: TapGestureRecognizer()
+                    ..onTap = () => setState(() => _isExpanded = false),
+                ),
+              ],
+            ),
+          );
+        }
+
+        // collapsed: need to trim to fit ellipsis + More
+        final moreText = ' More';
+        // find cutoff point
+        String display = widget.text;
+        int end = display.length;
+        while (end > 0) {
+          final test = display.substring(0, end) + '...' + moreText;
+          final tp2 = TextPainter(
+            text: TextSpan(text: test, style: widget.style),
+            maxLines: 3,
+            textDirection: ui.TextDirection.ltr,
+          );
+          tp2.layout(maxWidth: constraints.maxWidth);
+          if (tp2.didExceedMaxLines) {
+            end--;
+            continue;
+          }
+          display = display.substring(0, end);
+          break;
+        }
+
+        return RichText(
+          text: TextSpan(
+            style: widget.style,
+            children: [
+              TextSpan(text: display + '...'),
+              TextSpan(
+                text: moreText,
+                style: widget.style.copyWith(
+                  color: Color(0XFF3D71E2),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14.sp,
+                ),
+                recognizer: TapGestureRecognizer()
+                  ..onTap = () => setState(() => _isExpanded = true),
+              ),
+            ],
+          ),
+        );
       },
     );
   }
 }
+
+class DiagonalStrikesPainter extends CustomPainter {
+  final Color stripeColor;
+  final double stripeWidth;
+  final double spacing;
+
+  DiagonalStrikesPainter({
+    required this.stripeColor,
+    required this.stripeWidth,
+    required this.spacing,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = stripeColor
+      ..strokeWidth = stripeWidth;
+
+    // Draw diagonal stripes from top-right to bottom-left
+    final step = spacing + stripeWidth;
+    for (double i = -size.height; i < size.width; i += step) {
+      canvas.drawLine(
+        Offset(size.width - i, 0),
+        Offset(size.width - i - size.height, size.height),
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(DiagonalStrikesPainter oldDelegate) {
+    return oldDelegate.stripeColor != stripeColor ||
+        oldDelegate.stripeWidth != stripeWidth ||
+        oldDelegate.spacing != spacing;
+  }
+}
+

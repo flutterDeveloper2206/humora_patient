@@ -61,7 +61,7 @@ class HealerDetailBloc extends Bloc<HealerDetailEvent, HealerDetailState> {
       // Mocking API call delay
       await Future.delayed(const Duration(milliseconds: 500));
 
-      if (event.healerId == '1') {
+      // if (event.healerId == '1') {
         final defaultDate = DateTime(2026, 10, 25);
         const healer = HealerModel(
           id: '1',
@@ -80,7 +80,7 @@ class HealerDetailBloc extends Bloc<HealerDetailEvent, HealerDetailState> {
             HealerAvailability(day: 'Wed', periods: ['Morning', 'Afternoon'], date: 'Mar 01', isAvailable: true),
           ],
           description:
-              'A dedicated learning space designed to help individuals understand healing practices, energy balance, and holistic well-being.',
+              'A dedicated learning space designed to help individuals understand healing practices, energy balance, and holistic well-being.energy balance, and holistic well-being.',
           about:
               'Dr. William is a dedicated astrologer with years of experience in treating various skin, hair, and nail conditions. Known for her ...',
           services: HealerServices(
@@ -150,9 +150,9 @@ class HealerDetailBloc extends Bloc<HealerDetailEvent, HealerDetailState> {
             selectedTime: '11:00 AM', // Mock default selected time
           ),
         );
-      } else {
-        emit(const HealerDetailError('Healer not found'));
-      }
+      // } else {
+      //   emit(const HealerDetailError('Healer not found'));
+      // }
     } catch (e) {
       emit(HealerDetailError(e.toString()));
     }
