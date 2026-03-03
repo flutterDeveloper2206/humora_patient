@@ -85,8 +85,8 @@ class MainSpeakerCard extends StatelessWidget {
             child: Container(
               padding: EdgeInsets.all(12.w),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.6),
-                borderRadius: BorderRadius.circular(24.r),
+                color: Colors.white.withOpacity(0.8),
+                borderRadius: BorderRadius.circular(50.r),
               ),
               child: Row(
                 children: [

@@ -58,13 +58,15 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                           'Enable your microphone to speak with your healer during live sessions.',
                       icon: Icons.mic,
                       onConfirm: () async {
-                        final status = await Permission.microphone.request();
-                        if (status.isPermanentlyDenied) {
-                          openAppSettings();
-                        } else {
-                          bloc.add(RequestMicrophonePermission());
-                        }
-                        if (dialogContext.mounted) Navigator.pop(dialogContext);
+                        // final status = await Permission.microphone.request();
+                        // if (status.isPermanentlyDenied) {
+                        //   openAppSettings();
+                        // } else {
+                        //   bloc.add(RequestMicrophonePermission());
+                        // }
+                        // if (dialogContext.mounted) Navigator.pop(dialogContext);
+                        bloc.add(SkipPermission());
+                        Navigator.pop(dialogContext);
                       },
                       onSkip: () {
                         bloc.add(SkipPermission());
@@ -81,13 +83,15 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                           'Enable your camera to join live healing sessions and connect face-to-face with your healer.',
                       icon: Icons.camera_alt,
                       onConfirm: () async {
-                        final status = await Permission.camera.request();
-                        if (status.isPermanentlyDenied) {
-                          openAppSettings();
-                        } else {
-                          bloc.add(RequestCameraPermission());
-                        }
-                        if (dialogContext.mounted) Navigator.pop(dialogContext);
+                        bloc.add(SkipPermission());
+                        Navigator.pop(dialogContext);
+                        // final status = await Permission.camera.request();
+                        // if (status.isPermanentlyDenied) {
+                        //   openAppSettings();
+                        // } else {
+                        //   bloc.add(RequestCameraPermission());
+                        // }
+                        // if (dialogContext.mounted) Navigator.pop(dialogContext);
                       },
                       onSkip: () {
                         bloc.add(SkipPermission());

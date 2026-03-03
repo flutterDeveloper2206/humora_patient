@@ -72,6 +72,7 @@ class _HealingFocusScreenState extends State<HealingFocusScreen> {
                 'icon': 'assets/images/right.png',
                 'title': "Thank You!",
                 'subtitle': "Based on your concern, we’ll match you\nwith Certified Healers who specialize\nin similar issues.",
+                'buttonText': "Got it!",
                 'onButtonPressed': () => context.push('/home'),
               },
             );          } else {
@@ -225,6 +226,7 @@ class _HealingFocusScreenState extends State<HealingFocusScreen> {
           padding: EdgeInsets.fromLTRB(24.w, 0, 24.w, 24.h),
           child: Row(
             children: [
+              if(state.currentStep>1)
               TextButton(
                 onPressed: () {
                   if (state.currentStep > 1) {

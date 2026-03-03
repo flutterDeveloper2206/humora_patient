@@ -62,7 +62,7 @@ class _WelcomeViewState extends State<WelcomeView>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Color(0xFF3C1A28),
       body: BlocListener<WelcomeBloc, WelcomeState>(
         listener: (context, state) {
           if (state is WelcomeNavigateToLogin) {

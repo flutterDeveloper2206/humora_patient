@@ -109,6 +109,7 @@ class AppointmentReminderView extends StatelessWidget {
                               ),
                               SizedBox(height: 32.h),
                               HealerCard(
+                                isNext: false,
                                 healer: HealerModel(
                                   id: '1',
                                   name: 'Dr. Hannibal Lector',

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import '../../../../common/widgets/common_image.dart';
+import '../../../../common/widgets/swipeable_button.dart';
 import '../../bloc/payment_bloc.dart';
 import '../../bloc/payment_event.dart';
 import '../../bloc/payment_state.dart';
@@ -237,48 +238,14 @@ class PaymentMethodView extends StatelessWidget {
             ],
           ),
           SizedBox(height: 24.h),
-          // Continue Button
-          GestureDetector(
-            onTap: () => context.push('/receipt'),
-            child: Container(
-              height: 56.h,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(16.r),
-              ),
-              child: Row(
-                children: [
-                  SizedBox(width: 8.w),
-                  Container(
-                    width: 48.w,
-                    height: 48.w,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12.r),
-                    ),
-                    child: Center(
-                      child: Icon(
-                        Icons.arrow_forward,
-                        color: Colors.black,
-                        size: 24.sp,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Center(
-                      child: Text(
-                        'Continue',
-                        style: AppTextStyles.button.copyWith(
-                          fontSize: 18.sp,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 56.w), // To balance the icon on the left
-                ],
-              ),
+          // Continue Button with Swipe
+          SizedBox(
+            width: double.infinity,
+            child: SwipeableButton(
+              animationWidth: 275.0.w,
+              buttonText: 'Continue',
+              backgroundColor: AppColors.primary,
+              onSwipeComplete: () => context.push('/receipt'),
             ),
           ),
         ],
