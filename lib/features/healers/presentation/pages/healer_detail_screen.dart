@@ -1056,6 +1056,7 @@ class HealerDetailScreen extends StatelessWidget {
             // Book Now Button with Swipe
             Expanded(
               child: SwipeableButton(
+                animationWidth: 210.0.w,
                 buttonText: 'Book Now',isShowIcon: true,
                 backgroundColor: AppColors.primary,
                 iconPath: 'assets/image/gradiantarrow.png',

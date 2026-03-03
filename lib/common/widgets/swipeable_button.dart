@@ -6,6 +6,7 @@ import 'common_image.dart';
 class SwipeableButton extends StatefulWidget {
   final VoidCallback onSwipeComplete;
   final String buttonText;
+  final double animationWidth;
   final String? iconPath;
   final Color backgroundColor;
   final Color textColor;
@@ -16,9 +17,10 @@ class SwipeableButton extends StatefulWidget {
     super.key,
     required this.onSwipeComplete,
     required this.buttonText,
+    required this.animationWidth,
     this.iconPath,
     this.isShowIcon=false,
-    this.backgroundColor = const Color.fromARGB(255, 225, 48, 108),
+    this.backgroundColor = AppColors.primary,
     this.textColor = Colors.white,
     this.loadingDuration = const Duration(milliseconds: 2000),
   });
@@ -62,14 +64,14 @@ class _SwipeableButtonState extends State<SwipeableButton>
 
     setState(() {
       _slidePosition += details.delta.dx;
-      _slidePosition = _slidePosition.clamp(0.0, 220.0);
+      _slidePosition = _slidePosition.clamp(0.0, widget.animationWidth);
     });
   }
 
   void _onHorizontalDragEnd(DragEndDetails details) {
     if (_isCompleted) return;
 
-    const threshold = 220.0;
+     var threshold = widget.animationWidth;
     const minVelocity = 500.0;
 
     final velocityCheck = details.velocity.pixelsPerSecond.dx > minVelocity;
@@ -84,14 +86,25 @@ class _SwipeableButtonState extends State<SwipeableButton>
 
   void _completeSlide() {
     setState(() {
-      _slidePosition = 220.0;
+      _slidePosition = widget.animationWidth;
       _isLoading = true;
       _isCompleted = true;
     });
 
     _loadingController.forward().then((_) {
       _isLoading = false;
+      _isCompleted = false;
 
+      _slidePosition = 0;
+      _resetSlide();
+      _slideController = AnimationController(
+        duration: const Duration(milliseconds: 300),
+        vsync: this,
+      );
+      _loadingController = AnimationController(
+        duration: widget.loadingDuration,
+        vsync: this,
+      );
       widget.onSwipeComplete();
     });
   }
@@ -139,7 +152,7 @@ class _SwipeableButtonState extends State<SwipeableButton>
               ),
             // Leading sliding arrow/icon
             Positioned(
-              left: 8.w + _slidePosition,
+              left: 4.w + _slidePosition,
               child: AnimatedOpacity(
                 opacity: _isLoading ? 0 : 1,
                 duration: const Duration(milliseconds: 300),

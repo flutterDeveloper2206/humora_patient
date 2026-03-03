@@ -242,6 +242,7 @@ class PaymentMethodView extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: SwipeableButton(
+              animationWidth: 275.0.w,
               buttonText: 'Continue',
               backgroundColor: AppColors.primary,
               onSwipeComplete: () => context.push('/receipt'),
