@@ -80,5 +80,23 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<LogoutRequested>((event, emit) {
       emit(AuthUnauthenticated());
     });
+
+    on<ResetPasswordRequested>((event, emit) async {
+      emit(AuthLoading());
+      try {
+        await Future.delayed(const Duration(seconds: 1));
+        if (event.email.contains('@')) {
+          emit(ResetPasswordLinkSent(event.email));
+        } else {
+          emit(const AuthError("Invalid email address"));
+        }
+      } catch (e) {
+        emit(AuthError(e.toString()));
+      }
+    });
+
+    on<ResetPasswordLinkClosed>((event, emit) {
+      emit(AuthInitial());
+    });
   }
 }

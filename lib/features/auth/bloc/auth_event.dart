@@ -68,3 +68,13 @@ class FinishSignupRequested extends AuthEvent {
 }
 
 class LogoutRequested extends AuthEvent {}
+
+class ResetPasswordRequested extends AuthEvent {
+  final String email;
+  const ResetPasswordRequested(this.email);
+
+  @override
+  List<Object> get props => [email];
+}
+
+class ResetPasswordLinkClosed extends AuthEvent {}

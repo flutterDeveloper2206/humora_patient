@@ -28,3 +28,11 @@ class AuthError extends AuthState {
   @override
   List<Object?> get props => [message];
 }
+
+class ResetPasswordLinkSent extends AuthState {
+  final String email;
+  const ResetPasswordLinkSent(this.email);
+
+  @override
+  List<Object?> get props => [email];
+}

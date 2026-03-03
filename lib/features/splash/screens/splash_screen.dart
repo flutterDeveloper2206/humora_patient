@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
+import 'package:humora_patient/common/widgets/common_image.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 
@@ -52,8 +53,10 @@ class _SplashScreenState extends State<SplashScreen>
           FadeTransition(
             opacity: _fadeAnimation,
             child: Center(
-              child: Image.asset(
-                'assets/image/splash.png',
+              child: CommonImage(
+                height: double.maxFinite,
+                fit: BoxFit.cover,
+              path:   'assets/image/splash.png',
 
               ),
             ),

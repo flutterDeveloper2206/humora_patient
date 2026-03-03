@@ -150,35 +150,7 @@ class _SwipeableButtonState extends State<SwipeableButton>
                   ),
                 ),
               ),
-            // Leading sliding arrow/icon
-            Positioned(
-              left: 4.w + _slidePosition,
-              child: AnimatedOpacity(
-                opacity: _isLoading ? 0 : 1,
-                duration: const Duration(milliseconds: 300),
-                child: widget.iconPath != null
-                    ? CommonImage(
-                        path: widget.iconPath!,
-                        height: 48.w,
-                        width: 48.w,
-                      )
-                    : Container(
-                        width: 48.w,
-                        height: 48.w,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12.r),
-                        ),
-                        child: Center(
-                          child: Icon(
-                            Icons.arrow_forward,
-                            color: Colors.black,
-                            size: 24.sp,
-                          ),
-                        ),
-                      ),
-              ),
-            ),
+
             // Center content
             if (!_isLoading)
               Row(mainAxisAlignment: MainAxisAlignment.center,
@@ -213,6 +185,36 @@ class _SwipeableButtonState extends State<SwipeableButton>
                   strokeWidth: 2.5,
                 ),
               ),
+
+            // Leading sliding arrow/icon
+            Positioned(
+              left: 4.w + _slidePosition,
+              child: AnimatedOpacity(
+                opacity: _isLoading ? 0 : 1,
+                duration: const Duration(milliseconds: 300),
+                child: widget.iconPath != null
+                    ? CommonImage(
+                  path: widget.iconPath!,
+                  height: 48.w,
+                  width: 48.w,
+                )
+                    : Container(
+                  width: 48.w,
+                  height: 48.w,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                  child: Center(
+                    child: Icon(
+                      Icons.arrow_forward,
+                      color: Colors.black,
+                      size: 24.sp,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
