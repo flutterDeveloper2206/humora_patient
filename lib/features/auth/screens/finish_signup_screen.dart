@@ -375,7 +375,7 @@ class _FinishSignupScreenState extends State<FinishSignupScreen>
           if (date != null) {
             setState(() {
               _birthdateController.text =
-                  "${date.day}/${date.month}/${date.year}";
+                  "${date.month}/${date.day}/${date.year}";
             });
           }
         },

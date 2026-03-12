@@ -56,7 +56,7 @@ class ResetPasswordScreen extends StatelessWidget {
                   children: [
                     SizedBox(height: 26.h),
                     Text(
-                      "Enter the email address associated with you account, and we'll email you a link to reset your password.",
+                      "Enter the email address associated with your account, and we'll email you a link to reset your password.",
                       style: AppTextStyles.bodyMedium,
                     ),
                     SizedBox(height: 28.h),

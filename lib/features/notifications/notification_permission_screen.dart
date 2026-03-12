@@ -72,14 +72,13 @@ class NotificationPermissionView extends StatelessWidget {
               SizedBox(height: 44.h),
               CommonButton(
                 text: "Yes, notify me",
-                textStyle: AppTextStyles.button.copyWith(color: AppColors.white,fontWeight: FontWeight.w600),
+                backgroundColor: AppColors.darkButton,
                 onPressed: () {
                   context.read<NotificationPermissionBloc>().add(
                     RequestNotificationPermission(),
                   );
                 },
-                backgroundColor: AppColors.darkButton,
-                width: 160.w,
+                width: 166.w,
               ),
               SizedBox(height: 16.h),
               CommonButton(

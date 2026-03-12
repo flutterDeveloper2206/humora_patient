@@ -120,9 +120,9 @@ class _WelcomeViewState extends State<WelcomeView>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Healing Journey\nBegin Your',
+                              'Begin Your\nHealing Journey',
                               style: AppTextStyles.h1.copyWith(
-                                fontSize: 38.sp,
+                                fontSize: 43.sp,
                                 height: 0.9,
                                 letterSpacing: -1,
                                 color: AppColors.white,
@@ -145,6 +145,7 @@ class _WelcomeViewState extends State<WelcomeView>
                                   Expanded(
                                     child: CommonButton(
                                       text: 'Get Started',
+                                      borderRadius: 10.r,
                                       backgroundColor: AppColors.white,
                                       textColor: AppColors.textPrimary,
                                       textStyle: AppTextStyles.bodyLarge
@@ -163,6 +164,8 @@ class _WelcomeViewState extends State<WelcomeView>
                                     child: CommonButton(
                                       text: 'Sign In',
                                       backgroundColor: Colors.transparent,
+                                      borderRadius: 10.r,
+
                                       textStyle: AppTextStyles.bodyLarge
                                           .copyWith(
                                             fontWeight: FontWeight.w400,
