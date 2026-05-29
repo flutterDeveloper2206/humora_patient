@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../data/healer_model.dart';
 
 abstract class HealerDetailEvent extends Equatable {
   const HealerDetailEvent();
@@ -53,4 +54,12 @@ class NavigateWeek extends HealerDetailEvent {
 
   @override
   List<Object?> get props => [weeks];
+}
+
+class ChangeSessionType extends HealerDetailEvent {
+  final SessionType sessionType;
+  const ChangeSessionType(this.sessionType);
+
+  @override
+  List<Object?> get props => [sessionType];
 }

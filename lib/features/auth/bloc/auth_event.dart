@@ -15,6 +15,31 @@ class LoginRequested extends AuthEvent {
   List<Object> get props => [phoneNumber];
 }
 
+class SendOtpRequested extends AuthEvent {
+  final String mobile;
+  final String countryCode;
+
+  const SendOtpRequested({required this.mobile, required this.countryCode});
+
+  @override
+  List<Object> get props => [mobile, countryCode];
+}
+
+class VerifyOtpRequested extends AuthEvent {
+  final String mobile;
+  final String countryCode;
+  final String code;
+
+  const VerifyOtpRequested({
+    required this.mobile,
+    required this.countryCode,
+    required this.code,
+  });
+
+  @override
+  List<Object> get props => [mobile, countryCode, code];
+}
+
 class EmailLoginRequested extends AuthEvent {
   final String email;
   const EmailLoginRequested(this.email);
@@ -39,19 +64,17 @@ class EmailSignupRequested extends AuthEvent {
 class FinishSignupRequested extends AuthEvent {
   final String firstName;
   final String lastName;
-  final String gender;
-
-  final String? country;
-  final String? birthDate;
+  final String email;
+  final int gender;
+  final String birthDate;
   final String? timeZone;
 
   const FinishSignupRequested({
     required this.firstName,
     required this.lastName,
+    required this.email,
     required this.gender,
-
-    this.country,
-    this.birthDate,
+    required this.birthDate,
     this.timeZone,
   });
 
@@ -59,10 +82,9 @@ class FinishSignupRequested extends AuthEvent {
   List<Object> get props => [
     firstName,
     lastName,
+    email,
     gender,
-
-    country ?? '',
-    birthDate ?? '',
+    birthDate,
     timeZone ?? '',
   ];
 }

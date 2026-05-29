@@ -1,10 +1,15 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'healer_event.dart';
 import 'healer_state.dart';
-import '../data/healer_model.dart';
+import '../data/healer_api_service.dart';
+import '../data/healer_api_models.dart';
 
 class HealerBloc extends Bloc<HealerEvent, HealerState> {
-  HealerBloc() : super(HealerInitial()) {
+  final HealerApiService _apiService;
+
+  HealerBloc({HealerApiService? apiService}) 
+      : _apiService = apiService ?? HealerApiService(),
+        super(HealerInitial()) {
     on<FetchHealersRequested>(_onFetchHealers);
     on<SearchHealersRequested>(_onSearchHealers);
   }
@@ -15,80 +20,25 @@ class HealerBloc extends Bloc<HealerEvent, HealerState> {
   ) async {
     emit(HealerLoading());
     try {
-      await Future.delayed(const Duration(seconds: 1));
-      emit(const HealerLoaded(_mockHealers));
+      final request = ApprovedHealersRequestModel();
+      final healers = await _apiService.fetchApprovedHealers(request);
+      emit(HealerLoaded(healers));
     } catch (e) {
-      emit(const HealerError("Failed to fetch healers"));
+      emit(HealerError("Failed to fetch healers: $e"));
     }
   }
 
   void _onSearchHealers(
     SearchHealersRequested event,
     Emitter<HealerState> emit,
-  ) {
-    if (state is HealerLoaded) {
-      final filteredHealers = _mockHealers.where((healer) {
-        return healer.name.toLowerCase().contains(event.query.toLowerCase());
-      }).toList();
-      emit(HealerLoaded(filteredHealers));
+  ) async {
+    emit(HealerLoading());
+    try {
+      final request = ApprovedHealersRequestModel(searchValue: event.query);
+      final healers = await _apiService.fetchApprovedHealers(request);
+      emit(HealerLoaded(healers));
+    } catch (e) {
+      emit(HealerError("Failed to search healers: $e"));
     }
   }
-
-  static const List<HealerModel> _mockHealers = [
-    HealerModel(
-      id: '1',
-      name: 'Dr. Hannibal Lector',
-      imageUrl: 'assets/image/111.png',
-      specialization: 'Emotional Healing',
-      experienceYears: 5,
-      rating: 4.5,
-      reviewsCount: 999,
-      isAvailableNow: true,
-      feesPerMin: 30,
-      availability: const [
-
-        HealerAvailability(  date: 'Mar 11',day: 'Mon', periods: ['Morning'], isAvailable: true),
-        HealerAvailability(date: 'Mar 12',day: 'Tue', periods: ['Morning', 'Afternoon'], isAvailable: false
-        ),
-        HealerAvailability(date: 'Mar 13',day: 'Wed', periods: ['Evening'], isAvailable: true),
-        HealerAvailability(date: 'Mar 14',day: 'Thu', periods: ['Afternoon'], isAvailable: true),
-      ],
-    ),
-    HealerModel(
-      id: '2',
-      name: 'Jane Smith',
-      imageUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2',
-      specialization: 'Yoga Expert',
-      experienceYears: 8,
-      rating: 4.8,
-      reviewsCount: 32,
-      isAvailableNow: true,
-      feesPerMin: 40,
-      availability: const [
-        HealerAvailability(  date: 'Mar 11',day: 'Mon', periods: ['Morning'], isAvailable: true),
-        HealerAvailability(date: 'Mar 12',day: 'Tue', periods: ['Morning', 'Afternoon'], isAvailable: false
-        ),
-        HealerAvailability(date: 'Mar 13',day: 'Wed', periods: ['Evening'], isAvailable: true),
-        HealerAvailability(date: 'Mar 14',day: 'Thu', periods: ['Afternoon'], isAvailable: true),
-      ],
-    ),
-    HealerModel(
-      id: '3',
-      name: 'Michael Chen',
-      imageUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d',
-      specialization: 'Physiotherapist',
-      experienceYears: 15,
-      rating: 4.9,
-      reviewsCount: 124,
-      isAvailableNow: false,
-      feesPerMin: 60,
-      availability: const [
-        HealerAvailability(  date: 'Mar 11',day: 'Mon', periods: ['Morning'], isAvailable: true),
-        HealerAvailability(date: 'Mar 12',day: 'Tue', periods: ['Morning', 'Afternoon'], isAvailable: false
-        ),
-        HealerAvailability(date: 'Mar 13',day: 'Wed', periods: ['Evening'], isAvailable: true),
-        HealerAvailability(date: 'Mar 14',day: 'Thu', periods: ['Afternoon'], isAvailable: true),
-      ],
-    ),
-  ];
 }

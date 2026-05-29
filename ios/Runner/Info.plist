@@ -51,5 +51,18 @@
 	<string>This app needs access to your camera to let you take and send photos in chat.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>This app needs access to your microphone when recording videos.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.example.humoraPatient.stripe</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>humorapatient</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

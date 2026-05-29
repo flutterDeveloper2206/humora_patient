@@ -1,0 +1,274 @@
+---
+description: Humora Patient — architecture, API flow, UI theme, and coding conventions. Read before any task.
+alwaysApply: true
+---
+
+# Humora Patient — Project Rules
+
+**Humora Patient** is a Flutter patient app for mental-health / healing counseling: onboarding, healer discovery, sessions, live calls, chat, payments, and reminders.
+
+## Tech stack
+
+- Flutter (Dart SDK `^3.9.0`), Material 3
+- **State:** `flutter_bloc` + `equatable`
+- **Navigation:** `go_router` → `lib/routes/app_router.dart`
+- **Layout:** `flutter_screenutil` — design size `375×812` in `main.dart`
+- **HTTP:** `package:http` (not Dio)
+- **Session:** `shared_preferences` via `SessionManager`
+- **Loading UI:** `auto_skeleton` — configured globally in `main.dart`
+- **Assets:** `assets/image/`, `assets/images/`, `assets/fonts/` (GeneralSans)
+
+---
+
+## API flow (required pattern)
+
+### Layered flow
+
+```
+UI (Screen/Widget)
+  → BLoC (event in, state out)
+    → *ApiService (HTTP + parse)
+      → ApiEndpoints (URLs only)
+    → SessionManager (token / patientId)
+  → UI models (HealerModel, etc.) for display
+```
+
+**Rules:**
+- **Never** call `http` directly from widgets or BLoCs — use a feature `*ApiService`.
+- **All URLs** go in `lib/core/constants/api_endpoints.dart` only.
+- **Auth token** via `SessionManager.getToken()`; **patient ID** via `SessionManager.getPatientId()`.
+- After login/OTP: save with `SessionManager.saveToken()` and `savePatientId()`.
+- Logout: `SessionManager.clearSession()`.
+
+### Base URL & endpoints
+
+- Base: `https://api.devhealer.hyperbeen.com/api/v1`
+- Defined in `ApiEndpoints` — add new paths there, never hardcode URLs in services.
+
+| Endpoint helper | Method | Auth |
+|-----------------|--------|------|
+| `sendOtp` | POST | No |
+| `verifyOtp` | POST | No |
+| `saveProfile(patientId)` | POST | Bearer |
+| `categorySpecializations` | GET | Bearer |
+| `savePreference(patientId)` | POST | Bearer |
+| `approvedHealers` | POST | Bearer |
+| `approvedHealerDetails(healerId)` | GET | Bearer |
+
+### ApiService conventions
+
+Place under `lib/features/<feature>/data/<feature>_api_service.dart`.
+
+```dart
+// ✅ Pattern (match AuthApiService / HealingFocusApiService)
+class XApiService {
+  final http.Client _client;
+  XApiService({http.Client? client}) : _client = client ?? http.Client();
+
+  Map<String, dynamic> _parseResponse(http.Response response, Uri url) {
+    // jsonDecode, status 2xx, extract message/error/errors on failure
+  }
+
+  Future<XResponse> someCall(...) async {
+    final headers = {
+      'accept': '*/*',
+      'Content-Type': 'application/json', // when body is JSON
+      if (needsAuth) 'Authorization': 'Bearer $token',
+    };
+    developer.log('--- API REQUEST ---', name: 'XApiService');
+    // ... post/get → _parseResponse → Model.fromJson
+  }
+}
+```
+
+- **Request/response models:** `lib/features/<feature>/data/models/` with `toJson()` / `fromJson()`.
+- **API DTOs vs UI models:** Keep `*_api_models.dart` for raw API shapes; map to UI models (e.g. `HealerModel.fromApi()`).
+- **Errors:** Throw `Exception(message)` with server `message` / `error` / `errors` when present.
+- **Logging:** Use `dart:developer` `log()` — log URL, status, body on request/response.
+- **Headers:** Always include `'accept': '*/*'`; authenticated calls use `'Authorization': 'Bearer $token'`.
+
+### BLoC + API wiring
+
+```dart
+class XBloc extends Bloc<XEvent, XState> {
+  final XApiService _apiService;
+  XBloc({XApiService? apiService})
+      : _apiService = apiService ?? XApiService(),
+        super(XInitial()) {
+    on<LoadX>(_onLoad);
+  }
+
+  Future<void> _onLoad(LoadX event, Emitter<XState> emit) async {
+    emit(XLoading());
+    try {
+      final token = await SessionManager.getToken();
+      final data = await _apiService.fetch(..., token!);
+      emit(XLoaded(data));
+    } catch (e) {
+      emit(XError(e.toString().replaceAll('Exception: ', '')));
+    }
+  }
+}
+```
+
+- Emit `*Loading` before API call; `*Loaded` on success; `*Error` with user-readable message on failure.
+- Show errors in UI with `CommonFlushbar.error(context, message)` — not raw exception dumps.
+- **Mock/delay only** for unfinished flows (e.g. email login) — mark with comment; prefer real API when endpoint exists.
+
+### Adding a new API
+
+1. Add URL to `ApiEndpoints`.
+2. Create `*_models.dart` (request + response).
+3. Create `*_api_service.dart` with `_parseResponse` (copy from `AuthApiService` if no shared base yet).
+4. Inject service into BLoC; map to UI model in service or BLoC.
+5. Handle loading/error in screen via `BlocBuilder` / `BlocListener`.
+
+---
+
+## UI design & theme
+
+### Brand identity
+
+Warm, calm healthcare feel — **soft cream backgrounds**, **rose/red primary**, **GeneralSans** typography.
+
+### Colors (`AppColors` — always use, do not invent)
+
+| Token | Hex / usage |
+|-------|-------------|
+| `primary` | `#E81848` — CTA buttons, focus borders, accents |
+| `primaryLite` | `#FEF9FA` — success/onboarding screens bg |
+| `primaryLiteChip` | `#FFCFD5` — chips, highlights |
+| `background` | `#FFFDF9` — scaffold default (theme) |
+| `surface` | `#FBFBFB` — text field fill |
+| `textPrimary` | `#1F1F1F` — headings, body |
+| `textSecondary` | `#717171` — subtitles, labels |
+| `textHint` | `#7A7A7A` — placeholders |
+| `divider` | `#D9DDDF` — card borders |
+| `error` | red — validation, flushbar errors |
+| `darkButton` | `#221F1F` — secondary dark CTAs |
+
+Card surfaces often use `#F9FBFC` with light shadow — prefer `AppColors.surface` / `divider` when adding new cards.
+
+### Typography (`AppTextStyles` + `.sp`)
+
+| Style | Size | Weight | Use |
+|-------|------|--------|-----|
+| `h1` | 24.sp | bold | Screen titles |
+| `h2` | 20.sp | w700 | Section headers |
+| `h3` | 18.sp | w600 | Subsections |
+| `bodyLarge` | 16.sp | w500 | Primary body |
+| `bodyMedium` | 14.sp | w500 | Default text, inputs |
+| `bodySmall` | 12.sp | normal | Meta, dates |
+| `label` | 12.sp | w400 | Field labels |
+| `button` | 16.sp | w500 | Button text (white on primary) |
+| `caption` | 12.sp | normal | Hints, footnotes |
+
+- Font family: **`GeneralSans`** only (`AppTextStyles.fontFamily`).
+- Do **not** use `google_fonts` for new screens unless explicitly required.
+
+### Spacing & layout
+
+- Screen horizontal padding: **`20.w`** (standard from home/healer screens).
+- Section gaps: **`8.h`–`16.h`** between label and field; **`20.h`–`24.h`** between sections.
+- Card padding: **`12.w`**; card radius: **`16.r`**.
+- Input/button radius: **`12.r`**.
+- Avatar/circle images: **`30.r`** or `50.w` square with `ClipRRect`.
+- All sizes via ScreenUtil: `.w`, `.h`, `.sp`, `.r` — no raw pixel literals for layout.
+
+### Shared widgets (use first)
+
+| Widget | When |
+|--------|------|
+| `CommonButton` | Primary CTA — height `52.h`, radius `12.r`, bg `AppColors.primary` |
+| `CommonTextField` | All form inputs — filled `AppColors.surface`, focus border `primary` |
+| `CommonImage` | Local assets + network paths |
+| `CommonFlushbar` | success / error / warning toasts (top position default) |
+| `CommonSuccessScreen` | Route `/success` with `extra` map for image, title, CTA |
+| `SwipeableButton` | Swipe-to-confirm actions |
+
+### Screen structure
+
+```dart
+Scaffold(
+  backgroundColor: AppColors.background, // or Colors.white for list-heavy screens
+  body: SafeArea(
+    child: BlocBuilder<XBloc, XState>(
+      builder: (context, state) {
+        if (state is XLoading) return /* AutoSkeleton or CircularProgressIndicator */;
+        if (state is XError) return /* error UI + retry */;
+        // loaded content
+      },
+    ),
+  ),
+)
+```
+
+### Loading states
+
+- Global skeleton colors in `main.dart`: base `#E0E0E0`, highlight `#F5F5F5`.
+- Wrap loading list/detail content in **`AutoSkeleton`** (see `healer_list_screen`, `home_screen`).
+- Full-screen first load: `Center(child: CircularProgressIndicator())` only if skeleton not used.
+
+### Cards & chips
+
+- Cards: light bg, `BorderRadius.circular(16.r)`, subtle `BoxShadow` opacity `0.02`, border `AppColors.divider`.
+- Availability / tags: `AvailabilityChip` pattern — available = pink tint `#FFF2F5` + `primary` border.
+
+### Feedback & navigation
+
+- Errors: `CommonFlushbar.error(context, state.message)`.
+- Success: `CommonFlushbar.success` or navigate to `/success` with `extra`.
+- Navigation: `context.push`, `context.go`, path params (`/healer-detail/:healerId`).
+
+---
+
+## Directory layout
+
+```
+lib/
+├── main.dart
+├── routes/app_router.dart
+├── core/
+│   ├── constants/     # AppColors, AppTextStyles, ApiEndpoints
+│   └── utils/           # SessionManager
+├── common/              # widgets, screens, utils
+└── features/<name>/
+    ├── bloc/
+    ├── data/            # *ApiService, models, UI models
+    └── presentation/    # preferred for new UI
+        ├── pages/
+        └── widgets/
+```
+
+**New features:** `bloc/` + `data/` + `presentation/pages/` + `presentation/widgets/`.
+
+---
+
+## Before starting any task
+
+1. Read `app_router.dart` if navigation or new screen.
+2. Check `ApiEndpoints` and existing `*ApiService` for the feature.
+3. Reuse `AppColors`, `AppTextStyles`, common widgets.
+4. Match import style of nearest file (`package:humora_patient/...` preferred for cross-feature).
+
+## Scope
+
+- Minimal diff; no drive-by refactors.
+- No commits / README / tests unless asked.
+- No `android/` / `ios/` edits unless platform task.
+- Run `flutter analyze` on touched code when non-trivial.
+
+## Feature map
+
+| Area | `lib/features/` |
+|------|-----------------|
+| Auth / onboarding | `auth`, `splash`, `welcome`, `language`, `expertise`, `specialization`, `security_number`, `notifications`, `healing_focus` |
+| Home / discovery | `home`, `healers` |
+| Sessions | `healing_sessions`, `sessions`, `scheduled_sessions`, `live_counselling_session`, `appointment_reminder` |
+| Comms | `chat`, `video_call`, `voice_call`, `group_session` |
+| Payments | `payment`, `receipt` |
+| System | `permissions` |
+
+## Starter prompt
+
+> Follow `.cursor/rules/humora-patient.mdc`. [Your task here.]

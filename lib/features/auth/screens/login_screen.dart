@@ -21,17 +21,24 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen>
     with SingleTickerProviderStateMixin {
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _inputController = TextEditingController();
+  String _selectedCountryCode = '91';
   bool _isLogin = true;
-  bool _obscurePassword = true;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
 
+  bool get _isInputEmail {
+    if (!_isLogin) return false;
+    final text = _inputController.text.trim();
+    if (text.isEmpty) return true;
+    return text.contains('@') || RegExp(r'[a-zA-Z]').hasMatch(text);
+  }
+
   @override
   void initState() {
     super.initState();
+    _inputController.addListener(_onInputChanged);
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1000),
@@ -53,10 +60,14 @@ class _LoginScreenState extends State<LoginScreen>
     _animationController.forward();
   }
 
+  void _onInputChanged() {
+    setState(() {});
+  }
+
   @override
   void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
+    _inputController.removeListener(_onInputChanged);
+    _inputController.dispose();
     _animationController.dispose();
     super.dispose();
   }
@@ -76,6 +87,15 @@ class _LoginScreenState extends State<LoginScreen>
                 CommonFlushbar.success(context, "Signup Successful");
                 context.push('/finish-signup');
               }
+            } else if (state is OtpSentSuccess) {
+              CommonFlushbar.success(context, state.message);
+              context.push(
+                '/signup-otp',
+                extra: {
+                  'mobile': _inputController.text.trim(),
+                  'countryCode': _selectedCountryCode,
+                },
+              );
             } else if (state is AuthError) {
               CommonFlushbar.error(context, state.message);
             }
@@ -129,9 +149,28 @@ class _LoginScreenState extends State<LoginScreen>
                               });
                             },
                           ),
-                          SizedBox(height: 10.h),
+                          SizedBox(height: 15.h),
 
-                          // Email Input
+                          // Input Label
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Padding(
+                              padding: EdgeInsets.only(left: 4.w),
+                              child: Text(
+                                _isLogin
+                                    ? 'Email or Mobile number'
+                                    : 'Mobile number',
+                                style: AppTextStyles.bodySmall.copyWith(
+                                  color: const Color(0xff4C4C4C),
+                                  fontSize: 13.sp,
+                                  fontWeight: FontWeight.w400,
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: 8.h),
+
+                          // Unified Input (Email or Mobile number with auto identity)
                           Container(
                             decoration: BoxDecoration(
                               color: Colors.white,
@@ -139,18 +178,73 @@ class _LoginScreenState extends State<LoginScreen>
                               border: Border.all(color: Colors.grey[200]!),
                             ),
                             child: TextField(
-                              controller: _emailController,
+                              controller: _inputController,
+                              keyboardType: _isInputEmail
+                                  ? TextInputType.emailAddress
+                                  : TextInputType.phone,
                               style: AppTextStyles.bodyMedium,
                               decoration: InputDecoration(
-                                hintText: 'ronakpatel@gmail.com',
+                                hintText: _isInputEmail
+                                    ? 'ronakpatel@gmail.com'
+                                    : 'Enter mobile number',
                                 hintStyle: AppTextStyles.bodyMedium.copyWith(
                                   color: Colors.grey[400],
                                 ),
-                                prefixIcon: Icon(
-                                  Icons.person,
-                                  color: Colors.black,
-                                  size: 20.sp,
-                                ),
+                                prefixIcon: _isInputEmail
+                                    ? Icon(
+                                        Icons.person,
+                                        color: Colors.black,
+                                        size: 20.sp,
+                                      )
+                                    : Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          SizedBox(width: 12.w),
+                                          DropdownButtonHideUnderline(
+                                            child: DropdownButton<String>(
+                                              value: _selectedCountryCode,
+                                              icon: const Icon(
+                                                Icons.arrow_drop_down,
+                                                color: Colors.black,
+                                              ),
+                                              style: AppTextStyles.bodyMedium
+                                                  .copyWith(
+                                                    fontWeight: FontWeight.w600,
+                                                    color: Colors.black,
+                                                  ),
+                                              onChanged: (String? newValue) {
+                                                if (newValue != null) {
+                                                  setState(() {
+                                                    _selectedCountryCode =
+                                                        newValue;
+                                                  });
+                                                }
+                                              },
+                                              items: const [
+                                                DropdownMenuItem(
+                                                  value: '91',
+                                                  child: Text('🇮🇳 +91'),
+                                                ),
+                                                DropdownMenuItem(
+                                                  value: '1',
+                                                  child: Text('🇺🇸 +1'),
+                                                ),
+                                                DropdownMenuItem(
+                                                  value: '44',
+                                                  child: Text('🇬🇧 +44'),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          SizedBox(width: 8.w),
+                                          Container(
+                                            width: 1,
+                                            height: 24.h,
+                                            color: Colors.grey[300],
+                                          ),
+                                          SizedBox(width: 8.w),
+                                        ],
+                                      ),
                                 border: InputBorder.none,
                                 contentPadding: EdgeInsets.symmetric(
                                   vertical: 16.h,
@@ -158,52 +252,7 @@ class _LoginScreenState extends State<LoginScreen>
                               ),
                             ),
                           ),
-                          if (!_isLogin) ...[
-                            SizedBox(height: 10.h),
-                            // Password Input (Only for Signup)
-                            Container(
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12.r),
-                                border: Border.all(color: Colors.grey[200]!),
-                              ),
-                              child: TextField(
-                                controller: _passwordController,
-                                obscureText: _obscurePassword,
-                                style: AppTextStyles.bodyMedium,
-                                decoration: InputDecoration(
-                                  hintText: 'Admin@1234',
-                                  hintStyle: AppTextStyles.bodyMedium.copyWith(
-                                    color: Colors.grey[400],
-                                  ),
-                                  prefixIcon: Icon(
-                                    Icons.lock,
-                                    color: Colors.black,
-                                    size: 20.sp,
-                                  ),
-                                  suffixIcon: IconButton(
-                                    icon: Icon(
-                                      _obscurePassword
-                                          ? Icons.visibility_off_outlined
-                                          : Icons.visibility_outlined,
-                                      color: Colors.black,
-                                      size: 20.sp,
-                                    ),
-                                    onPressed: () {
-                                      setState(() {
-                                        _obscurePassword = !_obscurePassword;
-                                      });
-                                    },
-                                  ),
-                                  border: InputBorder.none,
-                                  contentPadding: EdgeInsets.symmetric(
-                                    vertical: 16.h,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                          SizedBox(height: 10.h),
+                          SizedBox(height: 16.h),
 
                           // Continue Button
                           BlocBuilder<AuthBloc, AuthState>(
@@ -220,33 +269,23 @@ class _LoginScreenState extends State<LoginScreen>
                                     fontWeight: FontWeight.w500,
                                   ),
                                   onPressed: () {
-                                    if (_emailController.text.isEmpty) {
+                                    final text = _inputController.text.trim();
+                                    if (text.isEmpty) {
                                       CommonFlushbar.error(
                                         context,
-                                        "Please enter email",
+                                        "Please enter email or mobile number",
                                       );
                                       return;
                                     }
-                                    if (!_isLogin &&
-                                        _passwordController.text.isEmpty) {
-                                      CommonFlushbar.error(
-                                        context,
-                                        "Please enter password",
-                                      );
-                                      return;
-                                    }
-
-                                    if (_isLogin) {
+                                    if (_isInputEmail) {
                                       context.read<AuthBloc>().add(
-                                        EmailLoginRequested(
-                                          _emailController.text,
-                                        ),
+                                        EmailLoginRequested(text),
                                       );
                                     } else {
                                       context.read<AuthBloc>().add(
-                                        EmailSignupRequested(
-                                          _emailController.text,
-                                          _passwordController.text,
+                                        SendOtpRequested(
+                                          mobile: text,
+                                          countryCode: _selectedCountryCode,
                                         ),
                                       );
                                     }

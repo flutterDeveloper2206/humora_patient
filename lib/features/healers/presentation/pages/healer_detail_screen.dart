@@ -7,7 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import '../../../../common/widgets/common_image.dart';
-import '../../../../common/widgets/common_button.dart';
+import 'package:auto_skeleton/auto_skeleton.dart';
 import '../../../../common/widgets/swipeable_button.dart';
 import 'package:intl/intl.dart';
 import '../../data/healer_model.dart';
@@ -29,11 +29,22 @@ class HealerDetailScreen extends StatelessWidget {
       create: (context) => HealerDetailBloc()..add(LoadHealerDetail(healerId)),
       child: BlocBuilder<HealerDetailBloc, HealerDetailState>(
         builder: (context, state) {
+          final isLoading = state is HealerDetailLoading || state is HealerDetailInitial;
+          final loadedState = state is HealerDetailLoaded
+              ? state
+              : HealerDetailLoaded(
+                  healer: HealerModel.dummy(),
+                  selectedDate: DateTime.now(),
+                  focusedDate: DateTime.now(),
+                  selectedTimeCategory: 'Morning',
+                  selectedTime: '11:00 AM',
+                );
+
           return Scaffold(
             backgroundColor: Colors.white,
-            body: _buildBody(context, state),
-            bottomNavigationBar: state is HealerDetailLoaded
-                ? _buildBottomBar(context, state)
+            body: _buildBody(context, state, loadedState, isLoading),
+            bottomNavigationBar: (state is HealerDetailLoaded || state is HealerDetailLoading)
+                ? _buildBottomBar(context, loadedState)
                 : null,
           );
         },
@@ -41,15 +52,24 @@ class HealerDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBody(BuildContext context, HealerDetailState state) {
-    if (state is HealerDetailLoading) {
-      return const Center(child: CircularProgressIndicator());
-    } else if (state is HealerDetailLoaded) {
-      return _buildScreen(context, state);
-    } else if (state is HealerDetailError) {
+  Widget _buildBody(
+    BuildContext context,
+    HealerDetailState state,
+    HealerDetailLoaded loadedState,
+    bool isLoading,
+  ) {
+    if (state is HealerDetailError) {
       return Center(child: Text(state.message));
     }
-    return const SizedBox.shrink();
+
+    return AutoSkeleton(
+      enabled: isLoading,
+      effect: const ShimmerEffect(
+        baseColor: Color(0xFFE0E0E0),
+        highlightColor: Color(0xFFF5F5F5),
+      ),
+      child: _buildScreen(context, loadedState),
+    );
   }
 
   Widget _buildScreen(BuildContext context, HealerDetailLoaded state) {
@@ -465,6 +485,93 @@ class HealerDetailScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildSessionTypeSelector(
+    BuildContext context,
+    HealerDetailLoaded state,
+  ) {
+    return Container(
+      height: 38.h,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5F5F5),
+        borderRadius: BorderRadius.circular(19.r),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: () => context.read<HealerDetailBloc>().add(
+                    const ChangeSessionType(SessionType.personal),
+                  ),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: state.selectedSessionType == SessionType.personal
+                      ? Colors.white
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(19.r),
+                  boxShadow: state.selectedSessionType == SessionType.personal
+                      ? [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : [],
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  'Personal Session',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    fontSize: 11.sp,
+                    color: state.selectedSessionType == SessionType.personal
+                        ? AppColors.textPrimary
+                        : const Color(0xff727272),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: GestureDetector(
+              onTap: () => context.read<HealerDetailBloc>().add(
+                    const ChangeSessionType(SessionType.group),
+                  ),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: state.selectedSessionType == SessionType.group
+                      ? Colors.white
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(19.r),
+                  boxShadow: state.selectedSessionType == SessionType.group
+                      ? [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : [],
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  'Group Session',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    fontSize: 11.sp,
+                    color: state.selectedSessionType == SessionType.group
+                        ? AppColors.textPrimary
+                        : const Color(0xff727272),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildAvailabilityContent(
     BuildContext context,
     HealerModel healer,
@@ -478,6 +585,8 @@ class HealerDetailScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              _buildSessionTypeSelector(context, state),
+              SizedBox(height: 16.h),
               _buildDateHeader(context, state),
               SizedBox(height: 5.h),
               Text(
@@ -491,7 +600,7 @@ class HealerDetailScreen extends StatelessWidget {
             ],
           ),
         ),
-        _buildDatePicker(context, state),
+        _buildDatePicker(context, healer, state),
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 22.w),
           child: Column(
@@ -508,7 +617,7 @@ class HealerDetailScreen extends StatelessWidget {
               SizedBox(height: 5.h),
               _buildTimeCategoryPicker(context, state),
               SizedBox(height: 10.h),
-              _buildTimeSlotPicker(context, state),
+              _buildTimeSlotPicker(context, healer, state),
             ],
           ),
         ),
@@ -544,17 +653,39 @@ class HealerDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildDatePicker(BuildContext context, HealerDetailLoaded state) {
-    final focusedDate =
-        state.focusedDate ?? state.selectedDate ?? DateTime.now();
-    // Calculate Monday of the focused week
-    final monday = focusedDate.subtract(
-      Duration(days: focusedDate.weekday - 1),
-    );
-    final dates = List.generate(
-      7,
-      (index) => monday.add(Duration(days: index)),
-    );
+  Widget _buildDatePicker(
+    BuildContext context,
+    HealerModel healer,
+    HealerDetailLoaded state,
+  ) {
+    List<DateTime> dates = [];
+    if (healer.rawSlots.isNotEmpty) {
+      final uniqueDates = <String>{};
+      for (final slot in healer.rawSlots) {
+        if (slot.date.isNotEmpty && slot.sessionType == state.selectedSessionType.value) {
+          uniqueDates.add(slot.date);
+        }
+      }
+      for (final dateStr in uniqueDates) {
+        try {
+          dates.add(DateTime.parse(dateStr));
+        } catch (_) {}
+      }
+      dates.sort((a, b) => a.compareTo(b));
+    }
+
+    if (dates.isEmpty) {
+      final focusedDate =
+          state.focusedDate ?? state.selectedDate ?? DateTime.now();
+      // Calculate Monday of the focused week
+      final monday = focusedDate.subtract(
+        Duration(days: focusedDate.weekday - 1),
+      );
+      dates = List.generate(
+        7,
+        (index) => monday.add(Duration(days: index)),
+      );
+    }
 
     return SizedBox(
       height: 80.h,
@@ -717,8 +848,59 @@ class HealerDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTimeSlotPicker(BuildContext context, HealerDetailLoaded state) {
-    final slots = ['08:00 AM', '09:00 AM', '10:00 AM', '11:00 AM'];
+  Widget _buildTimeSlotPicker(
+    BuildContext context,
+    HealerModel healer,
+    HealerDetailLoaded state,
+  ) {
+    final selectedDateStr = DateFormat('yyyy-MM-dd').format(state.selectedDate ?? DateTime.now());
+    final dateSlots = healer.rawSlots
+        .where((slot) => slot.date == selectedDateStr && slot.sessionType == state.selectedSessionType.value)
+        .toList();
+    
+    final slots = <String>[];
+    for (final slot in dateSlots) {
+      int hour = 9;
+      try {
+        hour = int.parse(slot.startTime.split(':')[0]);
+      } catch (_) {}
+      
+      String formatTime(String timeStr) {
+        try {
+          final parts = timeStr.split(':');
+          final h = int.parse(parts[0]);
+          final m = parts[1];
+          final ampm = h >= 12 ? 'PM' : 'AM';
+          final displayHour = h == 0 ? 12 : (h > 12 ? h - 12 : h);
+          return '${displayHour.toString().padLeft(2, '0')}:$m $ampm';
+        } catch (_) {
+          return timeStr;
+        }
+      }
+      
+      final displaySlot = '${formatTime(slot.startTime)} - ${formatTime(slot.endTime)}';
+      
+      if (state.selectedTimeCategory == 'Morning' && hour < 12) {
+        slots.add(displaySlot);
+      } else if (state.selectedTimeCategory == 'Afternoon' && hour >= 12 && hour < 16) {
+        slots.add(displaySlot);
+      } else if (state.selectedTimeCategory == 'Evening' && hour >= 16) {
+        slots.add(displaySlot);
+      }
+    }
+
+    if (slots.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 20.h),
+          child: Text(
+            'No slots available for this period',
+            style: AppTextStyles.bodyMedium.copyWith(color: Colors.grey),
+          ),
+        ),
+      );
+    }
+
     return Wrap(
       spacing: 8.w,
       runSpacing: 8.h,
@@ -732,17 +914,18 @@ class HealerDetailScreen extends StatelessWidget {
               color: isSelected ? null : Colors.white,
               gradient: isSelected
                   ? const LinearGradient(
-                transform: GradientRotation(7.2),
-                colors: [
-                  Color(0xFF1F1F1F), // Base Dark
-                  Color(0xFF333333), // Base Dark
-                  Color(0xFF525252), // Central Shine
-                  Color(0xFF333333), // Base Dark
-                  Color(0xFF1F1F1F), // Base Dark
-                ],
-                stops: [0.0, 0.40, 0.55, 0.75, 1.0],
-              )
-                  : null,              borderRadius: BorderRadius.circular(21.r),
+                      transform: GradientRotation(7.2),
+                      colors: [
+                        Color(0xFF1F1F1F),
+                        Color(0xFF333333),
+                        Color(0xFF525252),
+                        Color(0xFF333333),
+                        Color(0xFF1F1F1F),
+                      ],
+                      stops: [0.0, 0.40, 0.55, 0.75, 1.0],
+                    )
+                  : null,
+              borderRadius: BorderRadius.circular(21.r),
               border: Border.all(color: const Color(0xFFF0F0F0)),
               boxShadow: [
                 BoxShadow(
@@ -854,6 +1037,7 @@ class HealerDetailScreen extends StatelessWidget {
     HealingService service,
     bool isGroup,
   ) {
+    final sessionType = isGroup ? SessionType.group : SessionType.personal;
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -880,7 +1064,8 @@ class HealerDetailScreen extends StatelessWidget {
             'assets/image/audiocall.png',
             'Call',
             service.callPrice,
-            isGroup,
+            sessionType,
+            ConsultationType.audio,
           ),
           const Divider(height: 1, color: Color(0xFFF0F0F0)),
           _buildPriceRow(
@@ -888,7 +1073,8 @@ class HealerDetailScreen extends StatelessWidget {
             'assets/image/videocall.png',
             'Video Call',
             service.videoPrice,
-            isGroup,
+            sessionType,
+            ConsultationType.video,
           ),
           const Divider(height: 1, color: Color(0xFFF0F0F0)),
           _buildPriceRow(
@@ -896,7 +1082,8 @@ class HealerDetailScreen extends StatelessWidget {
             'assets/image/chat.png',
             'Chat',
             service.chatPrice,
-            isGroup,
+            sessionType,
+            ConsultationType.chat,
           ),
         ],
       ),
@@ -908,22 +1095,23 @@ class HealerDetailScreen extends StatelessWidget {
     String iconPath,
     String label,
     int price,
-    bool isGroup,
+    SessionType sessionType,
+    ConsultationType consultationType,
   ) {
     return GestureDetector(
-      // onTap: () {
-      //   if (isGroup) {
-      //     context.push('/group-session');
-      //     return;
-      //   }
-      //   if (label == 'Call') {
-      //     context.push('/voice-call');
-      //   } else if (label == 'Video Call') {
-      //     context.push('/video-call');
-      //   } else if (label == 'Chat') {
-      //     context.push('/chat');
-      //   }
-      // },
+      onTap: () {
+        if (sessionType == SessionType.group) {
+          context.push('/group-session');
+          return;
+        }
+        if (consultationType == ConsultationType.audio) {
+          context.push('/voice-call');
+        } else if (consultationType == ConsultationType.video) {
+          context.push('/video-call');
+        } else if (consultationType == ConsultationType.chat) {
+          context.push('/chat');
+        }
+      },
       child: Container(
         color: Colors.transparent, // For better tap area
         padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 8.h),

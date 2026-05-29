@@ -11,7 +11,8 @@ import 'bloc/notification_permission_event.dart';
 import 'bloc/notification_permission_state.dart';
 
 class NotificationPermissionScreen extends StatelessWidget {
-  const NotificationPermissionScreen({super.key});
+  final bool fromSignup;
+  const NotificationPermissionScreen({super.key, this.fromSignup = false});
 
   @override
   Widget build(BuildContext context) {
@@ -23,11 +24,11 @@ class NotificationPermissionScreen extends StatelessWidget {
               if (state.status == NotificationPermissionStatus.granted ||
                   state.status == NotificationPermissionStatus.denied ||
                   state.status == NotificationPermissionStatus.skipped) {
-                // context.push('/dashboard');
-                context.push(
-                  '/finish-signup',
-
-                );
+                if (fromSignup) {
+                  context.push('/finish-signup');
+                } else {
+                  context.push('/healing-focus');
+                }
               }
             },
             child: const NotificationPermissionView(),

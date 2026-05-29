@@ -19,6 +19,7 @@ class HealerCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
+        margin: EdgeInsets.only(bottom: 10),
         padding: EdgeInsets.all(12.w),
         decoration: BoxDecoration(
           color: Color(0xFFF9FBFC),

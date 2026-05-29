@@ -9,14 +9,31 @@ abstract class AuthState extends Equatable {
 
 class AuthInitial extends AuthState {}
 
+class OtpSentSuccess extends AuthState {
+  final String message;
+  const OtpSentSuccess(this.message);
+
+  @override
+  List<Object?> get props => [message];
+}
+
+class OtpVerificationSuccess extends AuthState {
+  final int onboardingStep;
+  const OtpVerificationSuccess(this.onboardingStep);
+
+  @override
+  List<Object?> get props => [onboardingStep];
+}
+
 class AuthLoading extends AuthState {}
 
 class AuthAuthenticated extends AuthState {
   final String userId;
-  const AuthAuthenticated(this.userId);
+  final String? message;
+  const AuthAuthenticated(this.userId, {this.message});
 
   @override
-  List<Object?> get props => [userId];
+  List<Object?> get props => [userId, message];
 }
 
 class AuthUnauthenticated extends AuthState {}

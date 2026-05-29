@@ -19,6 +19,7 @@ class HealerDetailLoaded extends HealerDetailState {
   final DateTime? focusedDate;
   final String? selectedTimeCategory;
   final String? selectedTime;
+  final SessionType selectedSessionType;
 
   const HealerDetailLoaded({
     required this.healer,
@@ -27,6 +28,7 @@ class HealerDetailLoaded extends HealerDetailState {
     this.focusedDate,
     this.selectedTimeCategory = 'Morning',
     this.selectedTime,
+    this.selectedSessionType = SessionType.personal,
   });
 
   HealerDetailLoaded copyWith({
@@ -36,6 +38,7 @@ class HealerDetailLoaded extends HealerDetailState {
     DateTime? focusedDate,
     String? selectedTimeCategory,
     String? selectedTime,
+    SessionType? selectedSessionType,
   }) {
     return HealerDetailLoaded(
       healer: healer ?? this.healer,
@@ -44,18 +47,20 @@ class HealerDetailLoaded extends HealerDetailState {
       focusedDate: focusedDate ?? this.focusedDate,
       selectedTimeCategory: selectedTimeCategory ?? this.selectedTimeCategory,
       selectedTime: selectedTime ?? this.selectedTime,
+      selectedSessionType: selectedSessionType ?? this.selectedSessionType,
     );
   }
 
   @override
   List<Object?> get props => [
-    healer,
-    activeTabIndex,
-    selectedDate,
-    focusedDate,
-    selectedTimeCategory,
-    selectedTime,
-  ];
+        healer,
+        activeTabIndex,
+        selectedDate,
+        focusedDate,
+        selectedTimeCategory,
+        selectedTime,
+        selectedSessionType,
+      ];
 }
 
 class HealerDetailError extends HealerDetailState {

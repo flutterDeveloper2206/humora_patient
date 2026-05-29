@@ -46,6 +46,12 @@ dependencies:
   intl:
   permission_handler:
   image_picker: ^1.2.1
+  http: ^1.2.1
+  shared_preferences: ^2.2.3
+  auto_skeleton: ^0.4.1
+  flutter_stripe: ^11.5.0
+  uuid: ^4.5.1
+  sensors_plus: ^7.0.0
 
 dev_dependencies:
   flutter_test:

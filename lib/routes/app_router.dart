@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:humora_patient/features/auth/screens/reset_password_screen.dart';
+import 'package:humora_patient/features/auth/screens/signup_otp_screen.dart';
 import '../features/splash/screens/splash_screen.dart';
 import '../features/auth/screens/login_screen.dart';
 import '../features/auth/screens/otp_screen.dart';
@@ -23,6 +24,7 @@ import '../features/chat/presentation/pages/chat_screen.dart';
 import '../features/voice_call/presentation/pages/voice_call_screen.dart';
 import '../features/group_session/presentation/pages/group_session_screen.dart';
 import '../features/payment/presentation/pages/payment_method_screen.dart';
+import '../features/wallet/presentation/pages/wallet_screen.dart';
 import '../features/receipt/presentation/pages/receipt_screen.dart';
 import '../features/scheduled_sessions/presentation/pages/scheduled_sessions_screen.dart';
 import '../features/live_counselling_session/screens/live_counselling_session_screen.dart';
@@ -53,6 +55,16 @@ class AppRouter {
         path: '/otp',
         builder: (context, state) =>
             OtpScreen(destination: state.extra as String? ?? ""),
+      ),
+      GoRoute(
+        path: '/signup-otp',
+        builder: (context, state) {
+          final data = state.extra as Map<String, dynamic>? ?? {};
+          return SignupOtpScreen(
+            mobile: data['mobile'] as String? ?? "",
+            countryCode: data['countryCode'] as String? ?? "",
+          );
+        },
       ), GoRoute(
         path: '/reset-password',
         builder: (context, state) =>
@@ -96,7 +108,11 @@ class AppRouter {
 
       GoRoute(
         path: '/notification-permission',
-        builder: (context, state) => const NotificationPermissionScreen(),
+        builder: (context, state) {
+          final data = state.extra as Map<String, dynamic>?;
+          final fromSignup = data?['fromSignup'] as bool? ?? false;
+          return NotificationPermissionScreen(fromSignup: fromSignup);
+        },
       ),
 
       GoRoute(
@@ -154,6 +170,10 @@ class AppRouter {
       GoRoute(
         path: '/payment-method',
         builder: (context, state) => const PaymentMethodScreen(),
+      ),
+      GoRoute(
+        path: '/wallet',
+        builder: (context, state) => const WalletScreen(),
       ),
       GoRoute(
         path: '/receipt',

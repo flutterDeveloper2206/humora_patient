@@ -6,8 +6,16 @@ import '../../../../core/constants/app_text_styles.dart';
 class LoginToggle extends StatelessWidget {
   final bool isLogin;
   final ValueChanged<bool> onToggle;
+  final String text1;
+  final String text2;
 
-  const LoginToggle({super.key, required this.isLogin, required this.onToggle});
+  const LoginToggle({
+    super.key, 
+    required this.isLogin, 
+    required this.onToggle,
+    this.text1 = 'Login',
+    this.text2 = 'Signup',
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -73,7 +81,7 @@ class LoginToggle extends StatelessWidget {
                         ),
                         alignment: Alignment.center,
                         child: Text(
-                          'Login',
+                          text1,
                           style: AppTextStyles.bodyLarge.copyWith(
                             fontWeight: isLogin
                                 ? FontWeight.w500
@@ -104,7 +112,7 @@ class LoginToggle extends StatelessWidget {
                         ),
                         alignment: Alignment.center,
                         child: Text(
-                          'Signup',
+                          text2,
                           style: AppTextStyles.bodyLarge.copyWith(
                             fontWeight: !isLogin
                                 ? FontWeight.w500

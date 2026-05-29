@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:humora_patient/common/widgets/common_image.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../core/utils/session_manager.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -28,12 +29,21 @@ class _SplashScreenState extends State<SplashScreen>
 
     _controller.forward();
 
-    // Navigate to onboarding after 3 seconds
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) {
-        context.push('/welcome');
-      }
-    });
+    _checkLoginState();
+  }
+
+  Future<void> _checkLoginState() async {
+    // Delay to show splash screen animation
+    await Future.delayed(const Duration(seconds: 3));
+    
+    if (!mounted) return;
+
+    final hasToken = await SessionManager.hasToken();
+    if (hasToken) {
+      context.go('/home');
+    } else {
+      context.go('/welcome');
+    }
   }
 
   @override

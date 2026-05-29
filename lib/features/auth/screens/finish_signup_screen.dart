@@ -5,7 +5,6 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../common/utils/common_flushbar.dart';
 import '../../../../common/widgets/common_button.dart';
-import '../../../../common/widgets/common_textfield.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import '../bloc/auth_bloc.dart';
@@ -24,9 +23,9 @@ class _FinishSignupScreenState extends State<FinishSignupScreen>
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _lastNameController = TextEditingController();
   final TextEditingController _birthdateController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
 
   String _selectedGender = 'Male';
-  String _selectedCountry = "United States (+1)";
   String? _selectedTimeZone;
 
   late AnimationController _animationController;
@@ -61,6 +60,7 @@ class _FinishSignupScreenState extends State<FinishSignupScreen>
   void dispose() {
     _firstNameController.dispose();
     _lastNameController.dispose();
+    _emailController.dispose();
     _birthdateController.dispose();
     _animationController.dispose();
     super.dispose();
@@ -70,7 +70,7 @@ class _FinishSignupScreenState extends State<FinishSignupScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.white,
-      appBar:AppBar(
+      appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
@@ -87,14 +87,16 @@ class _FinishSignupScreenState extends State<FinishSignupScreen>
           preferredSize: Size.fromHeight(0.5.h),
           child: Container(color: AppColors.divider, height: 0.5.h),
         ),
-      )
-      ,
+      ),
       body: SafeArea(
         child: BlocListener<AuthBloc, AuthState>(
           listener: (context, state) {
             if (state is AuthAuthenticated) {
-              CommonFlushbar.success(context, "Signup Completed!");
-              context.push('/reset-password');
+              CommonFlushbar.success(
+                context,
+                state.message ?? "Signup Completed!",
+              );
+              context.push('/permissions');
             } else if (state is AuthError) {
               CommonFlushbar.error(context, state.message);
             }
@@ -129,19 +131,10 @@ class _FinishSignupScreenState extends State<FinishSignupScreen>
 
                           // About Section
 
-                          // Country Section (from image)
-                          _buildDropdownField(
-                            label: "Country/Region",
-                            value: _selectedCountry,
-                            items: const [
-                              "United States (+1)",
-                              "India (+91)",
-                              "UK (+44)",
-                            ],
-                            onChanged: (val) {
-                              setState(() => _selectedCountry = val!);
-                            },
-                          ),
+                          // Email Section
+                          _buildSectionTitle("Email Address"),
+                          SizedBox(height: 10.h),
+                          _buildEmailField(),
 
                           SizedBox(height: 18),
 
@@ -211,19 +204,43 @@ class _FinishSignupScreenState extends State<FinishSignupScreen>
   void _onConfirmTapped() {
     if (_firstNameController.text.isEmpty ||
         _lastNameController.text.isEmpty ||
+        _emailController.text.isEmpty ||
         _birthdateController.text.isEmpty ||
         _selectedTimeZone == null) {
       CommonFlushbar.error(context, "Please fill all fields");
       return;
     }
 
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (!emailRegex.hasMatch(_emailController.text.trim())) {
+      CommonFlushbar.error(context, "Please enter a valid email");
+      return;
+    }
+
+    int genderValue = 0;
+    if (_selectedGender == 'Female') genderValue = 1;
+    if (_selectedGender == 'Other') genderValue = 2;
+
+    // Formatting date to match "2026-05-25" assuming MM/DD/YYYY from picker
+    // Let's actually parse and format properly or just use the picker's logic
+    String formattedDate = _birthdateController.text;
+    try {
+      final parts = _birthdateController.text.split('/');
+      if (parts.length == 3) {
+        final month = parts[0].padLeft(2, '0');
+        final day = parts[1].padLeft(2, '0');
+        final year = parts[2];
+        formattedDate = "$year-$month-$day";
+      }
+    } catch (_) {}
+
     context.read<AuthBloc>().add(
       FinishSignupRequested(
-        firstName: _firstNameController.text,
-        lastName: _lastNameController.text,
-        gender: _selectedGender,
-        country: _selectedCountry,
-        birthDate: _birthdateController.text,
+        firstName: _firstNameController.text.trim(),
+        lastName: _lastNameController.text.trim(),
+        email: _emailController.text.trim(),
+        gender: genderValue,
+        birthDate: formattedDate,
         timeZone: _selectedTimeZone,
       ),
     );
@@ -279,6 +296,31 @@ class _FinishSignupScreenState extends State<FinishSignupScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildEmailField() {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: AppColors.divider),
+        borderRadius: BorderRadius.circular(10.r),
+      ),
+      child: TextField(
+        controller: _emailController,
+        style: AppTextStyles.bodyMedium,
+        keyboardType: TextInputType.emailAddress,
+        decoration: InputDecoration(
+          hintText: "Email address",
+          hintStyle: AppTextStyles.bodyMedium.copyWith(
+            color: AppColors.textHint,
+          ),
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.symmetric(
+            horizontal: 16.w,
+            vertical: 16.h,
+          ),
+        ),
       ),
     );
   }

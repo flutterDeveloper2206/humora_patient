@@ -143,7 +143,11 @@ class _OtpScreenState extends State<OtpScreen> {
                         ),
                       ),
                       GestureDetector(
-                        onTap: () {},
+                        onTap: () {
+                          // Extract mobile and country code or pass them to OtpScreen
+                          // For now we assume widget.destination contains the mobile info
+                          // However, ideally we should receive mobile and countryCode separately.
+                        },
                         child: Text(
                           "Send again",
                           style: AppTextStyles.bodyMedium.copyWith(
