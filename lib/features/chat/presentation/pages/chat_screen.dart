@@ -6,10 +6,10 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../../../common/widgets/common_image.dart';
-import '../../bloc/chat_bloc.dart';
-import '../../bloc/chat_event.dart';
-import '../../bloc/chat_state.dart';
+import '../../../../../common/widgets/common_image.dart';
+import '../bloc/chat_bloc.dart';
+import '../bloc/chat_event.dart';
+import '../bloc/chat_state.dart';
 import '../widgets/chat_bubble.dart';
 
 class ChatScreen extends StatelessWidget {

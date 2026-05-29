@@ -7,7 +7,7 @@ import 'package:sensors_plus/sensors_plus.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../data/models/wallet_models.dart';
+import 'package:humora_patient/features/wallet/data/models/wallet_models.dart';
 
 class WalletBalanceCard extends StatefulWidget {
   final WalletBalanceResponse balance;

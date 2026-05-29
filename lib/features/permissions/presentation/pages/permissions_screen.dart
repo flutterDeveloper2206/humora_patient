@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../../bloc/permission_bloc.dart';
-import '../../bloc/permission_event.dart';
-import '../../bloc/permission_state.dart';
+import '../bloc/permission_bloc.dart';
+import '../bloc/permission_event.dart';
+import '../bloc/permission_state.dart';
 
 class PermissionsScreen extends StatelessWidget {
   const PermissionsScreen({super.key});

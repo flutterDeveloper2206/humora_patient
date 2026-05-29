@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:humora_patient/common/widgets/common_image.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../bloc/scheduled_sessions_state.dart';
+import '../bloc/scheduled_sessions_state.dart';
 import 'session_card.dart';
 
 class TimelineView extends StatelessWidget {

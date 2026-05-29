@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart';
-import '../../../../common/widgets/common_image.dart';
+import '../../../../../common/widgets/common_image.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../bloc/chat_state.dart';
+import '../bloc/chat_state.dart';
 
 class ChatBubble extends StatelessWidget {
   final ChatMessage message;

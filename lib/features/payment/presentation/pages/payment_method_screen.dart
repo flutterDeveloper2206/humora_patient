@@ -4,11 +4,11 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../../../common/widgets/common_image.dart';
-import '../../../../common/widgets/swipeable_button.dart';
-import '../../bloc/payment_bloc.dart';
-import '../../bloc/payment_event.dart';
-import '../../bloc/payment_state.dart';
+import '../../../../../common/widgets/common_image.dart';
+import '../../../../../common/widgets/swipeable_button.dart';
+import '../bloc/payment_bloc.dart';
+import '../bloc/payment_event.dart';
+import '../bloc/payment_state.dart';
 import '../widgets/payment_method_tile.dart';
 import '../widgets/wallet_widget.dart';
 

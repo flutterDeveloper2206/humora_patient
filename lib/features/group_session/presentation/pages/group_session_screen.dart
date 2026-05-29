@@ -5,9 +5,9 @@ import 'package:go_router/go_router.dart';
 import 'package:humora_patient/common/widgets/common_image.dart' show CommonImage;
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../bloc/group_session_bloc.dart';
-import '../../bloc/group_session_event.dart';
-import '../../bloc/group_session_state.dart';
+import '../bloc/group_session_bloc.dart';
+import '../bloc/group_session_event.dart';
+import '../bloc/group_session_state.dart';
 import '../widgets/group_participant_card.dart';
 import '../widgets/main_speaker_card.dart';
 

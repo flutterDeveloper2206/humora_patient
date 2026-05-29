@@ -3,10 +3,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../../../common/widgets/common_image.dart';
-import '../../bloc/voice_call_bloc.dart';
-import '../../bloc/voice_call_event.dart';
-import '../../bloc/voice_call_state.dart';
+import '../../../../../common/widgets/common_image.dart';
+import '../bloc/voice_call_bloc.dart';
+import '../bloc/voice_call_event.dart';
+import '../bloc/voice_call_state.dart';
 
 class VoiceCallScreen extends StatelessWidget {
   const VoiceCallScreen({super.key});

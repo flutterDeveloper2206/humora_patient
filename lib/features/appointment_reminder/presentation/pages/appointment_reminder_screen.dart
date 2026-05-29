@@ -6,11 +6,11 @@ import 'package:humora_patient/core/constants/app_colors.dart';
 import 'package:humora_patient/features/healers/presentation/widgets/healer_card.dart';
 import 'package:humora_patient/common/widgets/common_image.dart';
 import 'package:humora_patient/core/constants/app_text_styles.dart';
-import 'package:humora_patient/features/healers/data/healer_model.dart';
-import 'package:humora_patient/features/appointment_reminder/bloc/appointment_reminder_bloc.dart';
-import 'package:humora_patient/features/appointment_reminder/bloc/appointment_reminder_event.dart';
-import 'package:humora_patient/features/appointment_reminder/bloc/appointment_reminder_state.dart';
-import 'package:humora_patient/features/appointment_reminder/data/appointment_reminder_model.dart';
+import 'package:humora_patient/features/healers/data/models/healer_model.dart';
+import 'package:humora_patient/features/appointment_reminder/presentation/bloc/appointment_reminder_bloc.dart';
+import 'package:humora_patient/features/appointment_reminder/presentation/bloc/appointment_reminder_event.dart';
+import 'package:humora_patient/features/appointment_reminder/presentation/bloc/appointment_reminder_state.dart';
+import 'package:humora_patient/features/appointment_reminder/data/models/appointment_reminder_model.dart';
 import 'package:humora_patient/features/appointment_reminder/presentation/widgets/reminder_action_button.dart';
 
 class AppointmentReminderScreen extends StatelessWidget {

@@ -5,10 +5,10 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../../../common/widgets/common_image.dart';
-import '../../bloc/video_call_bloc.dart';
-import '../../bloc/video_call_event.dart';
-import '../../bloc/video_call_state.dart';
+import '../../../../../common/widgets/common_image.dart';
+import '../bloc/video_call_bloc.dart';
+import '../bloc/video_call_event.dart';
+import '../bloc/video_call_state.dart';
 
 class VideoCallScreen extends StatelessWidget {
   const VideoCallScreen({super.key});

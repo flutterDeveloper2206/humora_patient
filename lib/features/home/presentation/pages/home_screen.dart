@@ -5,11 +5,11 @@ import 'package:go_router/go_router.dart';
 import 'package:auto_skeleton/auto_skeleton.dart';
 import 'package:humora_patient/common/widgets/common_image.dart';
 import 'package:humora_patient/core/constants/app_text_styles.dart';
-import 'package:humora_patient/features/healers/data/healer_model.dart';
+import 'package:humora_patient/features/healers/data/models/healer_model.dart';
 import 'package:humora_patient/features/healers/presentation/widgets/healer_card.dart';
-import 'package:humora_patient/features/home/bloc/home_bloc.dart';
-import 'package:humora_patient/features/home/bloc/home_event.dart';
-import 'package:humora_patient/features/home/bloc/home_state.dart';
+import 'package:humora_patient/features/home/presentation/bloc/home_bloc.dart';
+import 'package:humora_patient/features/home/presentation/bloc/home_event.dart';
+import 'package:humora_patient/features/home/presentation/bloc/home_state.dart';
 import 'package:humora_patient/features/home/presentation/widgets/bottom_nav_bar.dart';
 import 'package:humora_patient/features/home/presentation/widgets/healer_carousel_card.dart';
 

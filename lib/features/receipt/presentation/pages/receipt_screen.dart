@@ -4,9 +4,9 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../bloc/receipt_bloc.dart';
-import '../../bloc/receipt_event.dart';
-import '../../bloc/receipt_state.dart';
+import '../bloc/receipt_bloc.dart';
+import '../bloc/receipt_event.dart';
+import '../bloc/receipt_state.dart';
 import '../widgets/receipt_card.dart';
 
 class ReceiptScreen extends StatelessWidget {

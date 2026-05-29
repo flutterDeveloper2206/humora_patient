@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../bloc/group_session_state.dart';
+import '../bloc/group_session_state.dart';
 
 class GroupParticipantCard extends StatelessWidget {
   final GroupParticipant participant;

@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../../../common/widgets/common_image.dart';
-import '../../data/healer_model.dart';
+import '../../../../../common/widgets/common_image.dart';
+import 'package:humora_patient/features/healers/data/models/healer_model.dart';
 
 class ReviewCard extends StatefulWidget {
   final HealerReview review;

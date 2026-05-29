@@ -3,7 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:humora_patient/core/constants/app_colors.dart';
 import 'package:humora_patient/core/constants/app_text_styles.dart';
 import 'package:humora_patient/common/widgets/common_image.dart';
-import 'package:humora_patient/features/healers/data/healer_model.dart';
+import 'package:humora_patient/features/healers/data/models/healer_model.dart';
 import 'package:humora_patient/features/healers/presentation/widgets/availability_chip.dart';
 import 'healer_rating_row.dart';
 

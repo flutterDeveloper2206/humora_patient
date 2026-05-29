@@ -5,10 +5,10 @@ import 'package:humora_patient/common/widgets/common_image.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import 'package:go_router/go_router.dart';
-import '../../bloc/welcome_bloc.dart';
-import '../../bloc/welcome_event.dart';
-import '../../bloc/welcome_state.dart';
-import '../../../../common/widgets/common_button.dart';
+import '../bloc/welcome_bloc.dart';
+import '../bloc/welcome_event.dart';
+import '../bloc/welcome_state.dart';
+import '../../../../../common/widgets/common_button.dart';
 
 class WelcomePage extends StatelessWidget {
   const WelcomePage({super.key});

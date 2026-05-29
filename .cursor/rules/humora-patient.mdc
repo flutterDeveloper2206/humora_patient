@@ -26,15 +26,19 @@ alwaysApply: true
 
 ```
 UI (Screen/Widget)
-  → BLoC (event in, state out)
-    → *ApiService (HTTP + parse)
-      → ApiEndpoints (URLs only)
-    → SessionManager (token / patientId)
-  → UI models (HealerModel, etc.) for display
+  → BLoC (presentation/bloc)
+    → UseCase (domain/usecases) — when present
+      → Repository (domain/repositories)
+        → RepositoryImpl (data/repositories)
+          → ApiService (data/datasource)
+            → ApiEndpoints (core/constants)
+    → SessionManager (token / patientId / currencyId)
+  → UI models for display
 ```
 
 **Rules:**
-- **Never** call `http` directly from widgets or BLoCs — use a feature `*ApiService`.
+- **Never** call `http` directly from widgets or BLoCs — use repository → datasource.
+- BLoCs may call repository or usecase; repositories call `*ApiService` in `data/datasource/`.
 - **All URLs** go in `lib/core/constants/api_endpoints.dart` only.
 - **Auth token** via `SessionManager.getToken()`; **patient ID** via `SessionManager.getPatientId()`.
 - After login/OTP: save with `SessionManager.saveToken()` and `savePatientId()`.
@@ -57,7 +61,7 @@ UI (Screen/Widget)
 
 ### ApiService conventions
 
-Place under `lib/features/<feature>/data/<feature>_api_service.dart`.
+Place under `lib/features/<feature>/data/datasource/<feature>_api_service.dart`.
 
 ```dart
 // ✅ Pattern (match AuthApiService / HealingFocusApiService)
@@ -118,10 +122,12 @@ class XBloc extends Bloc<XEvent, XState> {
 ### Adding a new API
 
 1. Add URL to `ApiEndpoints`.
-2. Create `*_models.dart` (request + response).
-3. Create `*_api_service.dart` with `_parseResponse` (copy from `AuthApiService` if no shared base yet).
-4. Inject service into BLoC; map to UI model in service or BLoC.
-5. Handle loading/error in screen via `BlocBuilder` / `BlocListener`.
+2. Create models in `data/models/`.
+3. Create `data/datasource/*_api_service.dart` with `_parseResponse`.
+4. Add `domain/repositories/*_repository.dart` + `data/repositories/*_repository_impl.dart`.
+5. Add usecase(s) in `domain/usecases/` when logic is non-trivial.
+6. Inject repository/usecase into `presentation/bloc`.
+7. Handle loading/error in `presentation/pages` via `BlocBuilder` / `BlocListener`.
 
 ---
 
@@ -229,18 +235,46 @@ lib/
 ├── main.dart
 ├── routes/app_router.dart
 ├── core/
-│   ├── constants/     # AppColors, AppTextStyles, ApiEndpoints
-│   └── utils/           # SessionManager
-├── common/              # widgets, screens, utils
+│   ├── constants/        # AppColors, AppTextStyles, ApiEndpoints
+│   └── utils/            # SessionManager
+├── common/               # widgets, screens, utils
 └── features/<name>/
-    ├── bloc/
-    ├── data/            # *ApiService, models, UI models
-    └── presentation/    # preferred for new UI
+    ├── data/
+    │   ├── models/       # DTOs, request/response, API models
+    │   ├── datasource/   # ApiService / remote-local sources
+    │   └── repositories/ # repository implementations
+    ├── domain/
+    │   ├── repositories/ # abstract repository contracts
+    │   └── usecases/     # business actions
+    └── presentation/
+        ├── bloc/
         ├── pages/
         └── widgets/
 ```
 
-**New features:** `bloc/` + `data/` + `presentation/pages/` + `presentation/widgets/`.
+**Future modules (required):**
+- Use `data/domain/presentation` structure for every new feature.
+- Put BLoC under `presentation/bloc` (not feature-root `bloc`).
+- Put API services under `data/datasource`.
+- Keep repository contracts in `domain/repositories` and implementations in `data/repositories`.
+- Keep existing legacy folders as-is unless task explicitly asks to migrate.
+
+### New feature template (use this)
+
+```
+lib/features/<feature>/
+├── data/
+│   ├── models/
+│   ├── datasource/
+│   └── repositories/
+├── domain/
+│   ├── repositories/
+│   └── usecases/
+└── presentation/
+    ├── bloc/
+    ├── pages/
+    └── widgets/
+```
 
 ---
 
@@ -266,7 +300,7 @@ lib/
 | Home / discovery | `home`, `healers` |
 | Sessions | `healing_sessions`, `sessions`, `scheduled_sessions`, `live_counselling_session`, `appointment_reminder` |
 | Comms | `chat`, `video_call`, `voice_call`, `group_session` |
-| Payments | `payment`, `receipt` |
+| Payments | `payment`, `receipt`, `wallet` |
 | System | `permissions` |
 
 ## Starter prompt

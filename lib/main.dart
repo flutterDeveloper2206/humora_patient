@@ -6,7 +6,7 @@ import 'package:flutter_stripe/flutter_stripe.dart';
 import 'routes/app_router.dart';
 import 'core/constants/app_colors.dart';
 import 'core/constants/stripe_config.dart';
-import 'features/auth/bloc/auth_bloc.dart';
+import 'features/auth/presentation/bloc/auth_bloc.dart';
 
 import 'package:flutter/services.dart';
 import 'dart:ui';

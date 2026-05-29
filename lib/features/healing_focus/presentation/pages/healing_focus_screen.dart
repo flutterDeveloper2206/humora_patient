@@ -2,15 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../common/utils/common_flushbar.dart';
-import '../../../../common/widgets/common_button.dart';
-import '../../../../common/widgets/common_image.dart';
+import '../../../../../common/utils/common_flushbar.dart';
+import '../../../../../common/widgets/common_button.dart';
+import '../../../../../common/widgets/common_image.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../bloc/healing_focus_bloc.dart';
-import '../../bloc/healing_focus_event.dart';
-import '../../bloc/healing_focus_state.dart';
-import '../../data/models/healing_focus_models.dart';
+import '../bloc/healing_focus_bloc.dart';
+import '../bloc/healing_focus_event.dart';
+import '../bloc/healing_focus_state.dart';
+import 'package:humora_patient/features/healing_focus/data/models/healing_focus_models.dart';
+import '../widgets/healing_dropdown_field.dart';
 
 class HealingFocusScreen extends StatefulWidget {
   const HealingFocusScreen({super.key});

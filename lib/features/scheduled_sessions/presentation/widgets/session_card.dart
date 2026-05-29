@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import '../../../../common/widgets/common_image.dart';
+import '../../../../../common/widgets/common_image.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../bloc/scheduled_sessions_state.dart';
+import '../bloc/scheduled_sessions_state.dart';
 
 class SessionCard extends StatelessWidget {
   final ScheduledSession session;

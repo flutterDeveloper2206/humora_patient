@@ -6,10 +6,10 @@ import 'package:auto_skeleton/auto_skeleton.dart';
 import 'package:humora_patient/common/widgets/common_image.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../bloc/healer_bloc.dart';
-import '../../bloc/healer_event.dart';
-import '../../bloc/healer_state.dart';
-import '../../data/healer_model.dart';
+import '../bloc/healer_bloc.dart';
+import '../bloc/healer_event.dart';
+import '../bloc/healer_state.dart';
+import 'package:humora_patient/features/healers/data/models/healer_model.dart';
 import '../widgets/healer_card.dart';
 
 class HealerListScreen extends StatelessWidget {
