@@ -11,6 +11,13 @@ import 'features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui';
 
+bool _isBenignDebugAssertion(Object error) {
+  if (error is! AssertionError) return false;
+  final message = error.toString();
+  return message.contains('_pressedKeys.containsKey') ||
+      message.contains('_idToSocketStatistic');
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -23,8 +30,7 @@ Future<void> main() async {
     try {
       return await ServicesBinding.instance.keyEventManager.handleRawKeyMessage(message);
     } catch (e) {
-      if (e is AssertionError &&
-          e.toString().contains('_pressedKeys.containsKey')) {
+      if (_isBenignDebugAssertion(e)) {
         // Suppress this transient framework assertion crash gracefully during debugging
         return {'handled': true};
       }
@@ -36,16 +42,14 @@ Future<void> main() async {
   final originalOnError = FlutterError.onError;
   FlutterError.onError = (FlutterErrorDetails details) {
     final exception = details.exception;
-    if (exception is AssertionError &&
-        exception.toString().contains('_pressedKeys.containsKey(event.physicalKey)')) {
+    if (_isBenignDebugAssertion(exception)) {
       return;
     }
     originalOnError?.call(details);
   };
 
   PlatformDispatcher.instance.onError = (error, stack) {
-    if (error is AssertionError &&
-        error.toString().contains('_pressedKeys.containsKey(event.physicalKey)')) {
+    if (_isBenignDebugAssertion(error)) {
       return true;
     }
     return false;

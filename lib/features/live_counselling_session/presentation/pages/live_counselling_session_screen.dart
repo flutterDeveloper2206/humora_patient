@@ -6,27 +6,47 @@ import '../../../../../common/widgets/common_button.dart';
 import '../../../../../common/widgets/common_image.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
+import 'package:humora_patient/features/booking/data/models/booking_models.dart';
+import 'package:humora_patient/features/booking/presentation/utils/booking_flow_helper.dart';
+import 'package:humora_patient/features/booking/presentation/utils/booking_wallet_preflight.dart';
+import 'package:humora_patient/features/healers/data/models/healer_model.dart';
+import 'package:humora_patient/features/live_counselling_session/data/models/live_counselling_session_model.dart';
 import '../bloc/live_counselling_session_bloc.dart';
 import '../bloc/live_counselling_session_event.dart';
 import '../bloc/live_counselling_session_state.dart';
-import 'package:humora_patient/features/live_counselling_session/data/models/live_counselling_session_model.dart';
 
 class LiveCounsellingSessionScreen extends StatelessWidget {
-  const LiveCounsellingSessionScreen({super.key});
+  final BookingFlowArgs? bookingArgs;
+
+  const LiveCounsellingSessionScreen({super.key, this.bookingArgs});
 
   @override
   Widget build(BuildContext context) {
+    if (bookingArgs == null) {
+      return Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.chevron_left),
+            onPressed: () => context.pop(),
+          ),
+        ),
+        body: const Center(child: Text('Booking details missing')),
+      );
+    }
+
     return BlocProvider(
       create: (context) =>
           LiveCounsellingSessionBloc()
             ..add(LoadLiveCounsellingSessionOptions()),
-      child: const LiveCounsellingSessionView(),
+      child: LiveCounsellingSessionView(bookingArgs: bookingArgs!),
     );
   }
 }
 
 class LiveCounsellingSessionView extends StatelessWidget {
-  const LiveCounsellingSessionView({super.key});
+  final BookingFlowArgs bookingArgs;
+
+  const LiveCounsellingSessionView({super.key, required this.bookingArgs});
 
   @override
   Widget build(BuildContext context) {
@@ -44,7 +64,7 @@ class LiveCounsellingSessionView extends StatelessWidget {
           onPressed: () => context.pop(),
         ),
         title: Text(
-          "Live Counselling Session",
+          'Live Counselling Session',
           style: AppTextStyles.titleMedium,
         ),
         centerTitle: true,
@@ -60,58 +80,52 @@ class LiveCounsellingSessionView extends StatelessWidget {
             Padding(
               padding: EdgeInsets.fromLTRB(24.w, 26.h, 24.w, 24.h),
               child: Text(
-                "Choose the areas where you have the most\nexperience and confidence.",
+                'Select how you want to connect for your live session.',
                 style: AppTextStyles.bodyLarge.copyWith(
-                  color: Color(0xff85898A),
+                  color: const Color(0xff85898A),
                   fontWeight: FontWeight.w400,
                 ),
               ),
             ),
             Expanded(
-              child:
-                  BlocBuilder<
-                    LiveCounsellingSessionBloc,
-                    LiveCounsellingSessionState
-                  >(
-                    builder: (context, state) {
-                      if (state is LiveCounsellingSessionLoading) {
-                        return const Center(child: CircularProgressIndicator());
-                      } else if (state is LiveCounsellingSessionLoaded) {
-                        return GridView.builder(
-                          padding: EdgeInsets.symmetric(horizontal: 24.w),
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                crossAxisSpacing: 16,
-                                mainAxisSpacing: 16,
-                                childAspectRatio: 1.4,
-                              ),
-                          itemCount: state.options.length,
-                          itemBuilder: (context, index) {
-                            final option = state.options[index];
-                            final isSelected = state.selectedId == option.id;
+              child: BlocBuilder<LiveCounsellingSessionBloc,
+                  LiveCounsellingSessionState>(
+                builder: (context, state) {
+                  if (state is LiveCounsellingSessionLoading) {
+                    return const Center(child: CircularProgressIndicator());
+                  } else if (state is LiveCounsellingSessionLoaded) {
+                    return GridView.builder(
+                      padding: EdgeInsets.symmetric(horizontal: 24.w),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 16,
+                        childAspectRatio: 1.4,
+                      ),
+                      itemCount: state.options.length,
+                      itemBuilder: (context, index) {
+                        final option = state.options[index];
+                        final isSelected = state.selectedId == option.id;
 
-                            return _SessionCard(
-                              option: option,
-                              isSelected: isSelected,
-                              onTap: () {
-                                context.read<LiveCounsellingSessionBloc>().add(
+                        return _SessionCard(
+                          option: option,
+                          isSelected: isSelected,
+                          onTap: () {
+                            context.read<LiveCounsellingSessionBloc>().add(
                                   SelectLiveCounsellingSession(option.id),
                                 );
-                              },
-                            );
                           },
                         );
-                      } else if (state is LiveCounsellingSessionError) {
-                        return Center(child: Text(state.message));
-                      }
-                      return const SizedBox();
-                    },
-                  ),
+                      },
+                    );
+                  } else if (state is LiveCounsellingSessionError) {
+                    return Center(child: Text(state.message));
+                  }
+                  return const SizedBox();
+                },
+              ),
             ),
-            TextButton(onPressed: () {
-              context.push('/group-session');
-            }, child: Text('for group video call')),
             _buildBottomBar(context),
           ],
         ),
@@ -131,34 +145,30 @@ class LiveCounsellingSessionView extends StatelessWidget {
           final isEnabled =
               state is LiveCounsellingSessionLoaded && state.selectedId != null;
           return CommonButton(
-            text: "Continue",
+            text: 'Book Now',
             isDisabled: !isEnabled,
-            onPressed: () {
-              if (state is LiveCounsellingSessionLoaded) {
-                final selectedOption = state.options.firstWhere(
-                  (o) => o.id == state.selectedId,
-                );
-                if (selectedOption.value == 'Chat') {
-                  context.push('/chat');
-                } else if (selectedOption.value == 'Voice Call') {
-                  context.push('/voice-call');
-                } else if (selectedOption.value == 'Video Call') {
-                  context.push(
-                    '/success',
-                    extra: {
-                      'icon': '',
-                      'imagePath': 'assets/image/waitforwhile.png',
-                      'title': "Please wait for while!",
-                      'subtitle':
-                          "Your healer is preparing the session.\nPlease sit comfortably in a quiet space.",
-                      'buttonText': "Decline Call",
-                      'onButtonPressed': () {
-                        context.pop();
-                      },
-                    },
-                  );
-                }
-              }
+            onPressed: () async {
+              if (state is! LiveCounsellingSessionLoaded) return;
+              final selectedOption = state.options.firstWhere(
+                (o) => o.id == state.selectedId,
+              );
+              final canAfford = await BookingWalletPreflight.ensureCanAfford(
+                context: context,
+                sessionType: SessionType.live,
+                sessionPricing: bookingArgs.sessionPricing,
+                liveCounselling: bookingArgs.liveCounselling,
+                fallbackPricePerMinute: bookingArgs.fallbackPricePerMinute,
+                consultationType: selectedOption.consultationType,
+              );
+              if (!canAfford || !context.mounted) return;
+
+              await BookingFlowHelper.submit(
+                context: context,
+                healerId: bookingArgs.healerId,
+                slotId: bookingArgs.slotId,
+                bookingDate: bookingArgs.bookingDate,
+                consultationType: selectedOption.consultationType,
+              );
             },
             borderRadius: 12.r,
           );
@@ -227,7 +237,7 @@ class _SessionCard extends StatelessWidget {
               ),
             ),
             Text(
-              "₹${option.price} INR",
+              '₹${option.price} INR',
               style: AppTextStyles.bodyMedium.copyWith(
                 fontWeight: FontWeight.w500,
                 fontSize: 12.sp,

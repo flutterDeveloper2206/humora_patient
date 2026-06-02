@@ -2,11 +2,17 @@ import 'dart:convert';
 import 'dart:developer';
 import 'package:http/http.dart' as http;
 import '../../../../core/constants/api_endpoints.dart';
+import '../../../../core/network/app_http_client.dart';
 import '../../../../core/utils/session_manager.dart';
 import '../models/healer_api_models.dart';
 import '../models/healer_model.dart';
 
 class HealerApiService {
+  final http.Client _client;
+
+  HealerApiService({http.Client? client})
+      : _client = client ?? AppHttpClient.instance;
+
   Future<List<HealerModel>> fetchApprovedHealers(
       ApprovedHealersRequestModel request) async {
     try {
@@ -19,7 +25,7 @@ class HealerApiService {
       log('Fetching approved healers from: $url');
       log('Request payload: ${jsonEncode(request.toJson())}');
 
-      final response = await http.post(
+      final response = await _client.post(
         url,
         headers: {
           'accept': '*/*',
@@ -59,7 +65,7 @@ class HealerApiService {
       final url = Uri.parse(ApiEndpoints.approvedHealerDetails(healerId));
       log('Fetching approved healer details from: $url');
 
-      final response = await http.get(
+      final response = await _client.get(
         url,
         headers: {
           'accept': '*/*',

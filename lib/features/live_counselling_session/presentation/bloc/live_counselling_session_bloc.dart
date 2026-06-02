@@ -22,18 +22,21 @@ class LiveCounsellingSessionBloc
           "image": "assets/image/chatstart.png",
           "value": "Chat",
           "price": 100,
+          "consultationType": 0,
         },
         {
           "id": 2,
           "image": "assets/image/voicestart.png",
           "value": "Voice Call",
           "price": 300,
+          "consultationType": 1,
         },
         {
           "id": 3,
           "image": "assets/image/videostart.png",
           "value": "Video Call",
           "price": 500,
+          "consultationType": 2,
         },
       ];
 

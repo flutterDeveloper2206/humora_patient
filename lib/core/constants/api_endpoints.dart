@@ -16,4 +16,12 @@ class ApiEndpoints {
   static const String walletPaymentIntent = '$baseUrl/wallet/payment-intent';
   static const String walletBalance = '$baseUrl/wallet/balance';
   static const String walletTransactions = '$baseUrl/wallet/transactions';
+
+  static const String createBooking = '$baseUrl/booking';
+
+  static String myBookings({bool isHealer = false}) =>
+      '$baseUrl/booking/my?isHealer=$isHealer';
+
+  static String bookingDetail(String bookingId) =>
+      '$baseUrl/booking/$bookingId';
 }

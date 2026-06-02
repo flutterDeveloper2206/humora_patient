@@ -15,19 +15,28 @@ import '../widgets/transaction_tile.dart';
 import '../widgets/wallet_balance_card.dart';
 
 class WalletScreen extends StatelessWidget {
-  const WalletScreen({super.key});
+  final bool openTopUpOnLoad;
+
+  const WalletScreen({super.key, this.openTopUpOnLoad = false});
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => WalletBloc()..add(const WalletLoadRequested()),
-      child: const WalletView(),
+      child: WalletView(openTopUpOnLoad: openTopUpOnLoad),
     );
   }
 }
 
 class WalletView extends StatefulWidget {
-  const WalletView({super.key});
+  final bool embedded;
+  final bool openTopUpOnLoad;
+
+  const WalletView({
+    super.key,
+    this.embedded = false,
+    this.openTopUpOnLoad = false,
+  });
 
   @override
   State<WalletView> createState() => _WalletViewState();
@@ -35,11 +44,23 @@ class WalletView extends StatefulWidget {
 
 class _WalletViewState extends State<WalletView> {
   final ScrollController _scrollController = ScrollController();
+  bool _topUpPromptShown = false;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+  }
+
+  void _maybeOpenTopUp(WalletState state) {
+    if (!widget.openTopUpOnLoad || _topUpPromptShown || state.isLoading) {
+      return;
+    }
+    _topUpPromptShown = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      AddMoneySheet.show(context, state.balance);
+    });
   }
 
   void _onScroll() {
@@ -71,42 +92,11 @@ class _WalletViewState extends State<WalletView> {
         }
       },
       builder: (context, state) {
+        _maybeOpenTopUp(state);
         final symbol = state.balance.displaySymbol;
         final isBusy = state.isLoading && state.transactions.isEmpty;
 
-        return Scaffold(
-          backgroundColor: const Color(0xFFF9FBFC),
-          appBar: AppBar(
-            backgroundColor: Colors.white,
-            elevation: 0,
-            scrolledUnderElevation: 0,
-            leading: IconButton(
-              icon: Icon(Icons.chevron_left, color: Colors.black, size: 28.sp),
-              onPressed: () => context.pop(),
-            ),
-            title: Text(
-              'My Wallet',
-              style: AppTextStyles.titleMedium.copyWith(
-                fontWeight: FontWeight.w600,
-                fontSize: 18.sp,
-              ),
-            ),
-            actions: [
-              IconButton(
-                onPressed: state.isLoading
-                    ? null
-                    : () => context
-                        .read<WalletBloc>()
-                        .add(const WalletLoadRequested()),
-                icon: Icon(
-                  Icons.refresh_rounded,
-                  color: AppColors.textSecondary,
-                  size: 22.sp,
-                ),
-              ),
-            ],
-          ),
-          body: RefreshIndicator(
+        final body = RefreshIndicator(
             color: AppColors.primary,
             onRefresh: () async {
               context.read<WalletBloc>().add(const WalletLoadRequested());
@@ -136,7 +126,7 @@ class _WalletViewState extends State<WalletView> {
                     child: _AddMoneyButton(
                       isLoading: state.isTopUpInProgress ||
                           state.isRefreshingAfterPayment,
-                      onTap: () => AddMoneySheet.show(context, symbol),
+                      onTap: () => AddMoneySheet.show(context, state.balance),
                     ),
                   ),
                 ),
@@ -218,10 +208,63 @@ class _WalletViewState extends State<WalletView> {
                       ),
                     ),
                   ),
-                SliverToBoxAdapter(child: SizedBox(height: 32.h)),
+                SliverToBoxAdapter(
+                  child: SizedBox(height: widget.embedded ? 120.h : 32.h),
+                ),
               ],
             ),
+          );
+
+        final appBar = AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          automaticallyImplyLeading: !widget.embedded,
+          leading: widget.embedded
+              ? null
+              : IconButton(
+                  icon: Icon(Icons.chevron_left, color: Colors.black, size: 28.sp),
+                  onPressed: () => context.pop(),
+                ),
+          title: Text(
+            'My Wallet',
+            style: AppTextStyles.titleMedium.copyWith(
+              fontWeight: FontWeight.w600,
+              fontSize: 18.sp,
+            ),
           ),
+          actions: [
+            IconButton(
+              onPressed: state.isLoading
+                  ? null
+                  : () => context
+                      .read<WalletBloc>()
+                      .add(const WalletLoadRequested()),
+              icon: Icon(
+                Icons.refresh_rounded,
+                color: AppColors.textSecondary,
+                size: 22.sp,
+              ),
+            ),
+          ],
+        );
+
+        if (widget.embedded) {
+          return ColoredBox(
+            color: const Color(0xFFF9FBFC),
+            child: Column(
+              children: [
+                appBar,
+                Expanded(child: body),
+              ],
+            ),
+          );
+        }
+
+        return Scaffold(
+          backgroundColor: const Color(0xFFF9FBFC),
+          appBar: appBar,
+          body: body,
         );
       },
     );

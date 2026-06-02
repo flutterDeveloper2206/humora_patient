@@ -94,10 +94,9 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
     WalletTopUpRequested event,
     Emitter<WalletState> emit,
   ) async {
-    if (event.amount < StripeConfig.minimumTopUpAmount) {
+    if (event.amount < state.balance.minimumTopUpAmount) {
       emit(state.copyWith(
-        error:
-            'Minimum top-up is ${state.balance.displaySymbol}${StripeConfig.minimumTopUpAmount.toStringAsFixed(0)}',
+        error: state.balance.minimumTopUpMessage,
       ));
       return;
     }

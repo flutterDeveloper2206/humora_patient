@@ -2,13 +2,15 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 import 'package:http/http.dart' as http;
 import '../../../../core/constants/api_endpoints.dart';
+import '../../../../core/network/app_http_client.dart';
 import '../models/otp_models.dart';
 import '../models/profile_models.dart';
 
 class AuthApiService {
   final http.Client _client;
 
-  AuthApiService({http.Client? client}) : _client = client ?? http.Client();
+  AuthApiService({http.Client? client})
+      : _client = client ?? AppHttpClient.instance;
 
   /// Helper to print logs and parse standard/error HTTP responses
   Map<String, dynamic> _parseResponse(http.Response response, Uri url) {

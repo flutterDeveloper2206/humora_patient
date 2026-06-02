@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:humora_patient/core/constants/stripe_config.dart';
 
 class PaymentIntentRequest extends Equatable {
   final double amount;
@@ -100,6 +101,37 @@ class WalletBalanceResponse extends Equatable {
       walletId.isNotEmpty;
 
   String get displaySymbol => currencySymbol ?? '₹';
+
+  /// INR / Indian rupee — minimum top-up ₹50; other currencies — $0.50 (or equivalent).
+  bool get isIndianCurrency {
+    final symbol = displaySymbol.trim();
+    if (symbol == '₹' || symbol.toUpperCase() == 'INR') return true;
+    final name = (currencyName ?? '').toUpperCase();
+    if (name == 'INR' ||
+        name.contains('RUPEE') ||
+        name.contains('INDIA')) {
+      return true;
+    }
+    final id = (currencyId ?? '').toUpperCase();
+    if (id == StripeConfig.defaultCurrencyId.toUpperCase()) {
+      return true;
+    }
+    return false;
+  }
+
+  double get minimumTopUpAmount => isIndianCurrency
+      ? StripeConfig.minimumTopUpAmountInr
+      : StripeConfig.minimumTopUpAmountOther;
+
+  String get minimumTopUpDisplay {
+    if (isIndianCurrency) {
+      return '$displaySymbol${minimumTopUpAmount.toStringAsFixed(0)}';
+    }
+    return '$displaySymbol${minimumTopUpAmount.toStringAsFixed(2)}';
+  }
+
+  String get minimumTopUpMessage =>
+      'Minimum top-up amount is $minimumTopUpDisplay';
 
   @override
   List<Object?> get props => [

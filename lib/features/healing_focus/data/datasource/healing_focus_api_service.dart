@@ -2,12 +2,14 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 import 'package:http/http.dart' as http;
 import '../../../../core/constants/api_endpoints.dart';
+import '../../../../core/network/app_http_client.dart';
 import '../models/healing_focus_models.dart';
 
 class HealingFocusApiService {
   final http.Client _client;
 
-  HealingFocusApiService({http.Client? client}) : _client = client ?? http.Client();
+  HealingFocusApiService({http.Client? client})
+      : _client = client ?? AppHttpClient.instance;
 
   Map<String, dynamic> _parseResponse(http.Response response, Uri url) {
     developer.log('--- API RESPONSE ---', name: 'HealingFocusApiService');

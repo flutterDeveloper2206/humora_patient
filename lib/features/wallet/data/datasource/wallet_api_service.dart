@@ -4,13 +4,15 @@ import 'dart:developer' as developer;
 import 'package:http/http.dart' as http;
 
 import '../../../../core/constants/api_endpoints.dart';
+import '../../../../core/network/app_http_client.dart';
 import '../../../../core/utils/session_manager.dart';
 import '../models/wallet_models.dart';
 
 class WalletApiService {
   final http.Client _client;
 
-  WalletApiService({http.Client? client}) : _client = client ?? http.Client();
+  WalletApiService({http.Client? client})
+      : _client = client ?? AppHttpClient.instance;
 
   Future<String> _requireToken() async {
     final token = await SessionManager.getToken();

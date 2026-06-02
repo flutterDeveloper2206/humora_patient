@@ -1,8 +1,18 @@
+import com.android.build.gradle.internal.api.BaseVariantOutputImpl
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+fun humoraReleaseApkName(): String {
+    val timestamp = SimpleDateFormat("ddMMyyyyHHmm", Locale.US).format(Date())
+    return "Humora-Patient($timestamp).apk"
 }
 
 android {
@@ -39,6 +49,12 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+        }
+    }
+
+    applicationVariants.configureEach {
+        outputs.configureEach {
+            (this as BaseVariantOutputImpl).outputFileName = humoraReleaseApkName()
         }
     }
 }

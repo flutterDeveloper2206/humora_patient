@@ -28,6 +28,9 @@ import '../features/wallet/presentation/pages/wallet_screen.dart';
 import '../features/receipt/presentation/pages/receipt_screen.dart';
 import '../features/scheduled_sessions/presentation/pages/scheduled_sessions_screen.dart';
 import '../features/live_counselling_session/presentation/pages/live_counselling_session_screen.dart';
+import '../features/booking/data/models/booking_models.dart';
+import '../features/my_sessions/presentation/pages/my_sessions_screen.dart';
+import '../features/my_sessions/presentation/pages/my_session_detail_screen.dart';
 import '../features/appointment_reminder/presentation/pages/appointment_reminder_screen.dart';
 import '../features/home/presentation/pages/home_screen.dart';
 
@@ -173,7 +176,10 @@ class AppRouter {
       ),
       GoRoute(
         path: '/wallet',
-        builder: (context, state) => const WalletScreen(),
+        builder: (context, state) {
+          final openTopUp = state.uri.queryParameters['topUp'] == 'true';
+          return WalletScreen(openTopUpOnLoad: openTopUp);
+        },
       ),
       GoRoute(
         path: '/receipt',
@@ -184,8 +190,20 @@ class AppRouter {
         builder: (context, state) => const ScheduledSessionsScreen(),
       ),
       GoRoute(
+        path: '/my-sessions',
+        builder: (context, state) => const MySessionsScreen(),
+      ),
+      GoRoute(
+        path: '/my-session/:bookingId',
+        builder: (context, state) => MySessionDetailScreen(
+          bookingId: state.pathParameters['bookingId'] ?? '',
+        ),
+      ),
+      GoRoute(
         path: '/live-counselling-session',
-        builder: (context, state) => const LiveCounsellingSessionScreen(),
+        builder: (context, state) => LiveCounsellingSessionScreen(
+          bookingArgs: state.extra as BookingFlowArgs?,
+        ),
       ),
     ],
   );

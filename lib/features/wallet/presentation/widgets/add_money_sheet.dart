@@ -3,27 +3,31 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
+import '../../../../../common/utils/common_flushbar.dart';
 import '../../../../../common/widgets/common_button.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../../../core/constants/stripe_config.dart';
+import '../../data/models/wallet_models.dart';
 import '../bloc/wallet_bloc.dart';
 import '../bloc/wallet_event.dart';
 import '../bloc/wallet_state.dart';
 
 class AddMoneySheet extends StatefulWidget {
-  final String currencySymbol;
+  final WalletBalanceResponse balance;
 
-  const AddMoneySheet({super.key, required this.currencySymbol});
+  const AddMoneySheet({super.key, required this.balance});
 
-  static Future<void> show(BuildContext context, String currencySymbol) {
+  static Future<void> show(
+    BuildContext context,
+    WalletBalanceResponse balance,
+  ) {
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => BlocProvider.value(
         value: context.read<WalletBloc>(),
-        child: AddMoneySheet(currencySymbol: currencySymbol),
+        child: AddMoneySheet(balance: balance),
       ),
     );
   }
@@ -39,7 +43,15 @@ class _AddMoneySheetState extends State<AddMoneySheet>
   late AnimationController _animController;
   late Animation<Offset> _slideAnimation;
 
-  static const _presets = [100, 200, 500, 1000];
+  static const _presetsInr = [100, 200, 500, 1000];
+  static const _presetsOther = [1, 5, 10, 25];
+
+  String get _symbol => widget.balance.displaySymbol;
+
+  double get _minimumAmount => widget.balance.minimumTopUpAmount;
+
+  List<int> get _presets =>
+      widget.balance.isIndianCurrency ? _presetsInr : _presetsOther;
 
   @override
   void initState() {
@@ -48,10 +60,10 @@ class _AddMoneySheetState extends State<AddMoneySheet>
       vsync: this,
       duration: const Duration(milliseconds: 400),
     );
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.15),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic));
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.15), end: Offset.zero).animate(
+          CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
+        );
     _animController.forward();
   }
 
@@ -69,9 +81,18 @@ class _AddMoneySheetState extends State<AddMoneySheet>
     return double.tryParse(text);
   }
 
+  bool _isValidAmount(double amount) => amount >= _minimumAmount;
+
   void _submit() {
     final amount = _amount;
-    if (amount == null || amount <= 0) return;
+    if (amount == null || amount <= 0) {
+      CommonFlushbar.error(context, 'Please enter a valid amount.');
+      return;
+    }
+    if (!_isValidAmount(amount)) {
+      CommonFlushbar.error(context, widget.balance.minimumTopUpMessage);
+      return;
+    }
     context.read<WalletBloc>().add(WalletTopUpRequested(amount));
     Navigator.of(context).pop();
   }
@@ -114,7 +135,7 @@ class _AddMoneySheetState extends State<AddMoneySheet>
                   ),
                   SizedBox(height: 6.h),
                   Text(
-                    'Min ${widget.currencySymbol}${StripeConfig.minimumTopUpAmount.toStringAsFixed(0)} · Secured by Stripe',
+                    'Min ${widget.balance.minimumTopUpDisplay} · Secured by Stripe',
                     style: AppTextStyles.bodySmall.copyWith(
                       color: AppColors.textSecondary,
                     ),
@@ -151,7 +172,7 @@ class _AddMoneySheetState extends State<AddMoneySheet>
                             ),
                           ),
                           child: Text(
-                            '${widget.currencySymbol}$value',
+                            '$_symbol$value',
                             style: AppTextStyles.bodyMedium.copyWith(
                               fontWeight: FontWeight.w600,
                               color: selected
@@ -177,7 +198,7 @@ class _AddMoneySheetState extends State<AddMoneySheet>
                     onChanged: (_) => setState(() => _selectedPreset = null),
                     style: AppTextStyles.h3,
                     decoration: InputDecoration(
-                      prefixText: '${widget.currencySymbol} ',
+                      prefixText: '$_symbol ',
                       prefixStyle: AppTextStyles.h3.copyWith(
                         color: AppColors.textPrimary,
                       ),
@@ -206,15 +227,14 @@ class _AddMoneySheetState extends State<AddMoneySheet>
                         p.isTopUpInProgress != c.isTopUpInProgress,
                     builder: (context, state) {
                       final amount = _amount;
-                      final valid = amount != null &&
-                          amount >= StripeConfig.minimumTopUpAmount;
+                      final hasAmount = amount != null && amount > 0;
 
                       return CommonButton(
                         text: state.isTopUpInProgress
                             ? 'Processing...'
                             : 'Pay with Stripe',
                         isLoading: state.isTopUpInProgress,
-                        isDisabled: !valid || state.isTopUpInProgress,
+                        isDisabled: !hasAmount || state.isTopUpInProgress,
                         onPressed: _submit,
                       );
                     },

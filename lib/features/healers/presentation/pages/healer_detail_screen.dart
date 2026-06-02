@@ -14,6 +14,11 @@ import 'package:humora_patient/features/healers/data/models/healer_model.dart';
 import '../bloc/healer_detail_bloc.dart';
 import '../bloc/healer_detail_event.dart';
 import '../bloc/healer_detail_state.dart';
+import '../utils/session_slot_utils.dart';
+import 'package:humora_patient/features/booking/data/models/booking_models.dart';
+import 'package:humora_patient/features/booking/presentation/utils/booking_flow_helper.dart';
+import 'package:humora_patient/features/booking/presentation/utils/booking_wallet_preflight.dart';
+import '../../../../common/utils/common_flushbar.dart';
 import '../widgets/healer_info_node.dart';
 import '../widgets/certificate_card.dart';
 import '../widgets/review_card.dart';
@@ -496,78 +501,46 @@ class HealerDetailScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(19.r),
       ),
       child: Row(
-        children: [
-          Expanded(
-            child: GestureDetector(
-              onTap: () => context.read<HealerDetailBloc>().add(
-                    const ChangeSessionType(SessionType.personal),
+        children: SessionType.values.map((type) {
+          return Expanded(
+            child: _buildSessionTypeTab(context, state, type),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildSessionTypeTab(
+    BuildContext context,
+    HealerDetailLoaded state,
+    SessionType type,
+  ) {
+    final isSelected = state.selectedSessionType == type;
+    return GestureDetector(
+      onTap: () => context.read<HealerDetailBloc>().add(ChangeSessionType(type)),
+      child: Container(
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(19.r),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
                   ),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: state.selectedSessionType == SessionType.personal
-                      ? Colors.white
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(19.r),
-                  boxShadow: state.selectedSessionType == SessionType.personal
-                      ? [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ]
-                      : [],
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  'Personal Session',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    fontSize: 11.sp,
-                    color: state.selectedSessionType == SessionType.personal
-                        ? AppColors.textPrimary
-                        : const Color(0xff727272),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ),
+                ]
+              : [],
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          type.label,
+          style: AppTextStyles.bodySmall.copyWith(
+            fontSize: 10.sp,
+            color: isSelected ? AppColors.textPrimary : const Color(0xff727272),
+            fontWeight: FontWeight.w500,
           ),
-          Expanded(
-            child: GestureDetector(
-              onTap: () => context.read<HealerDetailBloc>().add(
-                    const ChangeSessionType(SessionType.group),
-                  ),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: state.selectedSessionType == SessionType.group
-                      ? Colors.white
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(19.r),
-                  boxShadow: state.selectedSessionType == SessionType.group
-                      ? [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ]
-                      : [],
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  'Group Session',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    fontSize: 11.sp,
-                    color: state.selectedSessionType == SessionType.group
-                        ? AppColors.textPrimary
-                        : const Color(0xff727272),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -615,7 +588,7 @@ class HealerDetailScreen extends StatelessWidget {
                 ),
               ),
               SizedBox(height: 5.h),
-              _buildTimeCategoryPicker(context, state),
+              _buildTimeCategoryPicker(context, healer, state),
               SizedBox(height: 10.h),
               _buildTimeSlotPicker(context, healer, state),
             ],
@@ -627,19 +600,48 @@ class HealerDetailScreen extends StatelessWidget {
 
   Widget _buildDateHeader(BuildContext context, HealerDetailLoaded state) {
     final date = state.focusedDate ?? state.selectedDate ?? DateTime.now();
+    final weekDays = SessionSlotUtils.weekDates(date);
+    final weekStart = weekDays.first;
+    final weekEnd = weekDays.last;
+    final weekLabel = weekStart.month == weekEnd.month
+        ? '${DateFormat('d').format(weekStart)} – ${DateFormat('d MMM').format(weekEnd)}'
+        : '${DateFormat('d MMM').format(weekStart)} – ${DateFormat('d MMM').format(weekEnd)}';
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          DateFormat('MMMM, yyyy').format(date),
-          style: AppTextStyles.bodyLarge,
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              DateFormat('MMMM, yyyy').format(date),
+              style: AppTextStyles.bodyLarge,
+            ),
+            SizedBox(height: 2.h),
+            Text(
+              weekLabel,
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textSecondary,
+                fontSize: 11.sp,
+              ),
+            ),
+          ],
         ),
         Row(
           children: [
             GestureDetector(
-              onTap: () =>
-                  context.read<HealerDetailBloc>().add(const NavigateWeek(-1)),
-              child: Icon(Icons.chevron_left, size: 28.sp),
+              onTap: SessionSlotUtils.canNavigateToPreviousWeek(date)
+                  ? () => context
+                      .read<HealerDetailBloc>()
+                      .add(const NavigateWeek(-1))
+                  : null,
+              child: Icon(
+                Icons.chevron_left,
+                size: 28.sp,
+                color: SessionSlotUtils.canNavigateToPreviousWeek(date)
+                    ? AppColors.textPrimary
+                    : const Color(0xFFD0D0D0),
+              ),
             ),
             SizedBox(width: 16.w),
             GestureDetector(
@@ -658,73 +660,171 @@ class HealerDetailScreen extends StatelessWidget {
     HealerModel healer,
     HealerDetailLoaded state,
   ) {
-    List<DateTime> dates = [];
-    if (healer.rawSlots.isNotEmpty) {
-      final uniqueDates = <String>{};
-      for (final slot in healer.rawSlots) {
-        if (slot.date.isNotEmpty && slot.sessionType == state.selectedSessionType.value) {
-          uniqueDates.add(slot.date);
-        }
-      }
-      for (final dateStr in uniqueDates) {
-        try {
-          dates.add(DateTime.parse(dateStr));
-        } catch (_) {}
-      }
-      dates.sort((a, b) => a.compareTo(b));
-    }
+    final focusedDate =
+        state.focusedDate ?? state.selectedDate ?? DateTime.now();
+    final dates = SessionSlotUtils.weekDates(focusedDate);
 
-    if (dates.isEmpty) {
-      final focusedDate =
-          state.focusedDate ?? state.selectedDate ?? DateTime.now();
-      // Calculate Monday of the focused week
-      final monday = focusedDate.subtract(
-        Duration(days: focusedDate.weekday - 1),
-      );
-      dates = List.generate(
-        7,
-        (index) => monday.add(Duration(days: index)),
-      );
-    }
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 22.w),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: dates.map((date) {
+          final isPast = SessionSlotUtils.isPastDate(date);
+          final hasSlots = !isPast &&
+              SessionSlotUtils.hasSlotsOnDate(
+                healer.rawSlots,
+                state.selectedSessionType,
+                date,
+              );
+          final isSelected = state.selectedDate != null &&
+              state.selectedDate!.year == date.year &&
+              state.selectedDate!.month == date.month &&
+              state.selectedDate!.day == date.day;
+
+          return Expanded(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 2.w),
+              child: GestureDetector(
+                onTap: isPast
+                    ? null
+                    : () => context
+                        .read<HealerDetailBloc>()
+                        .add(SelectDate(date)),
+                child: Container(
+                  height: 72.h,
+                  padding: EdgeInsets.symmetric(horizontal: 2.w),
+                  decoration: BoxDecoration(
+                    color: isSelected ? null : Colors.white,
+                    gradient: isSelected
+                        ? const LinearGradient(
+                            transform: GradientRotation(6.6),
+                            colors: [
+                              Color(0xFF1F1F1F),
+                              Color(0xFF333333),
+                              Color(0xFF525252),
+                              Color(0xFF333333),
+                              Color(0xFF1F1F1F),
+                            ],
+                            stops: [0.0, 0.35, 0.55, 0.75, 1.0],
+                          )
+                        : null,
+                    borderRadius: BorderRadius.circular(21.r),
+                    border: Border.all(
+                      color: hasSlots
+                          ? const Color(0xFFF0F0F0)
+                          : const Color(0xFFF5F5F5),
+                    ),
+                    boxShadow: hasSlots
+                        ? [
+                            BoxShadow(
+                              color: Color(0xfFFB5B5B26).withOpacity(0.15),
+                              blurRadius: 1.5,
+                              spreadRadius: 0,
+                              offset: const Offset(0, 0),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        DateFormat('E').format(date).substring(0, 3),
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: isSelected
+                              ? Colors.white
+                              : (hasSlots
+                                  ? const Color(0xff7D7D7D)
+                                  : const Color(0xffC4C4C4)),
+                          fontSize: 11.sp,
+                        ),
+                      ),
+                      SizedBox(height: 6.h),
+                      Text(
+                        date.day.toString(),
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: isSelected
+                              ? Colors.white
+                              : (hasSlots
+                                  ? AppColors.textPrimary
+                                  : const Color(0xffC4C4C4)),
+                          fontSize: 14.sp,
+                        ),
+                      ),
+                      if (hasSlots && !isSelected) ...[
+                        SizedBox(height: 4.h),
+                        Container(
+                          width: 4.w,
+                          height: 4.w,
+                          decoration: const BoxDecoration(
+                            color: AppColors.primary,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildTimeCategoryPicker(
+    BuildContext context,
+    HealerModel healer,
+    HealerDetailLoaded state,
+  ) {
+    const allCategories = ['Morning', 'Afternoon', 'Evening'];
+    final date = state.selectedDate ?? DateTime.now();
+    final available = SessionSlotUtils.availableCategoriesForDate(
+      healer.rawSlots,
+      state.selectedSessionType,
+      date,
+    );
 
     return SizedBox(
-      height: 80.h,
+      height: 36.h,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.only(left: 22.w, top: 3.h, bottom: 5.h),
-        itemCount: dates.length,
-        separatorBuilder: (context, index) => SizedBox(width: 8.w),
+        itemCount: allCategories.length,
+        separatorBuilder: (context, index) => SizedBox(width: 12.w),
         itemBuilder: (context, index) {
-          final date = dates[index];
-          final isSelected =
-              state.selectedDate?.day == date.day &&
-              state.selectedDate?.month == date.month &&
-              state.selectedDate?.year == date.year;
+          final category = allCategories[index];
+          final isSelected = state.selectedTimeCategory == category;
+          final hasCategorySlots = available.contains(category);
 
           return GestureDetector(
-            onTap: () => context.read<HealerDetailBloc>().add(SelectDate(date)),
+            onTap: () => context.read<HealerDetailBloc>().add(
+                  SelectTimeCategory(category),
+                ),
             child: Container(
-              width: 40.w,
-              padding: EdgeInsets.symmetric(horizontal: 4.w),
+              width: 100.w,
+              padding: EdgeInsets.symmetric(horizontal: 20.w),
               decoration: BoxDecoration(
                 color: isSelected ? null : Colors.white,
                 gradient: isSelected
                     ? const LinearGradient(
-                        // begin: Alignment.topLeft,
-                        // end: Alignment.bottomRight,
-                        transform: GradientRotation(6.6),
+                        transform: GradientRotation(7.2),
                         colors: [
-                          Color(0xFF1F1F1F), // Base Dark
-                          Color(0xFF333333), // Base Dark
-                          Color(0xFF525252), // Central Shine
-                          Color(0xFF333333), // Base Dark
-                          Color(0xFF1F1F1F), // Base Dark
+                          Color(0xFF1F1F1F),
+                          Color(0xFF333333),
+                          Color(0xFF525252),
+                          Color(0xFF333333),
+                          Color(0xFF1F1F1F),
                         ],
-                        stops: [0.0, 0.35, 0.55, 0.75, 1.0],
+                        stops: [0.0, 0.40, 0.55, 0.75, 1.0],
                       )
                     : null,
                 borderRadius: BorderRadius.circular(21.r),
-                border: Border.all(color: const Color(0xFFF0F0F0)),
+                border: Border.all(
+                  color: hasCategorySlots
+                      ? const Color(0xFFF0F0F0)
+                      : const Color(0xFFF5F5F5),
+                ),
                 boxShadow: [
                   BoxShadow(
                     color: Color(0xfFFB5B5B26).withOpacity(0.15),
@@ -734,28 +834,18 @@ class HealerDetailScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    DateFormat('E').format(date),
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: isSelected
-                          ? Colors.white
-                          : const Color(0xff7D7D7D),
-                      fontSize: 12.sp,
-                    ),
+              child: Center(
+                child: Text(
+                  category,
+                  style: AppTextStyles.bodySmall.copyWith(
+                    fontSize: 11.sp,
+                    color: isSelected
+                        ? Colors.white
+                        : (hasCategorySlots
+                            ? const Color(0xff2F2F2F)
+                            : const Color(0xffA8A8A8)),
                   ),
-                  SizedBox(height: 8.h),
-                  Text(
-                    date.day.toString(),
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: isSelected ? Colors.white : AppColors.textPrimary,
-                      fontSize: 15.sp,
-                      // fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           );
@@ -764,86 +854,16 @@ class HealerDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTimeCategoryPicker(
-    BuildContext context,
-    HealerDetailLoaded state,
-  ) {
-    final categories = ['Morning', 'Afternoon', 'Evening'];
-    return SizedBox(
-      height: 36.h,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: categories.length,
-        separatorBuilder: (context, index) => SizedBox(width: 12.w),
-        itemBuilder: (context, index) {
-          final category = categories[index];
-          final isSelected = state.selectedTimeCategory == category;
-          final isDisabled = category == 'Evening';
-
-          return GestureDetector(
-            onTap: () => context.read<HealerDetailBloc>().add(
-                    SelectTimeCategory(category),
-                  ),
-            child: Stack(
-              children: [
-                Container(
-                  width: 100.w,
-                  padding: EdgeInsets.symmetric(horizontal: 20.w),
-                  decoration: BoxDecoration(
-                    color: isSelected ? null : Colors.white,
-                    gradient: isSelected
-                        ? const LinearGradient(
-                            transform: GradientRotation(7.2),
-                            colors: [
-                              Color(0xFF1F1F1F), // Base Dark
-                              Color(0xFF333333), // Base Dark
-                              Color(0xFF525252), // Central Shine
-                              Color(0xFF333333), // Base Dark
-                              Color(0xFF1F1F1F), // Base Dark
-                            ],
-                            stops: [0.0, 0.40, 0.55, 0.75, 1.0],
-                          )
-                        : null,
-                    borderRadius: BorderRadius.circular(21.r),
-                    border: Border.all(color: const Color(0xFFF0F0F0)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Color(0xfFFB5B5B26).withOpacity(0.15),
-                        blurRadius: 1.5,
-                        spreadRadius: 0,
-                        offset: const Offset(0, 0),
-                      ),
-                    ],
-                  ),
-                  child: Center(
-                    child: Text(
-                      category,
-                      style: AppTextStyles.bodySmall.copyWith(
-                        fontSize: 11.sp,
-                        color: isSelected ? Colors.white : const Color(0xff2F2F2F),
-                      ),
-                    ),
-                  ),
-                ),
-                // Diagonal stripes overlay for disabled state
-                if (isDisabled)
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(21.r),
-                    child: CustomPaint(
-                      painter: DiagonalStrikesPainter(
-                        stripeColor: Color(0XFF5B5B5B26).withOpacity(0.15),
-                        stripeWidth: 3.0,
-                        spacing: 6.0,
-                      ),
-                      child: Container(
-                        padding: EdgeInsets.symmetric(horizontal: 50.w),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          );
-        },
+  Widget _buildSlotNotAvailable() {
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: 20.h),
+        child: Text(
+          'Slot not available',
+          style: AppTextStyles.bodyMedium.copyWith(
+            color: AppColors.textSecondary,
+          ),
+        ),
       ),
     );
   }
@@ -853,61 +873,28 @@ class HealerDetailScreen extends StatelessWidget {
     HealerModel healer,
     HealerDetailLoaded state,
   ) {
-    final selectedDateStr = DateFormat('yyyy-MM-dd').format(state.selectedDate ?? DateTime.now());
-    final dateSlots = healer.rawSlots
-        .where((slot) => slot.date == selectedDateStr && slot.sessionType == state.selectedSessionType.value)
-        .toList();
-    
-    final slots = <String>[];
-    for (final slot in dateSlots) {
-      int hour = 9;
-      try {
-        hour = int.parse(slot.startTime.split(':')[0]);
-      } catch (_) {}
-      
-      String formatTime(String timeStr) {
-        try {
-          final parts = timeStr.split(':');
-          final h = int.parse(parts[0]);
-          final m = parts[1];
-          final ampm = h >= 12 ? 'PM' : 'AM';
-          final displayHour = h == 0 ? 12 : (h > 12 ? h - 12 : h);
-          return '${displayHour.toString().padLeft(2, '0')}:$m $ampm';
-        } catch (_) {
-          return timeStr;
-        }
-      }
-      
-      final displaySlot = '${formatTime(slot.startTime)} - ${formatTime(slot.endTime)}';
-      
-      if (state.selectedTimeCategory == 'Morning' && hour < 12) {
-        slots.add(displaySlot);
-      } else if (state.selectedTimeCategory == 'Afternoon' && hour >= 12 && hour < 16) {
-        slots.add(displaySlot);
-      } else if (state.selectedTimeCategory == 'Evening' && hour >= 16) {
-        slots.add(displaySlot);
-      }
-    }
+    final date = state.selectedDate ?? DateTime.now();
+    final category = state.selectedTimeCategory ?? 'Morning';
+    final slotItems = SessionSlotUtils.displaySlotItemsForCategory(
+      healer.rawSlots,
+      state.selectedSessionType,
+      date,
+      category,
+    );
 
-    if (slots.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: EdgeInsets.symmetric(vertical: 20.h),
-          child: Text(
-            'No slots available for this period',
-            style: AppTextStyles.bodyMedium.copyWith(color: Colors.grey),
-          ),
-        ),
-      );
+    if (slotItems.isEmpty) {
+      return _buildSlotNotAvailable();
     }
 
     return Wrap(
       spacing: 8.w,
       runSpacing: 8.h,
-      children: slots.map((time) {
-        final isSelected = state.selectedTime == time;
+      children: slotItems.map((item) {
+        final isSelected = state.selectedSlotId == item.id;
         return GestureDetector(
-          onTap: () => context.read<HealerDetailBloc>().add(SelectTime(time)),
+          onTap: () => context.read<HealerDetailBloc>().add(
+                SelectSlot(slotId: item.id, displayTime: item.label),
+              ),
           child: Container(
             padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 9.h),
             decoration: BoxDecoration(
@@ -937,7 +924,7 @@ class HealerDetailScreen extends StatelessWidget {
               ],
             ),
             child: Text(
-              time,
+              item.label,
               style: AppTextStyles.bodySmall.copyWith(
                 fontSize: 11.sp,
                 color: isSelected ? Colors.white : const Color(0xff2F2F2F),
@@ -946,6 +933,59 @@ class HealerDetailScreen extends StatelessWidget {
           ),
         );
       }).toList(),
+    );
+  }
+
+  Future<void> _onBookNow(BuildContext context, HealerDetailLoaded state) async {
+    if (!BookingFlowHelper.canBook(
+      slotId: state.selectedSlotId,
+      selectedTime: state.selectedTime,
+    )) {
+      CommonFlushbar.error(context, 'Please select an available slot first.');
+      return;
+    }
+
+    final selectedDate = state.selectedDate ?? DateTime.now();
+    if (SessionSlotUtils.isPastDate(selectedDate)) {
+      CommonFlushbar.error(context, 'Please select today or a future date.');
+      return;
+    }
+
+    final bookingDate = SessionSlotUtils.dateKey(selectedDate);
+    final healer = state.healer;
+    final args = BookingFlowArgs(
+      healerId: healer.id,
+      slotId: state.selectedSlotId!,
+      bookingDate: bookingDate,
+      sessionType: state.selectedSessionType.value,
+      sessionPricing: healer.sessionPricing,
+      liveCounselling: healer.liveCounsellingPricing,
+      fallbackPricePerMinute: healer.feesPerMin,
+    );
+
+    if (state.selectedSessionType == SessionType.live) {
+      context.push('/live-counselling-session', extra: args);
+      return;
+    }
+
+    final canAfford = await BookingWalletPreflight.ensureCanAfford(
+      context: context,
+      sessionType: state.selectedSessionType,
+      sessionPricing: healer.sessionPricing,
+      liveCounselling: healer.liveCounsellingPricing,
+      fallbackPricePerMinute: healer.feesPerMin,
+    );
+    if (!canAfford || !context.mounted) return;
+
+    await BookingFlowHelper.submit(
+      context: context,
+      healerId: args.healerId,
+      slotId: args.slotId,
+      bookingDate: args.bookingDate,
+      consultationType: 2,
+      onRefreshSlots: () {
+        context.read<HealerDetailBloc>().add(LoadHealerDetail(state.healer.id));
+      },
     );
   }
 
@@ -1248,9 +1288,7 @@ class HealerDetailScreen extends StatelessWidget {
                 buttonText: 'Book Now',isShowIcon: true,
                 backgroundColor: AppColors.primary,
                 iconPath: 'assets/image/gradiantarrow.png',
-                onSwipeComplete: () {
-                  context.push('/live-counselling-session');
-                },
+                onSwipeComplete: () => _onBookNow(context, state),
               ),
             ),
           ],

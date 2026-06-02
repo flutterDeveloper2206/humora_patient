@@ -40,12 +40,14 @@ class SelectTimeCategory extends HealerDetailEvent {
   List<Object?> get props => [category];
 }
 
-class SelectTime extends HealerDetailEvent {
-  final String time;
-  const SelectTime(this.time);
+class SelectSlot extends HealerDetailEvent {
+  final String slotId;
+  final String displayTime;
+
+  const SelectSlot({required this.slotId, required this.displayTime});
 
   @override
-  List<Object?> get props => [time];
+  List<Object?> get props => [slotId, displayTime];
 }
 
 class NavigateWeek extends HealerDetailEvent {

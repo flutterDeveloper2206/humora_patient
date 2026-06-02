@@ -25,7 +25,9 @@ class ChatScreen extends StatelessWidget {
 }
 
 class ChatView extends StatefulWidget {
-  const ChatView({super.key});
+  final bool embedded;
+
+  const ChatView({super.key, this.embedded = false});
 
   @override
   State<ChatView> createState() => _ChatViewState();
@@ -56,10 +58,7 @@ class _ChatViewState extends State<ChatView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: _buildAppBar(context),
-      body: Column(
+    final chatBody = Column(
         children: [
           _buildSessionStatusBar(),
           Expanded(
@@ -114,8 +113,14 @@ class _ChatViewState extends State<ChatView> {
           ),
           _buildTypingIndicator(),
           _buildInputArea(context),
+          if (widget.embedded) SizedBox(height: 88.h),
         ],
-      ),
+      );
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: _buildAppBar(context),
+      body: chatBody,
     );
   }
 
@@ -123,10 +128,13 @@ class _ChatViewState extends State<ChatView> {
     return AppBar(
       backgroundColor: Colors.white,
       elevation: 0,
-      leading: IconButton(
-        icon: Icon(Icons.chevron_left, color: Colors.black, size: 28.sp),
-        onPressed: () => context.pop(),
-      ),
+      automaticallyImplyLeading: !widget.embedded,
+      leading: widget.embedded
+          ? null
+          : IconButton(
+              icon: Icon(Icons.chevron_left, color: Colors.black, size: 28.sp),
+              onPressed: () => context.pop(),
+            ),
       titleSpacing: 0,
       title: BlocBuilder<ChatBloc, ChatState>(
         builder: (context, state) {

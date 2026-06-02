@@ -19,8 +19,9 @@ enum ConsultationType {
 }
 
 enum SessionType {
-  personal(1),
-  group(2);
+  live(1),
+  personal(2),
+  group(3);
 
   final int value;
   const SessionType(this.value);
@@ -31,6 +32,12 @@ enum SessionType {
       orElse: () => SessionType.personal,
     );
   }
+
+  String get label => switch (this) {
+        SessionType.live => 'Live',
+        SessionType.personal => 'Personal',
+        SessionType.group => 'Group',
+      };
 }
 
 class HealerEducation extends Equatable {
@@ -118,6 +125,8 @@ class HealerModel extends Equatable {
   final List<String> experienceDetails;
   final List<HealerReview> reviews;
   final List<SessionSlotItem> rawSlots;
+  final List<SessionPricingItem> sessionPricing;
+  final List<LiveCounsellingItem> liveCounsellingPricing;
 
   const HealerModel({
     required this.id,
@@ -137,6 +146,8 @@ class HealerModel extends Equatable {
     this.experienceDetails = const [],
     this.reviews = const [],
     this.rawSlots = const [],
+    this.sessionPricing = const [],
+    this.liveCounsellingPricing = const [],
   });
 
   factory HealerModel.fromApi(ApprovedHealerItem item) {
@@ -191,6 +202,8 @@ class HealerModel extends Equatable {
       feesPerMin: minPrice,
       availability: availability,
       rawSlots: item.sessionSlots,
+      sessionPricing: const [],
+      liveCounsellingPricing: item.liveCounselling,
     );
   }
 
@@ -295,6 +308,8 @@ class HealerModel extends Equatable {
         ),
       ],
       rawSlots: item.sessionSlots,
+      sessionPricing: item.sessionPricing,
+      liveCounsellingPricing: item.liveCounsellingPricing,
     );
   }
 
@@ -341,6 +356,8 @@ class HealerModel extends Equatable {
     experienceDetails,
     reviews,
     rawSlots,
+    sessionPricing,
+    liveCounsellingPricing,
   ];
 }
 

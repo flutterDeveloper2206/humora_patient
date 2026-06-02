@@ -19,6 +19,7 @@ class HealerDetailLoaded extends HealerDetailState {
   final DateTime? focusedDate;
   final String? selectedTimeCategory;
   final String? selectedTime;
+  final String? selectedSlotId;
   final SessionType selectedSessionType;
 
   const HealerDetailLoaded({
@@ -28,6 +29,7 @@ class HealerDetailLoaded extends HealerDetailState {
     this.focusedDate,
     this.selectedTimeCategory = 'Morning',
     this.selectedTime,
+    this.selectedSlotId,
     this.selectedSessionType = SessionType.personal,
   });
 
@@ -38,7 +40,9 @@ class HealerDetailLoaded extends HealerDetailState {
     DateTime? focusedDate,
     String? selectedTimeCategory,
     String? selectedTime,
+    String? selectedSlotId,
     SessionType? selectedSessionType,
+    bool clearSlot = false,
   }) {
     return HealerDetailLoaded(
       healer: healer ?? this.healer,
@@ -46,7 +50,8 @@ class HealerDetailLoaded extends HealerDetailState {
       selectedDate: selectedDate ?? this.selectedDate,
       focusedDate: focusedDate ?? this.focusedDate,
       selectedTimeCategory: selectedTimeCategory ?? this.selectedTimeCategory,
-      selectedTime: selectedTime ?? this.selectedTime,
+      selectedTime: clearSlot ? null : (selectedTime ?? this.selectedTime),
+      selectedSlotId: clearSlot ? null : (selectedSlotId ?? this.selectedSlotId),
       selectedSessionType: selectedSessionType ?? this.selectedSessionType,
     );
   }
@@ -59,6 +64,7 @@ class HealerDetailLoaded extends HealerDetailState {
         focusedDate,
         selectedTimeCategory,
         selectedTime,
+        selectedSlotId,
         selectedSessionType,
       ];
 }

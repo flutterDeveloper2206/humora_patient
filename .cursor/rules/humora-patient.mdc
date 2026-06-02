@@ -1,8 +1,6 @@
 ---
-description: Humora Patient — architecture, API flow, UI theme, and coding conventions. Read before any task.
 alwaysApply: true
 ---
-
 # Humora Patient — Project Rules
 
 **Humora Patient** is a Flutter patient app for mental-health / healing counseling: onboarding, healer discovery, sessions, live calls, chat, payments, and reminders.

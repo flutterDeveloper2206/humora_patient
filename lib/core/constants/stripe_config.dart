@@ -13,5 +13,7 @@ class StripeConfig {
   static const String defaultCurrencyId =
       '019df1b3-a31d-71fe-8d56-c7a76c7b8197';
 
-  static const double minimumTopUpAmount = 50;
+  /// Default minimum for INR; use [WalletBalanceResponse.minimumTopUpAmount] per wallet currency.
+  static const double minimumTopUpAmountInr = 50;
+  static const double minimumTopUpAmountOther = 0.5;
 }
