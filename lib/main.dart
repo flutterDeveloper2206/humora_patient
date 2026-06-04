@@ -6,6 +6,7 @@ import 'package:flutter_stripe/flutter_stripe.dart';
 import 'routes/app_router.dart';
 import 'core/constants/app_colors.dart';
 import 'core/constants/stripe_config.dart';
+import 'core/network/connectivity_service.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
 
 import 'package:flutter/services.dart';
@@ -24,6 +25,9 @@ Future<void> main() async {
   Stripe.publishableKey = StripeConfig.publishableKey;
   Stripe.urlScheme = StripeConfig.urlScheme;
   await Stripe.instance.applySettings();
+
+  ConnectivityService.instance.bindNavigatorKey(AppRouter.rootNavigatorKey);
+  await ConnectivityService.instance.init();
 
   // Intercept the low-level keyevent message channel to catch and suppress the framework desync assertion error
   SystemChannels.keyEvent.setMessageHandler((dynamic message) async {

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
+import '../../core/network/connectivity_service.dart';
 
 enum FlushbarType { success, error, warning }
 
@@ -72,6 +73,9 @@ class CommonFlushbar {
   }
 
   static void error(BuildContext context, String message, {String? title}) {
+    if (!ConnectivityService.instance.isOnline) {
+      return;
+    }
     show(context, message: message, type: FlushbarType.error, title: title);
   }
 

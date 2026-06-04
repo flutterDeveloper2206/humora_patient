@@ -35,7 +35,11 @@ import '../features/appointment_reminder/presentation/pages/appointment_reminder
 import '../features/home/presentation/pages/home_screen.dart';
 
 class AppRouter {
+  static final GlobalKey<NavigatorState> rootNavigatorKey =
+      GlobalKey<NavigatorState>();
+
   static final GoRouter router = GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: '/splash',
     // initialLocation: '/location-picker',
     routes: [

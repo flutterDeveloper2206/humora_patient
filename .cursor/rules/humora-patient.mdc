@@ -3,7 +3,22 @@ alwaysApply: true
 ---
 # Humora Patient — Project Rules
 
-**Humora Patient** is a Flutter patient app for mental-health / healing counseling: onboarding, healer discovery, sessions, live calls, chat, payments, and reminders.
+**Humora Patient** is a Flutter patient app for mental-health / healing counseling: onboarding, healer discovery, bookings, sessions, live calls, chat, wallet, and reminders.
+
+## Non-breaking changes (read first)
+
+When implementing any new task or prompt:
+
+- **Extend, do not replace** — add APIs, widgets, routes, and events; avoid rewriting working flows unless explicitly asked.
+- **Minimal diff** — touch only files required for the task; no drive-by refactors, renames, or “cleanup” of unrelated code.
+- **Preserve existing behavior** for: auth/onboarding, `HomeScreen` tab shell, bottom nav, healer detail booking, wallet Stripe top-up, my sessions list/detail, and shared `Common*` widgets.
+- **Do not remove** routes, BLoC handlers, or API calls that other screens depend on without confirming usage in `app_router.dart` and `HomeScreen`.
+- **Match patterns** in the nearest feature folder (architecture may differ per feature — see below).
+- **Run `flutter analyze`** on touched paths when changes are non-trivial.
+- **No commits / README / tests** unless the user asks.
+- **No `android/` / `ios/`** edits unless the task is platform-specific.
+
+---
 
 ## Tech stack
 
@@ -11,218 +26,368 @@ alwaysApply: true
 - **State:** `flutter_bloc` + `equatable`
 - **Navigation:** `go_router` → `lib/routes/app_router.dart`
 - **Layout:** `flutter_screenutil` — design size `375×812` in `main.dart`
-- **HTTP:** `package:http` (not Dio)
-- **Session:** `shared_preferences` via `SessionManager`
-- **Loading UI:** `auto_skeleton` — configured globally in `main.dart`
+- **HTTP:** `package:http` via **`AppHttpClient.instance`** (`lib/core/network/app_http_client.dart`) — wraps **`NetworkAwareClient`**; never `http.get`/`http.post` at top level
+- **Connectivity:** `ConnectivityService` + **`NoInternetDialog`** (global popup, Retry) — init in `main.dart`, `AppRouter.rootNavigatorKey`
+- **Payments:** `flutter_stripe` — init in `main.dart` (`StripeConfig`)
+- **Session:** `shared_preferences` via `SessionManager` (token, patientId, currencyId)
+- **Loading UI:** `auto_skeleton` — global config in `main.dart`
 - **Assets:** `assets/image/`, `assets/images/`, `assets/fonts/` (GeneralSans)
 
 ---
 
-## API flow (required pattern)
+## API flow
 
-### Layered flow
+### Layered flow (preferred for new work)
 
 ```
-UI (Screen/Widget)
+UI (presentation/pages|widgets)
   → BLoC (presentation/bloc)
-    → UseCase (domain/usecases) — when present
+    → UseCase (domain/usecases) — optional
       → Repository (domain/repositories)
         → RepositoryImpl (data/repositories)
           → ApiService (data/datasource)
-            → ApiEndpoints (core/constants)
-    → SessionManager (token / patientId / currencyId)
-  → UI models for display
+            → ApiEndpoints
+  → SessionManager (token / patientId / currencyId)
 ```
 
 **Rules:**
-- **Never** call `http` directly from widgets or BLoCs — use repository → datasource.
-- BLoCs may call repository or usecase; repositories call `*ApiService` in `data/datasource/`.
-- **All URLs** go in `lib/core/constants/api_endpoints.dart` only.
-- **Auth token** via `SessionManager.getToken()`; **patient ID** via `SessionManager.getPatientId()`.
-- After login/OTP: save with `SessionManager.saveToken()` and `savePatientId()`.
-- Logout: `SessionManager.clearSession()`.
+- **Never** call `http` from widgets or BLoCs.
+- **Never** create per-request `http.Client()` — use `AppHttpClient.instance` (injectable in constructors for tests).
+- **All URLs** in `lib/core/constants/api_endpoints.dart` only.
+- **Auth:** `SessionManager.getToken()` / `getPatientId()`; save after OTP; `clearSession()` on logout.
 
 ### Base URL & endpoints
 
 - Base: `https://api.devhealer.hyperbeen.com/api/v1`
-- Defined in `ApiEndpoints` — add new paths there, never hardcode URLs in services.
 
-| Endpoint helper | Method | Auth |
-|-----------------|--------|------|
-| `sendOtp` | POST | No |
-| `verifyOtp` | POST | No |
-| `saveProfile(patientId)` | POST | Bearer |
-| `categorySpecializations` | GET | Bearer |
-| `savePreference(patientId)` | POST | Bearer |
-| `approvedHealers` | POST | Bearer |
-| `approvedHealerDetails(healerId)` | GET | Bearer |
+| Endpoint helper | Method | Auth | Feature |
+|-----------------|--------|------|---------|
+| `sendOtp` | POST | No | auth |
+| `verifyOtp` | POST | No | auth |
+| `saveProfile(patientId)` | POST | Bearer | auth |
+| `categorySpecializations` | GET | Bearer | healing_focus |
+| `savePreference(patientId)` | POST | Bearer | healing_focus |
+| `approvedHealers` | POST | Bearer | healers / home |
+| `approvedHealerDetails(healerId)` | GET | Bearer | healers |
+| `walletBalance` | GET | Bearer | wallet |
+| `walletTransactions` | GET | Bearer | wallet |
+| `walletPaymentIntent` | POST | Bearer | wallet |
+| `createBooking` | POST | Bearer | booking |
+| `myBookings(isHealer: false)` | GET | Bearer | my_sessions |
+| `bookingDetail(bookingId)` | GET | Bearer | my_sessions |
 
 ### ApiService conventions
 
-Place under `lib/features/<feature>/data/datasource/<feature>_api_service.dart`.
+Path: `lib/features/<feature>/data/datasource/<feature>_api_service.dart`
 
 ```dart
-// ✅ Pattern (match AuthApiService / HealingFocusApiService)
 class XApiService {
   final http.Client _client;
-  XApiService({http.Client? client}) : _client = client ?? http.Client();
+  XApiService({http.Client? client})
+      : _client = client ?? AppHttpClient.instance;
 
-  Map<String, dynamic> _parseResponse(http.Response response, Uri url) {
-    // jsonDecode, status 2xx, extract message/error/errors on failure
-  }
-
-  Future<XResponse> someCall(...) async {
-    final headers = {
-      'accept': '*/*',
-      'Content-Type': 'application/json', // when body is JSON
-      if (needsAuth) 'Authorization': 'Bearer $token',
-    };
-    developer.log('--- API REQUEST ---', name: 'XApiService');
-    // ... post/get → _parseResponse → Model.fromJson
-  }
+  // _parseResponse: jsonDecode, 2xx, message/error/errors on failure
+  // log URL, status, body with dart:developer
+  // headers: accept */*, Authorization Bearer when needed
 }
 ```
 
-- **Request/response models:** `lib/features/<feature>/data/models/` with `toJson()` / `fromJson()`.
-- **API DTOs vs UI models:** Keep `*_api_models.dart` for raw API shapes; map to UI models (e.g. `HealerModel.fromApi()`).
-- **Errors:** Throw `Exception(message)` with server `message` / `error` / `errors` when present.
-- **Logging:** Use `dart:developer` `log()` — log URL, status, body on request/response.
-- **Headers:** Always include `'accept': '*/*'`; authenticated calls use `'Authorization': 'Bearer $token'`.
+- Models: `data/models/` with `toJson` / `fromJson`.
+- List responses: tolerate multiple JSON keys (`data`, `items`, `bookings`, etc.) — see `my_sessions_api_service.dart`.
 
-### BLoC + API wiring
+### API error handling (required on every call)
+
+Errors are handled in **layers** — never show raw `Exception:` text or stack traces in UI.
+
+#### Layer 1 — ApiService (`data/datasource`)
+
+1. **Log every request/response** with `dart:developer` `log()` (URL, status, body).
+2. **Auth:** `_requireToken()` → if missing, `throw Exception('Authentication token not found')` before HTTP.
+3. **`_parseResponse`** (copy from `auth_api_service.dart` or `wallet_api_service.dart`):
+   - `jsonDecode` in try/catch → on failure: user message like `Server error (${statusCode}): Invalid response format.`
+   - **2xx:** return `Map<String, dynamic>` (or validate shape before `fromJson`).
+   - **Non-2xx:** build `errorMessage` from server body in order: `message` → `error` → `errors` (list join or map values).
+   - Fallback: `Request failed with status ${statusCode}`.
+4. **Throw typed errors when UI must branch:**
+   - General features: `throw Exception(errorMessage)` (message only, no `Exception: ` prefix in message string).
+   - Booking / my sessions booking APIs: `throw BookingApiException(statusCode, errorMessage)` — reuse class in `booking_api_service.dart`.
+5. **Do not** catch and re-wrap with `throw Exception(e.toString())` unless stripping prefix — prefer let `Exception` / `BookingApiException` propagate.
+6. **Parse safety:** `fromJson` on list endpoints — skip invalid items, log and continue (see `my_sessions_api_service.dart`); do not fail entire list for one bad row unless critical.
 
 ```dart
-class XBloc extends Bloc<XEvent, XState> {
-  final XApiService _apiService;
-  XBloc({XApiService? apiService})
-      : _apiService = apiService ?? XApiService(),
-        super(XInitial()) {
-    on<LoadX>(_onLoad);
+// ✅ Non-2xx extraction (same order everywhere)
+String errorMessage = 'Request failed with status ${response.statusCode}';
+if (responseData is Map<String, dynamic>) {
+  if (responseData['message'] != null) {
+    errorMessage = responseData['message'].toString();
+  } else if (responseData['error'] != null) {
+    errorMessage = responseData['error'].toString();
+  } else if (responseData['errors'] != null) {
+    // list or map — join to single string
   }
+}
+throw Exception(errorMessage); // or BookingApiException(statusCode, errorMessage)
+```
 
-  Future<void> _onLoad(LoadX event, Emitter<XState> emit) async {
-    emit(XLoading());
-    try {
-      final token = await SessionManager.getToken();
-      final data = await _apiService.fetch(..., token!);
-      emit(XLoaded(data));
-    } catch (e) {
-      emit(XError(e.toString().replaceAll('Exception: ', '')));
-    }
+#### Layer 2 — Repository / UseCase
+
+- Pass through exceptions from ApiService; add domain logic only when needed.
+- Do not swallow errors; do not convert to success.
+
+#### Layer 3 — BLoC
+
+```dart
+Future<void> _onLoad(LoadX event, Emitter<XState> emit) async {
+  emit(XLoading()); // or isRefreshing on Loaded — see refresh rules
+  try {
+    final data = await _useCase();
+    emit(XLoaded(data));
+  } catch (e) {
+    emit(XError(_cleanError(e)));
+    // on refresh failure: restore previous Loaded — my_sessions pattern
   }
+}
+
+String _cleanError(Object e) {
+  if (e is BookingApiException) return e.message;
+  return e.toString().replaceAll('Exception: ', '');
 }
 ```
 
-- Emit `*Loading` before API call; `*Loaded` on success; `*Error` with user-readable message on failure.
-- Show errors in UI with `CommonFlushbar.error(context, message)` — not raw exception dumps.
-- **Mock/delay only** for unfinished flows (e.g. email login) — mark with comment; prefer real API when endpoint exists.
+- **Refresh:** on error while `isRefreshing`, revert to last `Loaded` and optionally set error on state OR show flushbar only — do not emit bare `Error` and wipe list.
+- **listenWhen** on `BlocConsumer`: avoid duplicate toasts (e.g. skip error listener when `prev is Loaded && prev.isRefreshing`).
+- **Status-specific flows** stay in presentation helpers, not generic BLoC:
+  - Booking: `BookingFlowHelper._handleError` — 400 balance → `InsufficientWalletDialog`; 404 profile → `/finish-signup`; 409 → refresh slots + message.
+  - Wallet top-up: `StripeException` — canceled = silent; else `state.error` + flushbar.
 
-### Adding a new API
+#### Global offline handling
 
-1. Add URL to `ApiEndpoints`.
-2. Create models in `data/models/`.
-3. Create `data/datasource/*_api_service.dart` with `_parseResponse`.
-4. Add `domain/repositories/*_repository.dart` + `data/repositories/*_repository_impl.dart`.
-5. Add usecase(s) in `domain/usecases/` when logic is non-trivial.
-6. Inject repository/usecase into `presentation/bloc`.
-7. Handle loading/error in `presentation/pages` via `BlocBuilder` / `BlocListener`.
+- `ConnectivityService` listens via `connectivity_plus`; verifies reachability with HEAD to `ApiEndpoints.baseUrl`.
+- When offline or socket/timeout failure: blocking **`NoInternetDialog`** (app theme, **Retry** re-checks network).
+- `NetworkAwareClient` throws `NoInternetException` on failed requests when offline.
+- **`CommonFlushbar.error` is skipped while offline** — dialog is the only UI (no duplicate toast).
+
+#### Layer 4 — UI
+
+| Case | Pattern |
+|------|---------|
+| Transient action (submit, top-up) | `BlocListener` → `CommonFlushbar.error(context, message)` |
+| Full-screen / first load failed | `*Error` state → centered message + **Retry** button (re-dispatch load event) |
+| Pull-to-refresh failed | Keep content; flushbar OR inline; restore `Loaded` in BLoC |
+| Insufficient wallet (booking) | `InsufficientWalletDialog` — **not** flushbar |
+| Success | `CommonFlushbar.success` or `/success` route |
+
+- **Never** `print(e)` / `debugPrint` full stack to user.
+- **Never** show empty screen without retry when API failed on initial load.
+- Validate form **before** API (slot selected, min wallet amount) — flushbar for client-side validation.
+
+#### BookingApiException helpers (when reusing booking API)
+
+- `isInsufficientBalance` — 400 + message contains `balance`
+- `isIdempotencyInProgress` — 409 + idempotency → retry after delay in `BookingFlowHelper`
+
+#### Adding a new API (checklist)
+
+1. `ApiEndpoints` — new helper only.
+2. `data/models/` — request/response DTOs.
+3. `data/datasource/*_api_service.dart` — `AppHttpClient.instance` + `_parseResponse` + server `message`/`error`/`errors`.
+4. Repository + usecase if feature uses clean architecture; else match sibling feature.
+5. BLoC: try/catch, `_cleanError`, `*Error` state + listener flushbar; refresh must not wipe data.
+6. UI: retry on fatal load; `listenWhen` for toasts.
+7. Register route in `app_router.dart` if new screen.
+8. **Do not break** existing endpoint helpers or callers.
+
+### BLoC conventions (summary)
+
+- Emit `*Loading` / `*Loaded` / `*Error`; refresh uses `isRefreshing` on loaded state.
+- Errors: follow **API error handling** layers above.
+- Guard duplicate loads (`_fetchGeneration`, skip if already loaded).
+
+---
+
+## Implemented flows (do not regress)
+
+### Home shell (`/home`)
+
+- `HomeScreen` → `MultiBlocProvider` (Home, MySessions, Wallet, Chat) → `_HomeShell` with **`IndexedStack`** (not separate routes per tab).
+- Tabs: 0 Home, 1 My Sessions (`MySessionsView` embedded), 2 Wallet (`WalletView` embedded), 3 Chat (`ChatView` embedded), 4 Profile (`HomeProfileTab` placeholder).
+- **Lazy load:** My Sessions on tab 1 first visit; Wallet on tab 2; Chat on tab 3.
+- Bottom nav: `HomeBottomNavBar` — centered wallet FAB, original notch design; tab switch via `setState` only (no `context.go` for tabs).
+
+### Healer detail → booking
+
+- Route: `/healer-detail/:healerId`
+- Session types: `SessionType` — Live=1, Personal=2, Group=3 (`healer_model.dart`).
+- Date picker: default **today**; **no past dates**; week back limited (`SessionSlotUtils.isPastDate`, `canNavigateToPreviousWeek`).
+- Slots: `SessionSlotUtils` + `HealerDetailBloc` (`SelectDate`, `SelectSlot`, `NavigateWeek`, `ChangeSessionType`).
+- Book: `SwipeableButton` → `_onBookNow`:
+  - **Live** → `context.push('/live-counselling-session', extra: BookingFlowArgs)` — wallet check on live screen before POST.
+  - **Personal/Group** → `BookingWalletPreflight.ensureCanAfford` then `BookingFlowHelper.submit` (consultationType 2).
+- `HealerModel` includes `sessionPricing`, `liveCounsellingPricing`, `rawSlots` from details API.
+
+### Wallet pre-flight (Phase 2 — before POST `/booking`)
+
+- `GET wallet/balance` via `GetWalletBalanceUseCase` / `BookingWalletPreflight`.
+- `BookingHoldCalculator.requiredHold`:
+  - Live: `minSessionMinutes × pricePerMinute` (from `sessionPricing` + `liveCounselling`, optional `consultationType`).
+  - Personal / Group: `fixedPrice` from `sessionPricing`.
+- If not affordable: **`InsufficientWalletDialog`** — user taps **Go to Wallet** → `context.push('/wallet')`; **Cancel** stays on screen. **Do not** auto-navigate or use flushbar for this case.
+
+### Booking POST
+
+- `BookingFlowHelper.submit` — idempotency key `booking_<uuid>`, 409 retry, success → `/success` then `context.go('/my-sessions')`.
+- Insufficient balance from API: same `InsufficientWalletDialog`.
+
+### Wallet top-up
+
+- `WalletBloc` + Stripe Payment Sheet; `returnURL` from `StripeConfig`.
+- `AddMoneySheet.show(context, WalletBalanceResponse)` — min top-up: **₹50** INR, **$0.50** other (`WalletBalanceResponse.isIndianCurrency`).
+- Validation message via `CommonFlushbar` on submit below minimum.
+- Android: `FlutterFragmentActivity`; iOS: URL scheme `humorapatient` in Info.plist.
+
+### My Sessions
+
+- Routes: `/my-sessions`, `/my-session/:bookingId`
+- List: grouped by date, `AutoSkeleton` + placeholder groups while loading (not custom shimmer widgets).
+- Embedded in home tab via `MySessionsView(embedded: true)`.
 
 ---
 
 ## UI design & theme
 
-### Brand identity
+### Brand
 
-Warm, calm healthcare feel — **soft cream backgrounds**, **rose/red primary**, **GeneralSans** typography.
+Warm healthcare — cream backgrounds, rose primary `#E81848`, **GeneralSans**.
 
-### Colors (`AppColors` — always use, do not invent)
+### Colors (`AppColors` only)
 
-| Token | Hex / usage |
-|-------|-------------|
-| `primary` | `#E81848` — CTA buttons, focus borders, accents |
-| `primaryLite` | `#FEF9FA` — success/onboarding screens bg |
-| `primaryLiteChip` | `#FFCFD5` — chips, highlights |
-| `background` | `#FFFDF9` — scaffold default (theme) |
-| `surface` | `#FBFBFB` — text field fill |
-| `textPrimary` | `#1F1F1F` — headings, body |
-| `textSecondary` | `#717171` — subtitles, labels |
-| `textHint` | `#7A7A7A` — placeholders |
-| `divider` | `#D9DDDF` — card borders |
-| `error` | red — validation, flushbar errors |
-| `darkButton` | `#221F1F` — secondary dark CTAs |
-
-Card surfaces often use `#F9FBFC` with light shadow — prefer `AppColors.surface` / `divider` when adding new cards.
+| Token | Usage |
+|-------|--------|
+| `primary` | CTAs, focus, accents |
+| `primaryLite` / `primaryLiteChip` | chips, dialogs, highlights |
+| `background` | scaffold default |
+| `surface` | inputs |
+| `textPrimary` / `textSecondary` / `textHint` | text |
+| `divider` | borders |
+| `darkButton` | dark CTAs (dialogs, permission-style) |
 
 ### Typography (`AppTextStyles` + `.sp`)
 
-| Style | Size | Weight | Use |
-|-------|------|--------|-----|
-| `h1` | 24.sp | bold | Screen titles |
-| `h2` | 20.sp | w700 | Section headers |
-| `h3` | 18.sp | w600 | Subsections |
-| `bodyLarge` | 16.sp | w500 | Primary body |
-| `bodyMedium` | 14.sp | w500 | Default text, inputs |
-| `bodySmall` | 12.sp | normal | Meta, dates |
-| `label` | 12.sp | w400 | Field labels |
-| `button` | 16.sp | w500 | Button text (white on primary) |
-| `caption` | 12.sp | normal | Hints, footnotes |
+Use `h1`–`caption`, `button` for CTAs. No `google_fonts` for new UI unless required.
 
-- Font family: **`GeneralSans`** only (`AppTextStyles.fontFamily`).
-- Do **not** use `google_fonts` for new screens unless explicitly required.
+### Layout
 
-### Spacing & layout
+- Horizontal padding **`20.w`**; card radius **`16.r`**; buttons/inputs **`12.r`**; CTA height **`52.h`**.
+- ScreenUtil: `.w`, `.h`, `.sp`, `.r` only.
 
-- Screen horizontal padding: **`20.w`** (standard from home/healer screens).
-- Section gaps: **`8.h`–`16.h`** between label and field; **`20.h`–`24.h`** between sections.
-- Card padding: **`12.w`**; card radius: **`16.r`**.
-- Input/button radius: **`12.r`**.
-- Avatar/circle images: **`30.r`** or `50.w` square with `ClipRRect`.
-- All sizes via ScreenUtil: `.w`, `.h`, `.sp`, `.r` — no raw pixel literals for layout.
-
-### Shared widgets (use first)
+### Shared widgets
 
 | Widget | When |
 |--------|------|
-| `CommonButton` | Primary CTA — height `52.h`, radius `12.r`, bg `AppColors.primary` |
-| `CommonTextField` | All form inputs — filled `AppColors.surface`, focus border `primary` |
-| `CommonImage` | Local assets + network paths |
-| `CommonFlushbar` | success / error / warning toasts (top position default) |
-| `CommonSuccessScreen` | Route `/success` with `extra` map for image, title, CTA |
-| `SwipeableButton` | Swipe-to-confirm actions |
+| `CommonButton` | Primary CTA |
+| `CommonTextField` | Forms |
+| `CommonImage` | Assets + network |
+| `CommonFlushbar` | Generic success/error (not wallet insufficient on book) |
+| `CommonSuccessScreen` | `/success` + `extra` map |
+| `SwipeableButton` | Healer detail book confirm |
+| `InsufficientWalletDialog` | Low balance before/during booking |
+| `AutoSkeleton` | List/detail loading (home, my sessions, healer list) |
 
-### Screen structure
+### Dialogs
+
+- Match `PermissionDialog` / `InsufficientWalletDialog`: white card `24.r`, header + divider, icon circle `primaryLite`, `CommonButton` dark CTA, underlined cancel.
+
+### Creating new UI (required checklist)
+
+When building or updating any screen, follow this order — **do not** ship a screen with only `CircularProgressIndicator` for list/detail unless explicitly requested.
+
+#### 1. State (BLoC)
+
+- Define clear states: `Initial`, `Loading`, `Loaded`, `Error` (and `Loaded.copyWith(isRefreshing: true)` for refresh).
+- Add a loading extension when helpful, e.g. `bool get isBusy` = initial | loading | (loaded && isRefreshing) — see `my_sessions_loading.dart`.
+- **First load:** emit `Loading` (or show skeleton via `isBusy` from `Initial`).
+- **Pull-to-refresh / app-bar refresh:** keep last `Loaded` data, set `isRefreshing: true`, then emit updated `Loaded` or `Error`; never blank the whole screen on refresh.
+- **listenWhen:** suppress error flushbar during refresh (e.g. skip if `prev is Loaded && prev.isRefreshing`).
+- Guard duplicate fetches (`_fetchGeneration` or skip if already `Loaded` when appropriate).
+- Wire errors in UI with retry; API messages via `CommonFlushbar` in `BlocListener` (not in builder).
+
+#### 2. AutoSkeleton (not custom shimmer)
+
+- Global config already in `main.dart` (`AutoSkeletonConfig` — base `#E0E0E0`, highlight `#F5F5F5`).
+- Wrap the **real** layout (same widgets as loaded state), not a separate shimmer widget:
 
 ```dart
-Scaffold(
-  backgroundColor: AppColors.background, // or Colors.white for list-heavy screens
-  body: SafeArea(
-    child: BlocBuilder<XBloc, XState>(
-      builder: (context, state) {
-        if (state is XLoading) return /* AutoSkeleton or CircularProgressIndicator */;
-        if (state is XError) return /* error UI + retry */;
-        // loaded content
-      },
-    ),
+final isLoading = state.isBusy; // or state is XLoading || state is XInitial
+
+final data = state is XLoaded
+    ? state.items
+    : XPlaceholder.items(); // same structure as real UI
+
+return AutoSkeleton(
+  enabled: isLoading,
+  child: XListContent(
+    items: data,
+    interactionsEnabled: !isLoading, // disable taps while loading
   ),
-)
+);
 ```
 
-### Loading states
+- **Reference screens:** `home_tab_body.dart`, `healer_list_screen.dart`, `healer_detail_screen.dart`, `my_sessions_screen.dart`, `my_session_detail_screen.dart`, `wallet_screen.dart` (partial).
+- **Do not** add new `Shimmer` / custom skeleton overlays unless product asks — use `AutoSkeleton` only.
 
-- Global skeleton colors in `main.dart`: base `#E0E0E0`, highlight `#F5F5F5`.
-- Wrap loading list/detail content in **`AutoSkeleton`** (see `healer_list_screen`, `home_screen`).
-- Full-screen first load: `Center(child: CircularProgressIndicator())` only if skeleton not used.
+#### 3. Theme & layout (app-wise)
 
-### Cards & chips
+- **Scaffold:** `AppColors.background` (lists may use `Colors.white` app bar + cream body — match nearest screen).
+- **Padding:** `20.w` horizontal; section gaps `8.h`–`24.h`.
+- **Cards:** white / `surface`, `16.r` radius, `AppColors.divider` border, shadow opacity ~`0.02`.
+- **Chips / date headers:** `AppColors.primaryLite` bg, `primaryLiteChip` border, `primary` accent — see my sessions date header, `AvailabilityChip`.
+- **Selected pills (healer detail):** dark gradient or `primary` — match existing date/slot chips, do not invent new colors.
+- **Typography:** `AppTextStyles` + `.sp` only; **GeneralSans** (theme `fontFamily`).
+- **CTAs:** `CommonButton` — `52.h`, `12.r`, `AppColors.primary` (or `darkButton` in dialogs).
+- **App bar:** white, `elevation: 0`, title `18.sp` w600, subtitle `11.sp` `textSecondary` when loading.
 
-- Cards: light bg, `BorderRadius.circular(16.r)`, subtle `BoxShadow` opacity `0.02`, border `AppColors.divider`.
-- Availability / tags: `AvailabilityChip` pattern — available = pink tint `#FFF2F5` + `primary` border.
+#### 4. Smart refresh (pull-to-refresh)
 
-### Feedback & navigation
+Use **`RefreshIndicator`** with `AppColors.primary` — **not** a new package unless user adds `smart_refresher` to `pubspec.yaml`.
 
-- Errors: `CommonFlushbar.error(context, state.message)`.
-- Success: `CommonFlushbar.success` or navigate to `/success` with `extra`.
-- Navigation: `context.push`, `context.go`, path params (`/healer-detail/:healerId`).
+Pattern (keep content visible + skeleton only on first load):
+
+```dart
+RefreshIndicator(
+  color: AppColors.primary,
+  onRefresh: interactionsEnabled
+      ? () async {
+          final bloc = context.read<XBloc>();
+          bloc.add(const RefreshX());
+          await bloc.stream.firstWhere(
+            (s) => (s is XLoaded && !s.isRefreshing) || s is XError,
+          );
+        }
+      : () async {},
+  child: ListView.builder(
+    physics: const AlwaysScrollableScrollPhysics(
+      parent: BouncingScrollPhysics(),
+    ),
+    // ...
+  ),
+);
+```
+
+- BLoC `RefreshX` handler: if already `Loaded`, `emit(loaded.copyWith(isRefreshing: true))` then fetch; on failure restore previous loaded without clearing list.
+- App-bar refresh icon: disable while `isBusy`; call same `RefreshX` event.
+- Short lists: `AlwaysScrollableScrollPhysics` so pull-to-refresh works even when content is small.
+
+#### 5. Empty & error UI
+
+- **Empty:** dedicated widget (e.g. `MySessionsEmptyState`) inside `AutoSkeleton` child when `Loaded && isEmpty && !isBusy`.
+- **Error (full):** centered icon + message + **Retry** `TextButton` (`AppColors.primary`) — only when not loading and no cached data to show.
+- **Embedded tabs** (home): respect bottom padding (`120.h` when nav visible).
+
+### Navigation
+
+- Tabs inside home: **local index only**.
+- Deep links / stacks: `context.push`, `context.go`, path params.
+- Healer detail path: `/healer-detail/:healerId` (param name `healerId`).
 
 ---
 
@@ -233,62 +398,32 @@ lib/
 ├── main.dart
 ├── routes/app_router.dart
 ├── core/
-│   ├── constants/        # AppColors, AppTextStyles, ApiEndpoints
-│   └── utils/            # SessionManager
-├── common/               # widgets, screens, utils
+│   ├── constants/     # AppColors, AppTextStyles, ApiEndpoints, StripeConfig
+│   ├── network/       # app_http_client.dart
+│   └── utils/         # session_manager.dart
+├── common/            # widgets, screens, utils
 └── features/<name>/
-    ├── data/
-    │   ├── models/       # DTOs, request/response, API models
-    │   ├── datasource/   # ApiService / remote-local sources
-    │   └── repositories/ # repository implementations
-    ├── domain/
-    │   ├── repositories/ # abstract repository contracts
-    │   └── usecases/     # business actions
-    └── presentation/
-        ├── bloc/
-        ├── pages/
-        └── widgets/
+    ├── data/          # models, datasource, repositories
+    ├── domain/        # repositories, usecases
+    └── presentation/  # bloc, pages, widgets
 ```
 
-**Future modules (required):**
-- Use `data/domain/presentation` structure for every new feature.
-- Put BLoC under `presentation/bloc` (not feature-root `bloc`).
-- Put API services under `data/datasource`.
-- Keep repository contracts in `domain/repositories` and implementations in `data/repositories`.
-- Keep existing legacy folders as-is unless task explicitly asks to migrate.
+**Architecture note:** New features (`booking`, `my_sessions`, `wallet`) use clean layers. Some legacy features (`healers` bloc, `auth`) may call repository or api directly — **follow the local feature pattern**; migrate only when asked.
 
-### New feature template (use this)
-
-```
-lib/features/<feature>/
-├── data/
-│   ├── models/
-│   ├── datasource/
-│   └── repositories/
-├── domain/
-│   ├── repositories/
-│   └── usecases/
-└── presentation/
-    ├── bloc/
-    ├── pages/
-    └── widgets/
-```
+**Legacy paths:** Do not delete `features/*/bloc/` or `features/*/screens/` at feature root if still imported; add new code under `presentation/`.
 
 ---
 
 ## Before starting any task
 
-1. Read `app_router.dart` if navigation or new screen.
-2. Check `ApiEndpoints` and existing `*ApiService` for the feature.
+1. Read `app_router.dart` and any screen you touch (especially `home_screen.dart`, `healer_detail_screen.dart`).
+2. Check `ApiEndpoints` and existing `*ApiService` / BLoC events.
 3. Reuse `AppColors`, `AppTextStyles`, common widgets.
-4. Match import style of nearest file (`package:humora_patient/...` preferred for cross-feature).
+4. For new/changed screens: **Creating new UI** + **API error handling** on every new endpoint.
+5. Imports: `package:humora_patient/...` for cross-feature.
+6. Confirm task does not remove or change behavior of flows in **Implemented flows** unless requested.
 
-## Scope
-
-- Minimal diff; no drive-by refactors.
-- No commits / README / tests unless asked.
-- No `android/` / `ios/` edits unless platform task.
-- Run `flutter analyze` on touched code when non-trivial.
+---
 
 ## Feature map
 
@@ -296,11 +431,15 @@ lib/features/<feature>/
 |------|-----------------|
 | Auth / onboarding | `auth`, `splash`, `welcome`, `language`, `expertise`, `specialization`, `security_number`, `notifications`, `healing_focus` |
 | Home / discovery | `home`, `healers` |
-| Sessions | `healing_sessions`, `sessions`, `scheduled_sessions`, `live_counselling_session`, `appointment_reminder` |
+| Bookings / sessions | `booking`, `my_sessions`, `live_counselling_session`, `healing_sessions`, `sessions`, `scheduled_sessions`, `appointment_reminder` |
 | Comms | `chat`, `video_call`, `voice_call`, `group_session` |
-| Payments | `payment`, `receipt`, `wallet` |
+| Payments | `wallet`, `payment`, `receipt` |
 | System | `permissions` |
+
+**Cross-feature utilities:** `lib/features/booking/presentation/utils/booking_flow_helper.dart`, `booking_wallet_preflight.dart`, `domain/booking_hold_calculator.dart`.
+
+---
 
 ## Starter prompt
 
-> Follow `.cursor/rules/humora-patient.mdc`. [Your task here.]
+> Follow `.cursor/rules/humora-patient.mdc`. Add [your task] without breaking existing flows. New UI: BLoC states, `AutoSkeleton`, theme tokens, smart refresh. New APIs: `_parseResponse`, server error messages, `_cleanError`, retry + flushbar/listener — no raw exceptions in UI.

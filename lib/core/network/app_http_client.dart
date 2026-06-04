@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 
+import 'network_aware_client.dart';
+
 /// Single shared HTTP client for the app lifecycle.
 ///
 /// Uses one underlying [HttpClient] so sockets are not opened/closed per call
@@ -14,5 +16,8 @@ class AppHttpClient {
     ..connectionTimeout = const Duration(seconds: 30)
     ..idleTimeout = const Duration(seconds: 60);
 
-  static final http.Client instance = IOClient(_io);
+  /// Raw client for connectivity reachability checks (avoids recursion).
+  static final http.Client rawInstance = IOClient(_io);
+
+  static final http.Client instance = NetworkAwareClient(rawInstance);
 }
