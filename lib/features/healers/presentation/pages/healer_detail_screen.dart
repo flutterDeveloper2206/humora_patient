@@ -18,6 +18,7 @@ import '../utils/session_slot_utils.dart';
 import 'package:humora_patient/features/booking/data/models/booking_models.dart';
 import 'package:humora_patient/features/booking/presentation/utils/booking_flow_helper.dart';
 import 'package:humora_patient/features/booking/presentation/utils/booking_wallet_preflight.dart';
+import 'package:humora_patient/features/live_consultation/presentation/models/live_consultation_args.dart';
 import '../../../../common/utils/common_flushbar.dart';
 import '../widgets/healer_info_node.dart';
 import '../widgets/certificate_card.dart';
@@ -937,6 +938,30 @@ class HealerDetailScreen extends StatelessWidget {
   }
 
   Future<void> _onBookNow(BuildContext context, HealerDetailLoaded state) async {
+    final healer = state.healer;
+
+    if (state.selectedSessionType == SessionType.live) {
+      if (!healer.isLiveOnline) {
+        CommonFlushbar.error(
+          context,
+          'This healer is not online for live sessions right now.',
+        );
+        return;
+      }
+
+      context.push(
+        '/live-counselling-session',
+        extra: LiveConsultationArgs(
+          healerId: healer.id,
+          healerName: healer.name,
+          healerImage: healer.imageUrl,
+          consultationType: 0,
+          liveCounselling: healer.liveCounsellingPricing,
+        ),
+      );
+      return;
+    }
+
     if (!BookingFlowHelper.canBook(
       slotId: state.selectedSlotId,
       selectedTime: state.selectedTime,
@@ -952,7 +977,6 @@ class HealerDetailScreen extends StatelessWidget {
     }
 
     final bookingDate = SessionSlotUtils.dateKey(selectedDate);
-    final healer = state.healer;
     final args = BookingFlowArgs(
       healerId: healer.id,
       slotId: state.selectedSlotId!,
@@ -962,11 +986,6 @@ class HealerDetailScreen extends StatelessWidget {
       liveCounselling: healer.liveCounsellingPricing,
       fallbackPricePerMinute: healer.feesPerMin,
     );
-
-    if (state.selectedSessionType == SessionType.live) {
-      context.push('/live-counselling-session', extra: args);
-      return;
-    }
 
     final canAfford = await BookingWalletPreflight.ensureCanAfford(
       context: context,

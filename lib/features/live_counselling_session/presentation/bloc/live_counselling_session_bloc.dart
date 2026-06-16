@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:humora_patient/features/live_counselling_session/data/models/live_counselling_session_model.dart';
+
+import 'package:humora_patient/features/live_consultation/presentation/utils/live_consultation_options.dart';
 import 'live_counselling_session_event.dart';
 import 'live_counselling_session_state.dart';
 
@@ -16,34 +17,14 @@ class LiveCounsellingSessionBloc
   ) {
     emit(LiveCounsellingSessionLoading());
     try {
-      final List<Map<String, dynamic>> dummyData = [
-        {
-          "id": 1,
-          "image": "assets/image/chatstart.png",
-          "value": "Chat",
-          "price": 100,
-          "consultationType": 0,
-        },
-        {
-          "id": 2,
-          "image": "assets/image/voicestart.png",
-          "value": "Voice Call",
-          "price": 300,
-          "consultationType": 1,
-        },
-        {
-          "id": 3,
-          "image": "assets/image/videostart.png",
-          "value": "Video Call",
-          "price": 500,
-          "consultationType": 2,
-        },
-      ];
-
-      final options = dummyData
-          .map((e) => LiveCounsellingSessionModel.fromJson(e))
-          .toList();
-      emit(LiveCounsellingSessionLoaded(options: options, selectedId: 1));
+      final options =
+          LiveConsultationOptions.fromLiveCounselling(event.liveCounselling);
+      emit(
+        LiveCounsellingSessionLoaded(
+          options: options,
+          selectedId: options.isNotEmpty ? options.first.id : null,
+        ),
+      );
     } catch (e) {
       emit(LiveCounsellingSessionError(e.toString()));
     }

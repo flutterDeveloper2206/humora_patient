@@ -63,8 +63,6 @@ class AppointmentReminderView extends StatelessWidget {
             return const Center(child: Text('No appointment found'));
           }
 
-          final appointment = state.appointment!;
-
           return SafeArea(
             bottom: false,
             child: Column(

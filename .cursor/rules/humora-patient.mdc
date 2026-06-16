@@ -20,6 +20,25 @@ When implementing any new task or prompt:
 
 ---
 
+## Authoritative reference documents (read when confused)
+
+When requirements, flows, or API/hub behavior are unclear, **read these files in the repo root before guessing**. Extract text with `pypdf`, `pdftotext`, or the Read tool if available.
+
+| Document | Path | Use when |
+|----------|------|----------|
+| **ChatFlowForFlutter** | [`ChatFlowForFlutter.pdf`](ChatFlowForFlutter.pdf) / [`docs/product/ChatFlowForFlutter.pdf`](docs/product/ChatFlowForFlutter.pdf) | **Booking chat** — `/hubs/chat`, `GET /chat/access`, access window, waiting room, reactions, edit/delete, search. **Dual-app:** mirror healer app [`humora_vendor_mobile`](../humora_vendor_mobile). |
+| **VLTD PRD v1.0** | [`VLTD_Product_Requirements_Document_v1.0 (1).pdf`](VLTD_Product_Requirements_Document_v1.0%20(1).pdf) | **Product / scope questions** — read when the user or task references this PRD or broader product requirements. *(Note: this file is a Vehicle Location Tracking Device PRD; for Humora Patient features, prefer this rules file + `ChatFlowForFlutter.pdf` + live consultation integration doc unless the task explicitly targets VLTD.)* |
+
+**Also relevant (not in repo — check user Downloads if missing):**
+
+- `LIVE_CONSULTATION_INTEGRATION.docx` — on-demand live sessions, `/hubs/live`, billing, `POST /live/request`.
+
+**Dual-app parity:** Patient (`humora_patient`) and healer (`humora_vendor_mobile`) share the same ChatFlow + live consultation docs — implement symmetric behavior per role (patient requests / healer accepts).
+
+**Stack reminder:** ChatFlow PDF examples may use Dio/Provider — **this app uses `http` + `AppHttpClient`, `flutter_bloc`, `SessionManager`** (see Tech stack below).
+
+---
+
 ## Tech stack
 
 - Flutter (Dart SDK `^3.9.0`), Material 3
@@ -75,6 +94,53 @@ UI (presentation/pages|widgets)
 | `createBooking` | POST | Bearer | booking |
 | `myBookings(isHealer: false)` | GET | Bearer | my_sessions |
 | `bookingDetail(bookingId)` | GET | Bearer | my_sessions |
+| `scheduledAgoraToken(bookingId)` | GET | Bearer | agora (scheduled RTC) |
+| `agoraToken` | POST | Bearer | agora (live on-demand RTC — body `{ bookingId, role: "Publisher" }`) |
+
+### Live consultation (`/hubs/live` + REST `/live/*`)
+
+- **Hub URL:** `ApiEndpoints.liveHubUrl` → `{origin}/hubs/live`
+- **Singleton:** `LiveHubService.instance` — JWT via `accessTokenFactory`; reconnect `[0, 2s, 5s, 10s, 30s]`
+- **REST:** `LiveApiService` — `POST /live/request`, `GET /live/request/{id}`, `POST /live/end`, `GET /live/history`
+- **On-demand flow:** healer `liveStatus == Online` → `POST /live/request` (not slot booking) → waiting screen (60s) → `RequestAccepted` → route by `consultationType` (0 chat, 1 audio, 2 video)
+- **In-session:** `JoinSession(bookingId)` on live hub; listen `BillingCycle`, `LowBalanceWarning`, `SessionEnded`; patient end → `POST /live/end` → summary screen
+- **Presence:** `HealerStatusChanged` on live hub → patch healer list (`HomeBloc.UpdateHealerLiveStatus`); cards show **Live Online** / **Busy**
+- **Slot booking unchanged** — personal/group scheduled sessions still use `BookingFlowHelper` + `/booking/{id}/agora-token`
+
+| Endpoint helper | Method | Auth | Feature |
+|-----------------|--------|------|---------|
+| `liveRequest` | POST | Bearer | live_consultation |
+| `liveRequestStatus(id)` | GET | Bearer | live_consultation |
+| `liveEnd` | POST | Bearer | live_consultation |
+| `liveHistory` | GET | Bearer | live_consultation |
+| `liveSession(bookingId)` | GET | Bearer | live_consultation |
+
+### Booking chat (`/hubs/chat` + REST `/chat/*`)
+
+- **Hub URL:** `ApiEndpoints.chatHubUrl` → `{origin}/hubs/chat`
+- **Singleton:** `ChatHubService.instance` — connect only when `GET /chat/access/{bookingId}` returns `canWrite == true`
+- **Access window:** opens 5 min before `scheduledStartAt`, closes exactly at `scheduledEndAt`; use **clockDrift** from `serverTimeUtc` on first access check
+- **Messaging:** hub `SendMessage` + `idempotencyKey` (uuid); optimistic UI; REST `POST /chat/send` fallback when hub disconnected
+- **Inbox:** `GET /chat/conversations` → Home Chat tab; thread → `/chat/:bookingId`
+- **Live chat (type 0):** dual hub — `LiveSessionCubit` (billing) + `ChatSessionBloc` (messages) on `ChatSessionPage(isLiveSession: true)`
+
+| Endpoint helper | Method | Auth | Feature |
+|-----------------|--------|------|---------|
+| `chatAccess(bookingId)` | GET | Bearer | chat |
+| `chatHistory(bookingId)` | GET | Bearer | chat |
+| `chatConversations` | GET | Bearer | chat |
+| `chatSend` | POST | Bearer | chat (fallback) |
+
+### Agora RTC calls (iOS + Android)
+
+- App ID: `AgoraConfig.appId` in `lib/core/constants/agora_config.dart` (fallback if API omits `appId`).
+- Token: **scheduled** `scheduledAgoraToken(bookingId)`; **live** `POST agoraToken` via `AgoraTokenApiService` — never hardcode RTC tokens. After join, call `POST agoraJoin`; on leave, `POST agoraLeave`.
+- Join from **My Session detail** (`SessionJoinNavigator` + `CallRouteArgs` on `/voice-call`, `/video-call`, `/group-session`).
+- Shared engine: `lib/features/agora/presentation/services/agora_rtc_service.dart`.
+- Demo routes without `extra` show `CallMissingArgsScreen` — do not break healer marketing pushes.
+- **Android:** `AndroidManifest.xml` (INTERNET, RECORD_AUDIO, CAMERA, BLUETOOTH*), `minSdk >= 21`, ProGuard `-keep io.agora.**`.
+- **iOS:** `Info.plist` mic/camera/bluetooth strings; `Podfile` `PERMISSION_CAMERA=1` + `PERMISSION_MICROPHONE=1`; run `pod install` after Podfile changes.
+- Video views: `AgoraVideoTile` uses Flutter texture (iOS) / SurfaceView (Android).
 
 ### ApiService conventions
 
@@ -432,7 +498,7 @@ lib/
 | Auth / onboarding | `auth`, `splash`, `welcome`, `language`, `expertise`, `specialization`, `security_number`, `notifications`, `healing_focus` |
 | Home / discovery | `home`, `healers` |
 | Bookings / sessions | `booking`, `my_sessions`, `live_counselling_session`, `healing_sessions`, `sessions`, `scheduled_sessions`, `appointment_reminder` |
-| Comms | `chat`, `video_call`, `voice_call`, `group_session` |
+| Comms | `chat`, `agora`, `video_call`, `voice_call`, `group_session` |
 | Payments | `wallet`, `payment`, `receipt` |
 | System | `permissions` |
 

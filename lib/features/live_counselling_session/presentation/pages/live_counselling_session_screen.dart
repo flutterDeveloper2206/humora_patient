@@ -6,23 +6,21 @@ import '../../../../../common/widgets/common_button.dart';
 import '../../../../../common/widgets/common_image.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import 'package:humora_patient/features/booking/data/models/booking_models.dart';
-import 'package:humora_patient/features/booking/presentation/utils/booking_flow_helper.dart';
-import 'package:humora_patient/features/booking/presentation/utils/booking_wallet_preflight.dart';
-import 'package:humora_patient/features/healers/data/models/healer_model.dart';
+import 'package:humora_patient/features/live_consultation/presentation/models/live_consultation_args.dart';
+import 'package:humora_patient/features/live_consultation/presentation/utils/live_wallet_preflight.dart';
 import 'package:humora_patient/features/live_counselling_session/data/models/live_counselling_session_model.dart';
 import '../bloc/live_counselling_session_bloc.dart';
 import '../bloc/live_counselling_session_event.dart';
 import '../bloc/live_counselling_session_state.dart';
 
 class LiveCounsellingSessionScreen extends StatelessWidget {
-  final BookingFlowArgs? bookingArgs;
+  final LiveConsultationArgs? consultationArgs;
 
-  const LiveCounsellingSessionScreen({super.key, this.bookingArgs});
+  const LiveCounsellingSessionScreen({super.key, this.consultationArgs});
 
   @override
   Widget build(BuildContext context) {
-    if (bookingArgs == null) {
+    if (consultationArgs == null) {
       return Scaffold(
         appBar: AppBar(
           leading: IconButton(
@@ -30,23 +28,26 @@ class LiveCounsellingSessionScreen extends StatelessWidget {
             onPressed: () => context.pop(),
           ),
         ),
-        body: const Center(child: Text('Booking details missing')),
+        body: const Center(child: Text('Session details missing')),
       );
     }
 
     return BlocProvider(
-      create: (context) =>
-          LiveCounsellingSessionBloc()
-            ..add(LoadLiveCounsellingSessionOptions()),
-      child: LiveCounsellingSessionView(bookingArgs: bookingArgs!),
+      create: (context) => LiveCounsellingSessionBloc()
+        ..add(
+          LoadLiveCounsellingSessionOptions(
+            consultationArgs!.liveCounselling,
+          ),
+        ),
+      child: LiveCounsellingSessionView(consultationArgs: consultationArgs!),
     );
   }
 }
 
 class LiveCounsellingSessionView extends StatelessWidget {
-  final BookingFlowArgs bookingArgs;
+  final LiveConsultationArgs consultationArgs;
 
-  const LiveCounsellingSessionView({super.key, required this.bookingArgs});
+  const LiveCounsellingSessionView({super.key, required this.consultationArgs});
 
   @override
   Widget build(BuildContext context) {
@@ -145,30 +146,25 @@ class LiveCounsellingSessionView extends StatelessWidget {
           final isEnabled =
               state is LiveCounsellingSessionLoaded && state.selectedId != null;
           return CommonButton(
-            text: 'Book Now',
+            text: 'Request Session',
             isDisabled: !isEnabled,
             onPressed: () async {
               if (state is! LiveCounsellingSessionLoaded) return;
               final selectedOption = state.options.firstWhere(
                 (o) => o.id == state.selectedId,
               );
-              final canAfford = await BookingWalletPreflight.ensureCanAfford(
+              final waitingArgs = consultationArgs.copyWith(
+                consultationType: selectedOption.consultationType,
+              );
+
+              final canAfford = await LiveWalletPreflight.ensureCanAfford(
                 context: context,
-                sessionType: SessionType.live,
-                sessionPricing: bookingArgs.sessionPricing,
-                liveCounselling: bookingArgs.liveCounselling,
-                fallbackPricePerMinute: bookingArgs.fallbackPricePerMinute,
+                liveCounselling: consultationArgs.liveCounselling,
                 consultationType: selectedOption.consultationType,
               );
               if (!canAfford || !context.mounted) return;
 
-              await BookingFlowHelper.submit(
-                context: context,
-                healerId: bookingArgs.healerId,
-                slotId: bookingArgs.slotId,
-                bookingDate: bookingArgs.bookingDate,
-                consultationType: selectedOption.consultationType,
-              );
+              context.push('/live-request-waiting', extra: waitingArgs);
             },
             borderRadius: 12.r,
           );

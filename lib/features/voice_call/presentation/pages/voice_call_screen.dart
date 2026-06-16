@@ -1,27 +1,62 @@
+import 'package:auto_skeleton/auto_skeleton.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../../../common/utils/common_flushbar.dart';
 import '../../../../core/constants/app_text_styles.dart';
+import '../../../agora/presentation/models/call_phase.dart';
+import '../../../agora/presentation/models/call_route_args.dart';
+import '../../../agora/presentation/widgets/call_error_body.dart';
+import '../../../agora/presentation/widgets/call_missing_args_screen.dart';
+import '../../../live_consultation/presentation/utils/live_end_navigator.dart';
+import '../../../live_consultation/presentation/bloc/live_session_cubit.dart';
 import '../../../../../common/widgets/common_image.dart';
 import '../bloc/voice_call_bloc.dart';
 import '../bloc/voice_call_event.dart';
 import '../bloc/voice_call_state.dart';
 
 class VoiceCallScreen extends StatelessWidget {
-  const VoiceCallScreen({super.key});
+  final CallRouteArgs? args;
+
+  const VoiceCallScreen({super.key, this.args});
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => VoiceCallBloc()..add(StartTimer()),
-      child: const VoiceCallView(),
+    final callArgs = args;
+    if (callArgs == null) {
+      return const CallMissingArgsScreen(title: 'Voice call unavailable');
+    }
+
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (_) => VoiceCallBloc(args: callArgs)..add(LoadCall(callArgs)),
+        ),
+        if (callArgs.isLive)
+          BlocProvider(
+            create: (_) =>
+                LiveSessionCubit()..startMonitoring(callArgs.bookingId),
+          ),
+      ],
+      child: VoiceCallView(
+        isLive: callArgs.isLive,
+        bookingId: callArgs.bookingId,
+      ),
     );
   }
 }
 
 class VoiceCallView extends StatelessWidget {
-  const VoiceCallView({super.key});
+  final bool isLive;
+  final String bookingId;
+
+  const VoiceCallView({
+    super.key,
+    this.isLive = false,
+    this.bookingId = '',
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -29,77 +64,113 @@ class VoiceCallView extends StatelessWidget {
       backgroundColor: Colors.white,
       body: Stack(
         children: [
-          // Grid Background
           const GridBackground(),
-
           SafeArea(
-            child: BlocBuilder<VoiceCallBloc, VoiceCallState>(
-              builder: (context, state) {
-                return Column(
-                  children: [
-                    SizedBox(height: 10.h),
-                    Text(
-                      'Voice Call',
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: const Color(0xff262A2D),
-                        fontSize: 16.sp,
-                      ),
-                    ),
-                    const Spacer(flex: 2),
+            child: MultiBlocListener(
+              listeners: [
+                if (isLive) ...[
+                  BlocListener<LiveSessionCubit, LiveSessionState>(
+                    listenWhen: (prev, curr) =>
+                        curr.sessionEnded != null &&
+                        prev.sessionEnded != curr.sessionEnded,
+                    listener: (context, state) async {
+                      final summary = state.sessionEnded;
+                      if (summary == null || !context.mounted) return;
+                      await finishLiveSessionFromSummary(
+                        context: context,
+                        bookingId: bookingId,
+                        summary: summary,
+                      );
+                    },
+                  ),
+                  BlocListener<LiveSessionCubit, LiveSessionState>(
+                    listenWhen: (prev, curr) =>
+                        curr.lowBalanceWarning != null &&
+                        prev.lowBalanceWarning != curr.lowBalanceWarning,
+                    listener: (context, state) {
+                      final warning = state.lowBalanceWarning;
+                      if (warning != null && context.mounted) {
+                        CommonFlushbar.error(
+                          context,
+                          'Low wallet balance. About ${warning.estimatedMinutesLeft} minutes left.',
+                        );
+                      }
+                    },
+                  ),
+                ],
+                BlocListener<VoiceCallBloc, VoiceCallState>(
+                  listenWhen: (prev, curr) =>
+                      curr.phase == CallPhase.ended && !isLive,
+                  listener: (context, state) {
+                    if (context.mounted) context.pop();
+                  },
+                ),
+                BlocListener<VoiceCallBloc, VoiceCallState>(
+                  listenWhen: (prev, curr) =>
+                      isLive &&
+                      curr.phase == CallPhase.ended &&
+                      prev.phase != CallPhase.ended,
+                  listener: (context, state) async {
+                    await finishLiveSessionFromSummary(
+                      context: context,
+                      bookingId: bookingId,
+                      summary: state.sessionSummary,
+                    );
+                  },
+                ),
+              ],
+              child: BlocBuilder<VoiceCallBloc, VoiceCallState>(
+                builder: (context, state) {
+                  if (state.phase == CallPhase.error) {
+                    return CallErrorBody(
+                      message: state.errorMessage ?? 'Something went wrong',
+                      onRetry: () =>
+                          context.read<VoiceCallBloc>().add(RetryCall()),
+                    );
+                  }
 
-                    // Caller Avatar
-                    _buildAvatar(state.callerImage),
-                    SizedBox(height: 16.h),
-
-                    // Caller Name
-                    Text(
-                      state.callerName,
-                      style: AppTextStyles.h2.copyWith(
-                        fontSize: 28.sp,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF0C0C1C),
-                      ),
-                    ),
-                    SizedBox(height: 12.h),
-
-                    // Wallet Balance
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                  return AutoSkeleton(
+                    enabled: state.isLoading,
+                    child: Column(
                       children: [
-                        CommonImage(
-                          path: 'assets/image/commonwallet.png',
-                          height: 21.w,
-                          width: 21.w,
-                        ),
-                        SizedBox(width: 8.w),
+                        SizedBox(height: 10.h),
                         Text(
-                          '₹ ${state.walletBalance.toStringAsFixed(2)}',
+                          state.isLoading ? 'Connecting…' : 'Voice Call',
                           style: AppTextStyles.bodyMedium.copyWith(
-                            color: Colors.black,
+                            color: const Color(0xff262A2D),
+                            fontSize: 16.sp,
                           ),
                         ),
+                        const Spacer(flex: 2),
+                        _buildAvatar(state.callerImage),
+                        SizedBox(height: 16.h),
+                        Text(
+                          state.callerName,
+                          style: AppTextStyles.h2.copyWith(
+                            fontSize: 28.sp,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF0C0C1C),
+                          ),
+                        ),
+                        SizedBox(height: 16.h),
+                        _buildTimerChip(state.duration),
+                        const Spacer(flex: 3),
+                        if (state.phase == CallPhase.inProgress) ...[
+                          Text(
+                            'ACTIONS',
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              color: const Color(0xff656565),
+                            ),
+                          ),
+                          SizedBox(height: 20.h),
+                          _buildControlButtons(context, state),
+                        ] else
+                          SizedBox(height: 120.h),
                       ],
                     ),
-                    SizedBox(height: 16.h),
-
-                    // Timer Chip
-                    _buildTimerChip(state.duration),
-                    const Spacer(flex: 3),
-
-                    // Actions label
-                    Text(
-                      'ACTIONS',
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: const Color(0xff656565),
-                      ),
-                    ),
-                    SizedBox(height: 20.h),
-
-                    // Control Buttons
-                    _buildControlButtons(context, state),
-                  ],
-                );
-              },
+                  );
+                },
+              ),
             ),
           ),
         ],
@@ -177,10 +248,8 @@ class VoiceCallView extends StatelessWidget {
           SizedBox(width: 32.w),
           _buildCircleButton(
             icon: 'PhoneDisconnect.png',
-            onPressed: () {
-              context.read<VoiceCallBloc>().add(EndCall());
-              context.pop();
-            },
+            onPressed: () =>
+                context.read<VoiceCallBloc>().add(EndCall()),
             backgroundColor: const Color(0xFFF52D56),
             iconColor: Colors.white,
             isLarge: true,

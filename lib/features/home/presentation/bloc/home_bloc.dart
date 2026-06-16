@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:humora_patient/features/healers/data/models/healer_api_models.dart';
+import 'package:humora_patient/features/healers/data/models/healer_model.dart';
 import 'package:humora_patient/features/healers/data/repositories/healer_repository_impl.dart';
 import 'package:humora_patient/features/healers/domain/repositories/healer_repository.dart';
 import 'package:humora_patient/features/healers/domain/usecases/fetch_approved_healers_usecase.dart';
@@ -16,6 +17,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
         ),
         super(HomeInitial()) {
     on<FetchHomeData>(_onFetchHomeData);
+    on<UpdateHealerLiveStatus>(_onUpdateHealerLiveStatus);
   }
 
   Future<void> _onFetchHomeData(
@@ -36,5 +38,26 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     } catch (e) {
       emit(HomeError(e.toString()));
     }
+  }
+
+  void _onUpdateHealerLiveStatus(
+    UpdateHealerLiveStatus event,
+    Emitter<HomeState> emit,
+  ) {
+    final current = state;
+    if (current is! HomeLoaded) return;
+
+    HealerModel patch(HealerModel healer) {
+      if (healer.id != event.healerId) return healer;
+      return healer.withLiveStatus(event.liveStatus);
+    }
+
+    emit(
+      HomeLoaded(
+        continueHealingHealers:
+            current.continueHealingHealers.map(patch).toList(),
+        availableHealers: current.availableHealers.map(patch).toList(),
+      ),
+    );
   }
 }

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../common/utils/common_flushbar.dart';
+import '../../../../common/utils/safe_navigation.dart';
 import '../../../../common/widgets/common_button.dart';
 import '../../../../common/widgets/common_image.dart';
 import '../../../../core/constants/app_colors.dart';
@@ -15,8 +16,11 @@ import '../bloc/my_session_detail_bloc.dart';
 import '../bloc/my_session_detail_event.dart';
 import '../bloc/my_session_detail_state.dart';
 import '../utils/my_sessions_loading.dart';
+import '../utils/session_join_navigator.dart';
 import '../widgets/booking_countdown_banner.dart';
 import '../widgets/booking_status_chip.dart';
+import '../widgets/session_join_option_tile.dart';
+import '../../domain/session_join_resolver.dart';
 
 class MySessionDetailScreen extends StatelessWidget {
   final String bookingId;
@@ -47,7 +51,7 @@ class MySessionDetailView extends StatelessWidget {
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.chevron_left, color: AppColors.textPrimary, size: 28.sp),
-          onPressed: () => context.pop(),
+          onPressed: () => safePop(context, fallbackLocation: '/my-sessions'),
         ),
         title: BlocBuilder<MySessionDetailBloc, MySessionDetailState>(
           builder: (context, state) {
@@ -263,12 +267,27 @@ class _DetailBody extends StatelessWidget {
           ),
           if (interactionsEnabled) ...[
             SizedBox(height: 24.h),
-            if (status.showJoinButton)
-              CommonButton(
-                text: 'Join Session',
-                onPressed: () => _joinSession(context, booking),
-                borderRadius: 12.r,
+            if (status.showJoinButton) ...[
+              Text(
+                'Join your session',
+                style: AppTextStyles.h3.copyWith(fontSize: 16.sp),
               ),
+              SizedBox(height: 12.h),
+              ...booking.availableJoinActions.map(
+                (action) => Padding(
+                  padding: EdgeInsets.only(bottom: 10.h),
+                  child: SessionJoinOptionTile(
+                    action: action,
+                    enabled: interactionsEnabled,
+                    onTap: () => SessionJoinNavigator.go(
+                      context,
+                      booking,
+                      action,
+                    ),
+                  ),
+                ),
+              ),
+            ],
             if (status.showReceipt) ...[
               CommonButton(
                 text: 'View Receipt',
@@ -282,23 +301,6 @@ class _DetailBody extends StatelessWidget {
     );
   }
 
-  void _joinSession(BuildContext context, BookingDetailModel booking) {
-    switch (booking.consultationType) {
-      case 0:
-        context.push('/chat');
-        break;
-      case 1:
-        context.push('/voice-call');
-        break;
-      case 2:
-      default:
-        if (booking.serviceType == 3) {
-          context.push('/group-session');
-        } else {
-          context.push('/video-call');
-        }
-    }
-  }
 }
 
 class _InfoCard extends StatelessWidget {

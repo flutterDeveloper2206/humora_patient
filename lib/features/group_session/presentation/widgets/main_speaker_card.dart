@@ -1,21 +1,26 @@
+import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+
 import '../../../../core/constants/app_text_styles.dart';
+import '../../../agora/presentation/widgets/agora_video_tile.dart';
 import '../bloc/group_session_state.dart';
 
 class MainSpeakerCard extends StatelessWidget {
   final GroupParticipant participant;
   final Duration duration;
+  final RtcEngine? engine;
 
   const MainSpeakerCard({
     super.key,
     required this.participant,
     required this.duration,
+    this.engine,
   });
 
   @override
   Widget build(BuildContext context) {
-    String twoDigits(int n) => n.toString().padLeft(2, "0");
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
     final hours = twoDigits(duration.inHours);
     final minutes = twoDigits(duration.inMinutes.remainder(60));
     final seconds = twoDigits(duration.inSeconds.remainder(60));
@@ -24,14 +29,16 @@ class MainSpeakerCard extends StatelessWidget {
       height: 320.h,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(30.r),
-        image: DecorationImage(
-          image: NetworkImage(participant.imageUrl),
-          fit: BoxFit.cover,
-        ),
+        color: Colors.black12,
       ),
+      clipBehavior: Clip.antiAlias,
       child: Stack(
+        fit: StackFit.expand,
         children: [
-          // Recording Panel
+          AgoraVideoTile(
+            engine: engine,
+            uid: participant.agoraUid,
+          ),
           Positioned(
             top: 16.h,
             left: 16.w,
@@ -63,21 +70,6 @@ class MainSpeakerCard extends StatelessWidget {
               ),
             ),
           ),
-
-          // Control Panel Top Right
-          Positioned(
-            top: 16.h,
-            right: 16.w,
-            child: Row(
-              children: [
-                _buildCircleIcon(Icons.mic),
-                SizedBox(width: 8.w),
-                _buildCircleIcon(Icons.more_vert),
-              ],
-            ),
-          ),
-
-          // Name and Info Bottom Panel
           Positioned(
             bottom: 16.h,
             left: 16.w,
@@ -88,56 +80,14 @@ class MainSpeakerCard extends StatelessWidget {
                 color: Colors.white.withOpacity(0.8),
                 borderRadius: BorderRadius.circular(50.r),
               ),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 18.r,
-                    backgroundImage: NetworkImage(participant.imageUrl),
-                  ),
-                  SizedBox(width: 12.w),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          participant.name,
-                          style: AppTextStyles.bodyMedium
-                        ),
-                        Text(
-                          participant.role,
-                          style: AppTextStyles.bodySmall.copyWith(
-                            fontSize: 12.sp,
-                            color: Color(0xff616161),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Text(
-                    '₹ 55.00',
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      fontWeight: FontWeight.w500,
-                      color: Colors.black,
-                    ),
-                  ),
-                ],
+              child: Text(
+                participant.name,
+                style: AppTextStyles.bodyMedium,
               ),
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildCircleIcon(IconData icon) {
-    return Container(
-      padding: EdgeInsets.all(8.w),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.8),
-        shape: BoxShape.circle,
-      ),
-      child: Icon(icon, color: Colors.black, size: 20.sp),
     );
   }
 }

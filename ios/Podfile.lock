@@ -1,4 +1,10 @@
 PODS:
+  - agora_rtc_engine (6.5.4):
+    - AgoraIrisRTC_iOS (= 4.5.3-build.1)
+    - AgoraRtcEngine_Special_iOS (= 4.5.3.70)
+    - Flutter
+  - AgoraIrisRTC_iOS (4.5.3-build.1)
+  - AgoraRtcEngine_Special_iOS (4.5.3.70)
   - connectivity_plus (0.0.1):
     - Flutter
   - DKImagePickerController/Core (4.3.9):
@@ -37,6 +43,8 @@ PODS:
     - Flutter
   - Flutter (1.0.0)
   - image_picker_ios (0.0.1):
+    - Flutter
+  - iris_method_channel (0.0.1):
     - Flutter
   - path_provider_foundation (0.0.1):
     - Flutter
@@ -112,10 +120,12 @@ PODS:
   - SwiftyGif (5.4.5)
 
 DEPENDENCIES:
+  - agora_rtc_engine (from `.symlinks/plugins/agora_rtc_engine/ios`)
   - connectivity_plus (from `.symlinks/plugins/connectivity_plus/ios`)
   - file_picker (from `.symlinks/plugins/file_picker/ios`)
   - Flutter (from `Flutter`)
   - image_picker_ios (from `.symlinks/plugins/image_picker_ios/ios`)
+  - iris_method_channel (from `.symlinks/plugins/iris_method_channel/ios`)
   - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
   - permission_handler_apple (from `.symlinks/plugins/permission_handler_apple/ios`)
   - sensors_plus (from `.symlinks/plugins/sensors_plus/ios`)
@@ -125,6 +135,8 @@ DEPENDENCIES:
 
 SPEC REPOS:
   trunk:
+    - AgoraIrisRTC_iOS
+    - AgoraRtcEngine_Special_iOS
     - DKImagePickerController
     - DKPhotoGallery
     - SDWebImage
@@ -139,6 +151,8 @@ SPEC REPOS:
     - SwiftyGif
 
 EXTERNAL SOURCES:
+  agora_rtc_engine:
+    :path: ".symlinks/plugins/agora_rtc_engine/ios"
   connectivity_plus:
     :path: ".symlinks/plugins/connectivity_plus/ios"
   file_picker:
@@ -147,6 +161,8 @@ EXTERNAL SOURCES:
     :path: Flutter
   image_picker_ios:
     :path: ".symlinks/plugins/image_picker_ios/ios"
+  iris_method_channel:
+    :path: ".symlinks/plugins/iris_method_channel/ios"
   path_provider_foundation:
     :path: ".symlinks/plugins/path_provider_foundation/darwin"
   permission_handler_apple:
@@ -161,12 +177,16 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/stripe_ios/ios"
 
 SPEC CHECKSUMS:
+  agora_rtc_engine: c8ad6313ec7a1b2f28ab3328ff485df6d19a32de
+  AgoraIrisRTC_iOS: d6468160cad25d36c2b6cb5e9bd5b17ba4e58677
+  AgoraRtcEngine_Special_iOS: 48063561d21b07524358ee0a17abc6be762c58f7
   connectivity_plus: cb623214f4e1f6ef8fe7403d580fdad517d2f7dd
   DKImagePickerController: 946cec48c7873164274ecc4624d19e3da4c1ef3c
   DKPhotoGallery: b3834fecb755ee09a593d7c9e389d8b5d6deed60
   file_picker: a0560bc09d61de87f12d246fc47d2119e6ef37be
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   image_picker_ios: e0ece4aa2a75771a7de3fa735d26d90817041326
+  iris_method_channel: 7d661cf3259b3009ae423508470dbeb9374446ee
   path_provider_foundation: bb55f6dbba17d0dccd6737fe6f7f34fbd0376880
   permission_handler_apple: 4ed2196e43d0651e8ff7ca3483a069d469701f2d
   SDWebImage: e9c98383c7572d713c1a0d7dd2783b10599b9838
@@ -184,6 +204,6 @@ SPEC CHECKSUMS:
   StripeUICore: 17a4f3adb81ae05ab885e1b353022a430176eab1
   SwiftyGif: 706c60cf65fa2bc5ee0313beece843c8eb8194d4
 
-PODFILE CHECKSUM: fbbcfed7fb8aab5dac4fed9c293384f3d60c57a4
+PODFILE CHECKSUM: 1482cf37530ad2631b81d4c42dfefd69b1c5f9bd
 
 COCOAPODS: 1.16.2

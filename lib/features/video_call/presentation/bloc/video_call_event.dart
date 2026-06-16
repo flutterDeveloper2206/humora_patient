@@ -1,5 +1,8 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../agora/presentation/models/call_route_args.dart';
+import '../../../agora/presentation/services/agora_rtc_service.dart';
+
 abstract class VideoCallEvent extends Equatable {
   const VideoCallEvent();
 
@@ -7,11 +10,23 @@ abstract class VideoCallEvent extends Equatable {
   List<Object?> get props => [];
 }
 
-class StartCall extends VideoCallEvent {}
+class LoadCall extends VideoCallEvent {
+  final CallRouteArgs args;
+  const LoadCall(this.args);
 
-class ConnectCall extends VideoCallEvent {}
+  @override
+  List<Object?> get props => [args];
+}
 
-class EndCall extends VideoCallEvent {}
+class RetryCall extends VideoCallEvent {}
+
+class AgoraEngineEvent extends VideoCallEvent {
+  final AgoraCallEvent event;
+  const AgoraEngineEvent(this.event);
+
+  @override
+  List<Object?> get props => [event];
+}
 
 class UpdateTimer extends VideoCallEvent {
   final Duration duration;
@@ -20,6 +35,8 @@ class UpdateTimer extends VideoCallEvent {
   @override
   List<Object?> get props => [duration];
 }
+
+class EndCall extends VideoCallEvent {}
 
 class ToggleMute extends VideoCallEvent {}
 

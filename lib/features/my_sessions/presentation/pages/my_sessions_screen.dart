@@ -5,6 +5,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../common/utils/common_flushbar.dart';
+import '../../../../common/utils/safe_navigation.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import '../../data/models/my_booking_models.dart';
@@ -22,9 +23,7 @@ class MySessionsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => MySessionsBloc()..add(const LoadMySessions()),
-      child: const Scaffold(
-        body: MySessionsView(embedded: false),
-      ),
+      child: const MySessionsView(embedded: false),
     );
   }
 }
@@ -111,7 +110,7 @@ class MySessionsView extends StatelessWidget {
       leading: showBack
           ? IconButton(
               icon: Icon(Icons.chevron_left, color: AppColors.textPrimary, size: 28.sp),
-              onPressed: () => context.pop(),
+              onPressed: () => safePop(context),
             )
           : null,
       title: Column(

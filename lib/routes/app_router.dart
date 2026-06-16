@@ -19,7 +19,11 @@ import '../features/permissions/presentation/pages/permissions_screen.dart';
 import '../features/healing_focus/presentation/pages/healing_focus_screen.dart';
 import '../features/healers/presentation/pages/healer_list_screen.dart';
 import '../features/healers/presentation/pages/healer_detail_screen.dart';
+import '../features/agora/presentation/models/call_route_args.dart';
+import '../features/agora/presentation/widgets/call_missing_args_screen.dart';
 import '../features/video_call/presentation/pages/video_call_screen.dart';
+import '../features/chat/presentation/models/chat_session_args.dart';
+import '../features/chat/presentation/pages/chat_session_page.dart';
 import '../features/chat/presentation/pages/chat_screen.dart';
 import '../features/voice_call/presentation/pages/voice_call_screen.dart';
 import '../features/group_session/presentation/pages/group_session_screen.dart';
@@ -28,7 +32,11 @@ import '../features/wallet/presentation/pages/wallet_screen.dart';
 import '../features/receipt/presentation/pages/receipt_screen.dart';
 import '../features/scheduled_sessions/presentation/pages/scheduled_sessions_screen.dart';
 import '../features/live_counselling_session/presentation/pages/live_counselling_session_screen.dart';
-import '../features/booking/data/models/booking_models.dart';
+import '../features/live_consultation/presentation/models/live_consultation_args.dart';
+import '../features/live_consultation/presentation/pages/live_history_screen.dart';
+import '../features/live_consultation/presentation/pages/live_request_waiting_screen.dart';
+import '../features/live_consultation/presentation/pages/live_session_summary_screen.dart';
+import '../features/live_consultation/data/models/live_models.dart';
 import '../features/my_sessions/presentation/pages/my_sessions_screen.dart';
 import '../features/my_sessions/presentation/pages/my_session_detail_screen.dart';
 import '../features/appointment_reminder/presentation/pages/appointment_reminder_screen.dart';
@@ -163,16 +171,47 @@ class AppRouter {
       ),
       GoRoute(
         path: '/video-call',
-        builder: (context, state) => const VideoCallScreen(),
+        builder: (context, state) {
+          final args = state.extra as CallRouteArgs?;
+          if (args == null) {
+            return const CallMissingArgsScreen(title: 'Video call unavailable');
+          }
+          return VideoCallScreen(args: args);
+        },
       ),
       GoRoute(path: '/chat', builder: (context, state) => const ChatScreen()),
       GoRoute(
+        path: '/chat/:bookingId',
+        builder: (context, state) {
+          final bookingId = state.pathParameters['bookingId'] ?? '';
+          final args = state.extra as ChatSessionArgs?;
+          return ChatSessionPage(
+            bookingId: bookingId,
+            args: args,
+          );
+        },
+      ),
+      GoRoute(
         path: '/voice-call',
-        builder: (context, state) => const VoiceCallScreen(),
+        builder: (context, state) {
+          final args = state.extra as CallRouteArgs?;
+          if (args == null) {
+            return const CallMissingArgsScreen(title: 'Voice call unavailable');
+          }
+          return VoiceCallScreen(args: args);
+        },
       ),
       GoRoute(
         path: '/group-session',
-        builder: (context, state) => const GroupSessionScreen(),
+        builder: (context, state) {
+          final args = state.extra as CallRouteArgs?;
+          if (args == null) {
+            return const CallMissingArgsScreen(
+              title: 'Group session unavailable',
+            );
+          }
+          return GroupSessionScreen(args: args);
+        },
       ),
       GoRoute(
         path: '/payment-method',
@@ -206,8 +245,36 @@ class AppRouter {
       GoRoute(
         path: '/live-counselling-session',
         builder: (context, state) => LiveCounsellingSessionScreen(
-          bookingArgs: state.extra as BookingFlowArgs?,
+          consultationArgs: state.extra as LiveConsultationArgs?,
         ),
+      ),
+      GoRoute(
+        path: '/live-request-waiting',
+        builder: (context, state) {
+          final args = state.extra as LiveConsultationArgs?;
+          if (args == null) {
+            return const Scaffold(
+              body: Center(child: Text('Live request details missing')),
+            );
+          }
+          return LiveRequestWaitingScreen(args: args);
+        },
+      ),
+      GoRoute(
+        path: '/live-session-summary',
+        builder: (context, state) {
+          final summary = state.extra as SessionEndedSummary?;
+          if (summary == null) {
+            return const Scaffold(
+              body: Center(child: Text('Session summary unavailable')),
+            );
+          }
+          return LiveSessionSummaryScreen(summary: summary);
+        },
+      ),
+      GoRoute(
+        path: '/live-history',
+        builder: (context, state) => const LiveHistoryScreen(),
       ),
     ],
   );

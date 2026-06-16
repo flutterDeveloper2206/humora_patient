@@ -1,73 +1,81 @@
+import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:equatable/equatable.dart';
 
+import '../../../agora/presentation/models/call_phase.dart';
+
 class GroupParticipant extends Equatable {
-  final String id;
+  final int agoraUid;
   final String name;
-  final String role;
-  final String imageUrl;
   final bool isMuted;
-  final bool isHandRaised;
   final bool isMainSpeaker;
 
   const GroupParticipant({
-    required this.id,
+    required this.agoraUid,
     required this.name,
-    required this.role,
-    required this.imageUrl,
     this.isMuted = false,
-    this.isHandRaised = false,
     this.isMainSpeaker = false,
   });
 
   @override
-  List<Object?> get props => [
-    id,
-    name,
-    role,
-    imageUrl,
-    isMuted,
-    isHandRaised,
-    isMainSpeaker,
-  ];
+  List<Object?> get props => [agoraUid, name, isMuted, isMainSpeaker];
 }
 
 class GroupSessionState extends Equatable {
+  final CallPhase phase;
   final List<GroupParticipant> participants;
   final Duration duration;
-  final double walletBalance;
   final bool isMyMuted;
   final bool isMyVideoOff;
+  final String sessionTitle;
+  final String? errorMessage;
+  final RtcEngine? engine;
 
   const GroupSessionState({
+    this.phase = CallPhase.initial,
     this.participants = const [],
-    this.duration = const Duration(minutes: 24, seconds: 56),
-    this.walletBalance = 150.0,
+    this.duration = Duration.zero,
     this.isMyMuted = false,
     this.isMyVideoOff = false,
+    this.sessionTitle = 'Group Session',
+    this.errorMessage,
+    this.engine,
   });
 
+  bool get isLoading =>
+      phase == CallPhase.loadingToken || phase == CallPhase.connecting;
+
   GroupSessionState copyWith({
+    CallPhase? phase,
     List<GroupParticipant>? participants,
     Duration? duration,
-    double? walletBalance,
     bool? isMyMuted,
     bool? isMyVideoOff,
+    String? sessionTitle,
+    String? errorMessage,
+    RtcEngine? engine,
+    bool clearError = false,
   }) {
     return GroupSessionState(
+      phase: phase ?? this.phase,
       participants: participants ?? this.participants,
       duration: duration ?? this.duration,
-      walletBalance: walletBalance ?? this.walletBalance,
       isMyMuted: isMyMuted ?? this.isMyMuted,
       isMyVideoOff: isMyVideoOff ?? this.isMyVideoOff,
+      sessionTitle: sessionTitle ?? this.sessionTitle,
+      errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
+      engine: engine ?? this.engine,
     );
   }
 
   @override
   List<Object?> get props => [
-    participants,
-    duration,
-    walletBalance,
-    isMyMuted,
-    isMyVideoOff,
-  ];
+        phase,
+        participants,
+        duration,
+        isMyMuted,
+        isMyVideoOff,
+        sessionTitle,
+        errorMessage,
+        engine,
+      ];
 }

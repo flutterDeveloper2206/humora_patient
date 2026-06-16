@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -6,7 +7,9 @@ import 'package:flutter_stripe/flutter_stripe.dart';
 import 'routes/app_router.dart';
 import 'core/constants/app_colors.dart';
 import 'core/constants/stripe_config.dart';
+import 'core/network/app_hub_lifecycle.dart';
 import 'core/network/connectivity_service.dart';
+import 'core/network/signalr_logging.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
 
 import 'package:flutter/services.dart';
@@ -28,6 +31,8 @@ Future<void> main() async {
 
   ConnectivityService.instance.bindNavigatorKey(AppRouter.rootNavigatorKey);
   await ConnectivityService.instance.init();
+
+  SignalRLogging.init(enabled: kDebugMode);
 
   // Intercept the low-level keyevent message channel to catch and suppress the framework desync assertion error
   SystemChannels.keyEvent.setMessageHandler((dynamic message) async {
@@ -82,17 +87,19 @@ class MyApp extends StatelessWidget {
             baseColor: Color(0xFFE0E0E0),
             highlightColor: Color(0xFFF5F5F5),
           ),
-          child: MaterialApp.router(
-            title: 'Humora Patient',
-            debugShowCheckedModeBanner: false,
-            theme: ThemeData(
-              primaryColor: AppColors.primary,
-              scaffoldBackgroundColor: AppColors.background,
-              colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primary),
-              useMaterial3: true,
-              fontFamily: 'GeneralSans',
+          child: AppHubLifecycle(
+            child: MaterialApp.router(
+              title: 'Humora Patient',
+              debugShowCheckedModeBanner: false,
+              theme: ThemeData(
+                primaryColor: AppColors.primary,
+                scaffoldBackgroundColor: AppColors.background,
+                colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primary),
+                useMaterial3: true,
+                fontFamily: 'GeneralSans',
+              ),
+              routerConfig: AppRouter.router,
             ),
-            routerConfig: AppRouter.router,
           ),
         );
       },

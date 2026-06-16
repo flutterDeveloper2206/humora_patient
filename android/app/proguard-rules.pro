@@ -6,3 +6,7 @@
 
 # Keep Stripe classes used by flutter_stripe.
 -keep class com.stripe.** { *; }
+
+# Agora RTC (agora_rtc_engine)
+-keep class io.agora.** { *; }
+-dontwarn io.agora.**

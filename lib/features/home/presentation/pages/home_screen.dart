@@ -1,7 +1,10 @@
+import 'dart:async';
+import 'dart:developer' as developer;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:humora_patient/features/chat/presentation/bloc/chat_bloc.dart';
-import 'package:humora_patient/features/chat/presentation/bloc/chat_event.dart';
+import 'package:humora_patient/features/chat/presentation/bloc/chat_inbox_bloc.dart';
+import 'package:humora_patient/features/chat/presentation/bloc/chat_inbox_event.dart';
 import 'package:humora_patient/features/chat/presentation/pages/chat_screen.dart';
 import 'package:humora_patient/features/healers/data/models/healer_model.dart';
 import 'package:humora_patient/features/home/presentation/bloc/home_bloc.dart';
@@ -10,6 +13,8 @@ import 'package:humora_patient/features/home/presentation/bloc/home_state.dart';
 import 'package:humora_patient/features/home/presentation/widgets/bottom_nav_bar.dart';
 import 'package:humora_patient/features/home/presentation/widgets/home_profile_tab.dart';
 import 'package:humora_patient/features/home/presentation/widgets/home_tab_body.dart';
+import 'package:humora_patient/features/live_consultation/data/datasource/live_hub_service.dart';
+import 'package:humora_patient/core/utils/session_manager.dart';
 import 'package:humora_patient/features/my_sessions/presentation/bloc/my_sessions_bloc.dart';
 import 'package:humora_patient/features/my_sessions/presentation/bloc/my_sessions_event.dart';
 import 'package:humora_patient/features/my_sessions/presentation/bloc/my_sessions_state.dart';
@@ -28,7 +33,7 @@ class HomeScreen extends StatelessWidget {
         BlocProvider(create: (_) => HomeBloc()..add(FetchHomeData())),
         BlocProvider(create: (_) => MySessionsBloc()),
         BlocProvider(create: (_) => WalletBloc()),
-        BlocProvider(create: (_) => ChatBloc()),
+        BlocProvider(create: (_) => ChatInboxBloc()),
       ],
       child: const _HomeShell(),
     );
@@ -46,6 +51,59 @@ class _HomeShellState extends State<_HomeShell> {
   int _currentIndex = 0;
   bool _walletRequested = false;
   bool _chatRequested = false;
+  StreamSubscription<dynamic>? _liveStatusSub;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _connectLiveHub());
+  }
+
+  Future<void> _connectLiveHub() async {
+    final token = await SessionManager.getToken();
+    if (token == null || token.trim().isEmpty) {
+      developer.log(
+        'Home → skip live hub — no auth token yet',
+        name: 'HomeScreen',
+      );
+      return;
+    }
+
+    // Let the session/token settle after navigation from login/splash.
+    await Future.delayed(const Duration(milliseconds: 350));
+
+    try {
+      await LiveHubService.instance.connect();
+      developer.log(
+        'Home → live hub ready: '
+        '${LiveHubService.connectionLabel(LiveHubService.instance.state)}',
+        name: 'HomeScreen',
+      );
+      await _liveStatusSub?.cancel();
+      _liveStatusSub =
+          LiveHubService.instance.healerStatusChanged.listen((payload) {
+        if (!mounted) return;
+        context.read<HomeBloc>().add(
+              UpdateHealerLiveStatus(
+                healerId: payload.healerId,
+                liveStatus: payload.newStatus,
+              ),
+            );
+      });
+    } catch (e) {
+      developer.log(
+        '❌ Home → live hub connect failed: $e',
+        name: 'HomeScreen',
+      );
+      // Hub optional on home — healers still show REST liveStatus.
+    }
+  }
+
+  @override
+  void dispose() {
+    _liveStatusSub?.cancel();
+    super.dispose();
+  }
 
   void _onTabSelected(int index) {
     setState(() => _currentIndex = index);
@@ -62,7 +120,7 @@ class _HomeShellState extends State<_HomeShell> {
     }
     if (index == 3 && !_chatRequested) {
       _chatRequested = true;
-      context.read<ChatBloc>().add(LoadChatHistory());
+      context.read<ChatInboxBloc>().add(const LoadChatInbox());
     }
   }
 

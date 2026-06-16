@@ -1,10 +1,16 @@
+import 'package:auto_skeleton/auto_skeleton.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
-import 'package:humora_patient/common/widgets/common_image.dart' show CommonImage;
+
+import '../../../../common/widgets/common_image.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
+import '../../../agora/presentation/models/call_phase.dart';
+import '../../../agora/presentation/models/call_route_args.dart';
+import '../../../agora/presentation/widgets/call_error_body.dart';
+import '../../../agora/presentation/widgets/call_missing_args_screen.dart';
 import '../bloc/group_session_bloc.dart';
 import '../bloc/group_session_event.dart';
 import '../bloc/group_session_state.dart';
@@ -12,12 +18,20 @@ import '../widgets/group_participant_card.dart';
 import '../widgets/main_speaker_card.dart';
 
 class GroupSessionScreen extends StatelessWidget {
-  const GroupSessionScreen({super.key});
+  final CallRouteArgs? args;
+
+  const GroupSessionScreen({super.key, this.args});
 
   @override
   Widget build(BuildContext context) {
+    final callArgs = args;
+    if (callArgs == null) {
+      return const CallMissingArgsScreen(title: 'Group session unavailable');
+    }
+
     return BlocProvider(
-      create: (context) => GroupSessionBloc()..add(LoadSession()),
+      create: (_) =>
+          GroupSessionBloc(args: callArgs)..add(LoadSession(callArgs)),
       child: const GroupSessionView(),
     );
   }
@@ -31,17 +45,48 @@ class GroupSessionView extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: _buildAppBar(context),
-      body: BlocBuilder<GroupSessionBloc, GroupSessionState>(
+      body: BlocConsumer<GroupSessionBloc, GroupSessionState>(
+        listenWhen: (prev, curr) => curr.phase == CallPhase.ended,
+        listener: (context, state) {
+          if (state.phase == CallPhase.ended) context.pop();
+        },
         builder: (context, state) {
+          if (state.phase == CallPhase.error) {
+            return CallErrorBody(
+              message: state.errorMessage ?? 'Something went wrong',
+              onRetry: () =>
+                  context.read<GroupSessionBloc>().add(RetrySession()),
+            );
+          }
+
+          if (state.isLoading) {
+            return AutoSkeleton(
+              enabled: true,
+              child: const Center(child: Text('Connecting to group session…')),
+            );
+          }
+
           if (state.participants.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
+            return Center(
+              child: Padding(
+                padding: EdgeInsets.all(24.w),
+                child: Text(
+                  'Waiting for participants to join…',
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            );
           }
 
           final mainSpeaker = state.participants.firstWhere(
             (p) => p.isMainSpeaker,
+            orElse: () => state.participants.first,
           );
           final otherParticipants = state.participants
-              .where((p) => !p.isMainSpeaker)
+              .where((p) => p.agoraUid != mainSpeaker.agoraUid)
               .toList();
 
           return Stack(
@@ -54,30 +99,31 @@ class GroupSessionView extends StatelessWidget {
                     MainSpeakerCard(
                       participant: mainSpeaker,
                       duration: state.duration,
+                      engine: state.engine,
                     ),
                     SizedBox(height: 20.h),
-                    GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 16.w,
-                        mainAxisSpacing: 16.h,
-                        childAspectRatio: 0.85,
+                    if (otherParticipants.isNotEmpty)
+                      GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 16.w,
+                          mainAxisSpacing: 16.h,
+                          childAspectRatio: 0.85,
+                        ),
+                        itemCount: otherParticipants.length,
+                        itemBuilder: (context, index) {
+                          return GroupParticipantCard(
+                            participant: otherParticipants[index],
+                            engine: state.engine,
+                          );
+                        },
                       ),
-                      itemCount: otherParticipants.length,
-                      itemBuilder: (context, index) {
-                        return GroupParticipantCard(
-                          participant: otherParticipants[index],
-                        );
-                      },
-                    ),
-                    SizedBox(height: 120.h), // Space for bottom bar
+                    SizedBox(height: 120.h),
                   ],
                 ),
               ),
-
-              // Bottom Bar
               Positioned(
                 bottom: 0,
                 left: 0,
@@ -96,54 +142,14 @@ class GroupSessionView extends StatelessWidget {
       backgroundColor: Colors.white,
       elevation: 0,
       leading: IconButton(
-        icon: Icon(Icons.chevron_left, color: Colors.black, size: 15.sp),
+        icon: Icon(Icons.chevron_left, color: Colors.black, size: 28.sp),
         onPressed: () => context.pop(),
       ),
       titleSpacing: 0,
       title: Text(
-        'Group Sessions',
-        style: AppTextStyles.titleMedium
+        'Group Session',
+        style: AppTextStyles.titleMedium,
       ),
-      actions: [
-        BlocBuilder<GroupSessionBloc, GroupSessionState>(
-          builder: (context, state) {
-            return Container(
-              // margin: EdgeInsets.symmetric(vertical: 8.h),
-              padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFFFFF),
-                borderRadius: BorderRadius.circular(21.r),
-                border: Border.all(color: const Color(0xFFF0F0F0)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Color(0xfFFB5B5B26).withOpacity(0.15),
-                    blurRadius: 1.5,
-                    spreadRadius: 0,
-                    offset: const Offset(0, 0),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  CommonImage(
-                    path: 'assets/image/commonwallet.png',
-                    height: 18.w,
-                    width: 18.w,
-                  ),
-                  SizedBox(width: 8.w),
-                  Text(
-                    '₹ ${state.walletBalance.toInt().toString()}.00',
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: Color(0xff5B5B5B),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-        SizedBox(width: 20.w),
-      ],
     );
   }
 
@@ -161,32 +167,19 @@ class GroupSessionView extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
           _buildCircleButton(
-            isLarge: false,
-            backgroundColor: const Color(0xFFF5F7F9),
-            iconColor: Colors.black,
-            size: 54.w,
-            iconSize: 20.w,
-            icon: state.isMyMuted ? 'Microphone.png' : 'microphone-slash.png',
+            icon: state.isMyMuted ? 'microphone-slash.png' : 'Microphone.png',
             onPressed: () =>
                 context.read<GroupSessionBloc>().add(ToggleMyMute()),
           ),
-
           _buildCircleButton(
-            icon: state.isMyVideoOff
-                ? 'eva_video-fill.png'
-                : 'eva_video-fill.png',
-            backgroundColor: const Color(0xFFF5F7F9),
-            iconColor: Colors.black,
-            size: 54.w,
-            iconSize: 20.w,
+            icon: 'eva_video-fill.png',
             onPressed: () =>
                 context.read<GroupSessionBloc>().add(ToggleMyVideo()),
           ),
           _buildCircleButton(
             icon: 'PhoneDisconnect.png',
-            onPressed: () {
-              context.push('/payment-method');
-            },
+            onPressed: () =>
+                context.read<GroupSessionBloc>().add(EndSession()),
             backgroundColor: const Color(0xFFF52D56),
             iconColor: Colors.white,
             isLarge: true,
@@ -195,54 +188,40 @@ class GroupSessionView extends StatelessWidget {
           ),
           _buildCircleButton(
             icon: 'ChatCircleDots.png',
-            onPressed: () {},
-            backgroundColor: const Color(0xFFF5F7F9),
-            iconColor: Colors.black,
-            size: 54.w,
-            iconSize: 20.w,
+            onPressed: () => context.push('/chat'),
           ),
-          _buildCircleButton(icon: 'Vector.png', onPressed: () {}, backgroundColor: const Color(0xFFF5F7F9),
-            iconColor: Colors.black,
-            size: 54.w,
-            iconSize: 20.w,),
+          _buildCircleButton(
+            icon: 'Vector.png',
+            onPressed: () {},
+          ),
         ],
       ),
     );
   }
 
-
   Widget _buildCircleButton({
     required String icon,
     required VoidCallback onPressed,
-    required  Color backgroundColor,
-    required Color iconColor,
-    required double size,
-    required double iconSize,
+    Color backgroundColor = const Color(0xFFF5F7F9),
+    Color iconColor = Colors.black,
+    double size = 54,
+    double iconSize = 20,
     bool isLarge = false,
   }) {
     return GestureDetector(
       onTap: onPressed,
       child: Container(
-        width: size,
-        height: size,
+        width: size.w,
+        height: size.w,
         decoration: BoxDecoration(
           color: backgroundColor,
           shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: isLarge
-                  ? const Color(0xFFF52D56).withOpacity(0.25)
-                  : Colors.black.withOpacity(0.03),
-              blurRadius: isLarge ? 20 : 10,
-              offset: Offset(0, isLarge ? 8 : 4),
-            ),
-          ],
         ),
         child: Center(
           child: CommonImage(
             path: 'assets/image/$icon',
-            height: iconSize,
-            width: iconSize,
+            height: iconSize.w,
+            width: iconSize.w,
             color: iconColor,
           ),
         ),

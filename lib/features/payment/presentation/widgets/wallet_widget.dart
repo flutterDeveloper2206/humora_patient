@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../../../common/widgets/common_image.dart';
-import '../../../../core/constants/app_text_styles.dart';
 
 class WalletWidget extends StatelessWidget {
   final double balance;
@@ -82,30 +81,6 @@ class WalletWidget extends StatelessWidget {
           //   ),
           // ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildCard(String path, double scale) {
-    return Transform.scale(
-      scale: scale,
-      child: Container(
-        width: 300.w,
-        height: 140.h,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16.r),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16.r),
-          child: CommonImage(path: path, fit: BoxFit.cover),
-        ),
       ),
     );
   }

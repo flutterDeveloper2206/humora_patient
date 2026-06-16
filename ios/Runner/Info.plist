@@ -48,9 +48,13 @@
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>This app needs access to your photo library to let you send photos in chat.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>This app needs access to your camera to let you take and send photos in chat.</string>
+	<string>This app needs camera access for video calls and to send photos in chat.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>This app needs access to your microphone when recording videos.</string>
+	<string>This app needs microphone access for voice and video calls.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>This app uses Bluetooth for audio during voice and video calls.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>This app uses Bluetooth for audio during voice and video calls.</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

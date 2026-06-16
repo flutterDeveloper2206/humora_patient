@@ -93,7 +93,6 @@ class _WalletViewState extends State<WalletView> {
       },
       builder: (context, state) {
         _maybeOpenTopUp(state);
-        final symbol = state.balance.displaySymbol;
         final isBusy = state.isLoading && state.transactions.isEmpty;
 
         final body = RefreshIndicator(

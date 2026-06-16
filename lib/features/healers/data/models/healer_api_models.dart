@@ -61,6 +61,7 @@ class ApprovedHealerItem {
   final String healerName;
   final String? photo;
   final int? experienceYears;
+  final String? liveStatus;
   final List<LiveCounsellingItem> liveCounselling;
   final List<SessionSlotItem> sessionSlots;
 
@@ -69,9 +70,13 @@ class ApprovedHealerItem {
     required this.healerName,
     this.photo,
     this.experienceYears,
+    this.liveStatus,
     required this.liveCounselling,
     required this.sessionSlots,
   });
+
+  bool get isLiveOnline => liveStatus == 'Online';
+  bool get isLiveBusy => liveStatus == 'Busy';
 
   factory ApprovedHealerItem.fromJson(Map<String, dynamic> json) {
     return ApprovedHealerItem(
@@ -79,6 +84,7 @@ class ApprovedHealerItem {
       healerName: json['healerName'] ?? '',
       photo: json['photo'] as String?,
       experienceYears: (json['experienceYears'] as num?)?.toInt(),
+      liveStatus: _parseLiveStatus(json['liveStatus']),
       liveCounselling: (json['liveCounselling'] as List?)
               ?.map((e) => LiveCounsellingItem.fromJson(e as Map<String, dynamic>))
               .toList() ??
@@ -174,6 +180,7 @@ class HealerDetailsResponseModel {
   final List<LiveCounsellingItem> liveCounsellingPricing;
   final List<SessionPricingItem> sessionPricing;
   final List<SessionSlotItem> sessionSlots;
+  final String? liveStatus;
 
   HealerDetailsResponseModel({
     required this.id,
@@ -197,6 +204,7 @@ class HealerDetailsResponseModel {
     required this.liveCounsellingPricing,
     required this.sessionPricing,
     required this.sessionSlots,
+    this.liveStatus,
   });
 
   factory HealerDetailsResponseModel.fromJson(Map<String, dynamic> json) {
@@ -240,6 +248,7 @@ class HealerDetailsResponseModel {
               ?.map((e) => SessionSlotItem.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
+      liveStatus: _parseLiveStatus(json['liveStatus']),
     );
   }
 }
@@ -322,4 +331,23 @@ class SessionPricingItem {
       maxParticipants: (json['maxParticipants'] as num?)?.toInt() ?? 0,
     );
   }
+}
+
+String? _parseLiveStatus(dynamic value) {
+  if (value == null) return null;
+  if (value is num) {
+    switch (value.toInt()) {
+      case 1:
+        return 'Online';
+      case 2:
+        return 'Busy';
+      default:
+        return 'Offline';
+    }
+  }
+  final text = value.toString();
+  if (text == '0') return 'Offline';
+  if (text == '1') return 'Online';
+  if (text == '2') return 'Busy';
+  return text;
 }

@@ -1,67 +1,49 @@
+import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+
 import '../../../../core/constants/app_text_styles.dart';
+import '../../../agora/presentation/widgets/agora_video_tile.dart';
 import '../bloc/group_session_state.dart';
 
 class GroupParticipantCard extends StatelessWidget {
   final GroupParticipant participant;
+  final RtcEngine? engine;
 
-  const GroupParticipantCard({super.key, required this.participant});
+  const GroupParticipantCard({
+    super.key,
+    required this.participant,
+    this.engine,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24.r),
-        image: DecorationImage(
-          image: NetworkImage(participant.imageUrl),
-          fit: BoxFit.cover,
-        ),
+        color: Colors.black12,
       ),
+      clipBehavior: Clip.antiAlias,
       child: Stack(
-        clipBehavior: Clip.none,
+        fit: StackFit.expand,
         children: [
-          // Mute Icon Overlay
-          Positioned(
-            top: 10.h,
-            left: 10.w,
-            child: Container(
-              padding: EdgeInsets.all(4.w),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.9),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                participant.isMuted ? Icons.mic_off : Icons.mic,
-                size: 14.sp,
-                color: Colors.black,
-              ),
-            ),
+          AgoraVideoTile(
+            engine: engine,
+            uid: participant.agoraUid,
           ),
-
-          // Hand Raised Overlay
-          if (participant.isHandRaised)
+          if (participant.isMuted)
             Positioned(
-              top: -8.h,
-              right: -8.w,
-              child: Transform.rotate(
-                angle: 0.2, // Slight tilt
-                child: Container(
-                  padding: EdgeInsets.all(4.w),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFE81848),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.front_hand,
-                    size: 16.sp,
-                    color: Colors.white,
-                  ),
+              top: 10.h,
+              left: 10.w,
+              child: Container(
+                padding: EdgeInsets.all(4.w),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.9),
+                  shape: BoxShape.circle,
                 ),
+                child: Icon(Icons.mic_off, size: 14.sp, color: Colors.black),
               ),
             ),
-
-          // Name Overlay
           Positioned(
             bottom: 10.h,
             left: 10.w,
@@ -72,27 +54,15 @@ class GroupParticipantCard extends StatelessWidget {
                 color: Colors.white.withOpacity(0.8),
                 borderRadius: BorderRadius.circular(20.r),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircleAvatar(
-                    radius: 8.r,
-                    backgroundImage: NetworkImage(participant.imageUrl),
-                  ),
-                  SizedBox(width: 6.w),
-                  Expanded(
-                    child: Text(
-                      '${participant.name} - ${participant.role}',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        fontSize: 9.sp,
-                        color: Colors.black,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
+              child: Text(
+                participant.name,
+                style: AppTextStyles.bodySmall.copyWith(
+                  fontSize: 9.sp,
+                  color: Colors.black,
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ),
@@ -101,3 +71,10 @@ class GroupParticipantCard extends StatelessWidget {
     );
   }
 }
+
+
+
+
+
+
+

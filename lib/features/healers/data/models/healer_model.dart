@@ -127,6 +127,7 @@ class HealerModel extends Equatable {
   final List<SessionSlotItem> rawSlots;
   final List<SessionPricingItem> sessionPricing;
   final List<LiveCounsellingItem> liveCounsellingPricing;
+  final String? liveStatus;
 
   const HealerModel({
     required this.id,
@@ -148,7 +149,37 @@ class HealerModel extends Equatable {
     this.rawSlots = const [],
     this.sessionPricing = const [],
     this.liveCounsellingPricing = const [],
+    this.liveStatus,
   });
+
+  bool get isLiveOnline => liveStatus == 'Online';
+  bool get isLiveBusy => liveStatus == 'Busy';
+
+  HealerModel withLiveStatus(String status) {
+    return HealerModel(
+      id: id,
+      name: name,
+      imageUrl: imageUrl,
+      specialization: specialization,
+      experienceYears: experienceYears,
+      rating: rating,
+      reviewsCount: reviewsCount,
+      isAvailableNow:
+          status == 'Online' || availability.any((a) => a.isAvailable),
+      feesPerMin: feesPerMin,
+      availability: availability,
+      about: about,
+      services: services,
+      description: description,
+      education: education,
+      experienceDetails: experienceDetails,
+      reviews: reviews,
+      rawSlots: rawSlots,
+      sessionPricing: sessionPricing,
+      liveCounsellingPricing: liveCounsellingPricing,
+      liveStatus: status,
+    );
+  }
 
   factory HealerModel.fromApi(ApprovedHealerItem item) {
     // Determine minimum price per minute from liveCounselling
@@ -198,12 +229,14 @@ class HealerModel extends Equatable {
       experienceYears: item.experienceYears ?? 0,
       rating: 0.0, // Placeholder
       reviewsCount: 0, // Placeholder
-      isAvailableNow: availability.any((a) => a.isAvailable),
+      isAvailableNow:
+          item.isLiveOnline || availability.any((a) => a.isAvailable),
       feesPerMin: minPrice,
       availability: availability,
       rawSlots: item.sessionSlots,
       sessionPricing: const [],
       liveCounsellingPricing: item.liveCounselling,
+      liveStatus: item.liveStatus,
     );
   }
 
@@ -287,7 +320,9 @@ class HealerModel extends Equatable {
       experienceYears: item.experienceYears ?? 0,
       rating: 4.89,
       reviewsCount: 59,
-      isAvailableNow: availability.any((a) => a.isAvailable),
+      isAvailableNow:
+          item.liveStatus == 'Online' ||
+              availability.any((a) => a.isAvailable),
       feesPerMin: minPrice,
       availability: availability,
       about: item.aboutMe ?? '',
@@ -310,6 +345,7 @@ class HealerModel extends Equatable {
       rawSlots: item.sessionSlots,
       sessionPricing: item.sessionPricing,
       liveCounsellingPricing: item.liveCounsellingPricing,
+      liveStatus: item.liveStatus,
     );
   }
 
@@ -358,6 +394,7 @@ class HealerModel extends Equatable {
     rawSlots,
     sessionPricing,
     liveCounsellingPricing,
+    liveStatus,
   ];
 }
 

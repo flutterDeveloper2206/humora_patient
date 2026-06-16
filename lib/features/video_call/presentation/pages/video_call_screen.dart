@@ -1,108 +1,209 @@
 import 'dart:ui';
+
+import 'package:auto_skeleton/auto_skeleton.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../../../common/utils/common_flushbar.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
+import '../../../agora/presentation/models/call_phase.dart';
+import '../../../agora/presentation/models/call_route_args.dart';
+import '../../../agora/presentation/widgets/agora_video_tile.dart';
+import '../../../agora/presentation/widgets/call_error_body.dart';
+import '../../../agora/presentation/widgets/call_missing_args_screen.dart';
+import '../../../live_consultation/presentation/utils/live_end_navigator.dart';
+import '../../../live_consultation/presentation/bloc/live_session_cubit.dart';
 import '../../../../../common/widgets/common_image.dart';
 import '../bloc/video_call_bloc.dart';
 import '../bloc/video_call_event.dart';
 import '../bloc/video_call_state.dart';
 
 class VideoCallScreen extends StatelessWidget {
-  const VideoCallScreen({super.key});
+  final CallRouteArgs? args;
+
+  const VideoCallScreen({super.key, this.args});
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => VideoCallBloc()..add(StartCall()),
-      child: const VideoCallView(),
+    final callArgs = args;
+    if (callArgs == null) {
+      return const CallMissingArgsScreen(title: 'Video call unavailable');
+    }
+
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (_) => VideoCallBloc(args: callArgs)..add(LoadCall(callArgs)),
+        ),
+        if (callArgs.isLive)
+          BlocProvider(
+            create: (_) =>
+                LiveSessionCubit()..startMonitoring(callArgs.bookingId),
+          ),
+      ],
+      child: VideoCallView(
+        isLive: callArgs.isLive,
+        bookingId: callArgs.bookingId,
+      ),
     );
   }
 }
 
 class VideoCallView extends StatelessWidget {
-  const VideoCallView({super.key});
+  final bool isLive;
+  final String bookingId;
+
+  const VideoCallView({
+    super.key,
+    this.isLive = false,
+    this.bookingId = '',
+  });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: BlocBuilder<VideoCallBloc, VideoCallState>(
-        builder: (context, state) {
+      body: MultiBlocListener(
+        listeners: [
+          if (isLive) ...[
+            BlocListener<LiveSessionCubit, LiveSessionState>(
+              listenWhen: (prev, curr) =>
+                  curr.sessionEnded != null &&
+                  prev.sessionEnded != curr.sessionEnded,
+              listener: (context, state) async {
+                final summary = state.sessionEnded;
+                if (summary == null || !context.mounted) return;
+                await finishLiveSessionFromSummary(
+                  context: context,
+                  bookingId: bookingId,
+                  summary: summary,
+                );
+              },
+            ),
+            BlocListener<LiveSessionCubit, LiveSessionState>(
+              listenWhen: (prev, curr) =>
+                  curr.lowBalanceWarning != null &&
+                  prev.lowBalanceWarning != curr.lowBalanceWarning,
+              listener: (context, state) {
+                final warning = state.lowBalanceWarning;
+                if (warning != null && context.mounted) {
+                  CommonFlushbar.error(
+                    context,
+                    'Low wallet balance. About ${warning.estimatedMinutesLeft} minutes left.',
+                  );
+                }
+              },
+            ),
+          ],
+          BlocListener<VideoCallBloc, VideoCallState>(
+            listenWhen: (prev, curr) =>
+                curr.phase == CallPhase.ended && !isLive,
+            listener: (context, state) {
+              if (context.mounted) context.pop();
+            },
+          ),
+          BlocListener<VideoCallBloc, VideoCallState>(
+            listenWhen: (prev, curr) =>
+                isLive &&
+                curr.phase == CallPhase.ended &&
+                prev.phase != CallPhase.ended,
+            listener: (context, state) async {
+              await finishLiveSessionFromSummary(
+                context: context,
+                bookingId: bookingId,
+                summary: state.sessionSummary,
+              );
+            },
+          ),
+        ],
+        child: BlocBuilder<VideoCallBloc, VideoCallState>(
+          builder: (context, state) {
+          if (state.phase == CallPhase.error) {
+            return CallErrorBody(
+              message: state.errorMessage ?? 'Something went wrong',
+              onRetry: () => context.read<VideoCallBloc>().add(RetryCall()),
+            );
+          }
+
           return Stack(
             fit: StackFit.expand,
             children: [
-              // Background Image (Blurred for connecting, clear for connected)
-              _buildBackground(state),
-
-              // Bottom Shadow Overlay (Added as per design)
+              _buildBackground(context, state),
               Positioned(
                 bottom: 0,
                 left: 0,
                 right: 0,
                 height: 400.h,
-                child: Container(
+                child: DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
                         Colors.transparent,
-                        Colors.black.withOpacity(0.1),
-                        Colors.black.withOpacity(0.3),
-                        Colors.black.withOpacity(0.5),
                         Colors.black.withOpacity(0.6),
                       ],
-                      stops: const [0.0, 0.3, 0.5, 0.8, 1.0],
                     ),
                   ),
                 ),
               ),
-
-              // UI Overlay
               SafeArea(
-                child: Column(
-                  children: [
-                    SizedBox(height: 20.h),
-                    if (state.status == CallStatus.connecting) ...[
-                      _buildConnectingHeader(),
-                      const Spacer(),
-                      _buildHealerCenterInfo(),
-                      const Spacer(),
-                    ] else ...[
-                      _buildConnectedHeader(),
-                      _buildLocalPreview(),
-                      const Spacer(),
-                      _buildTimer(state.duration),
+                child: AutoSkeleton(
+                  enabled: state.isConnecting,
+                  child: Column(
+                    children: [
+                      SizedBox(height: 20.h),
+                      if (state.isConnecting) ...[
+                        _buildConnectingHeader(),
+                        const Spacer(),
+                        _buildHealerCenterInfo(state.healerName),
+                        const Spacer(),
+                      ] else if (state.isInCall) ...[
+                        _buildConnectedHeader(),
+                        _buildLocalPreview(context, state),
+                        const Spacer(),
+                        _buildTimer(state.duration),
+                      ] else
+                        const Spacer(),
+                      _buildHealerOverlayCard(state.healerName),
+                      SizedBox(height: 10.h),
+                      if (state.isInCall)
+                        _buildControlButtons(context, state),
+                      SizedBox(height: 20.h),
                     ],
-                    _buildHealerOverlayCard(),
-                    SizedBox(height: 10.h),
-                    _buildControlButtons(context, state),
-                    SizedBox(height: 20.h),
-                  ],
+                  ),
                 ),
               ),
             ],
           );
         },
+        ),
       ),
     );
   }
 
-  Widget _buildBackground(VideoCallState state) {
+  Widget _buildBackground(BuildContext context, VideoCallState state) {
+    if (state.isInCall && state.remoteUid != null) {
+      return AgoraVideoTile(
+        engine: state.engine,
+        uid: state.remoteUid!,
+      );
+    }
+
     return Stack(
       fit: StackFit.expand,
       children: [
-        CommonImage(
+        const CommonImage(
           path: 'assets/image/vediocallbackground.png',
           fit: BoxFit.cover,
         ),
-        if (state.status == CallStatus.connecting)
+        if (state.isConnecting)
           Positioned.fill(
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-              child: Container(color: Colors.black.withOpacity(0.2)),
+              child: ColoredBox(color: Colors.black.withOpacity(0.2)),
             ),
           ),
       ],
@@ -120,49 +221,25 @@ class VideoCallView extends StatelessWidget {
   }
 
   Widget _buildConnectedHeader() {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 20.w),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          const SizedBox(width: 40), // Spacer
-          // Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 30.sp),
-          const SizedBox(width: 40), // Placeholder
-        ],
-      ),
-    );
+    return const SizedBox.shrink();
   }
 
-  Widget _buildHealerCenterInfo() {
+  Widget _buildHealerCenterInfo(String name) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 3),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(100.r),
-            child: CommonImage(
-              path: 'assets/image/vediocallbackground.png',
-              width: 100.w,
-              height: 100.w,
-              fit: BoxFit.cover,
-            ),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(100.r),
+          child: const CommonImage(
+            path: 'assets/image/doctorprofile.png',
+            width: 100,
+            height: 100,
+            fit: BoxFit.cover,
           ),
         ),
         SizedBox(height: 16.h),
         Text(
-          'HEALER',
-          style: AppTextStyles.bodyMedium.copyWith(
-            color: Colors.white,
-            fontSize: 10.sp,
-          ),
-        ),
-        SizedBox(height: 4.h),
-        Text(
-          'Dr. Helen Brook',
+          name,
           style: AppTextStyles.h2.copyWith(
             color: Colors.white,
             fontSize: 24.sp,
@@ -173,123 +250,73 @@ class VideoCallView extends StatelessWidget {
     );
   }
 
-  Widget _buildHealerOverlayCard() {
+  Widget _buildHealerOverlayCard(String name) {
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 35.w),
       padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.25),
         borderRadius: BorderRadius.circular(40.r),
-        border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
+        border: Border.all(color: Colors.white.withOpacity(0.3)),
       ),
-      child: ClipRRect(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-          child: Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(30.r),
-                child: CommonImage(
-                  path: 'assets/image/doctorprofile.png',
-                  width: 44.w,
-                  height: 44.w,
-                  fit: BoxFit.cover,
-                ),
-              ),
-              SizedBox(width: 12.w),
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Dr. Helen Brooke',
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: Colors.black,
-                        fontWeight: FontWeight.w500,
-                        fontSize: 13.sp,
-                      ),
-                    ),
-                    Text(
-                      'Astrologer',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: Color(0xFF3F3F3F),
-                        fontSize: 14.sp,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Row(
-                children: [
-                  CommonImage(
-                    path: 'assets/image/commonwallet.png',
-                    color: AppColors.white,
-                    height: 21.w,
-                    width: 21.w,
-                  ),
-                  SizedBox(width: 6.w),
-                  Text(
-                    '₹ 55.00',
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: Colors.black,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(30.r),
+            child: CommonImage(
+              path: 'assets/image/doctorprofile.png',
+              width: 44.w,
+              height: 44.w,
+              fit: BoxFit.cover,
+            ),
           ),
-        ),
+          SizedBox(width: 12.w),
+          Expanded(
+            child: Text(
+              name,
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: Colors.black,
+                fontWeight: FontWeight.w500,
+                fontSize: 13.sp,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildLocalPreview() {
+  Widget _buildLocalPreview(BuildContext context, VideoCallState state) {
     return Align(
       alignment: Alignment.topRight,
       child: Padding(
         padding: EdgeInsets.only(top: 10.h, right: 20.w),
-        child: Stack(
-          children: [
-            Container(
-              width: 120.w,
-              height: 160.h,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20.r),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.4),
-                  width: 2,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 10,
-                    offset: const Offset(4, 4),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(18.r),
-                child: CommonImage(
-                  path: 'assets/image/shortphoto.png',
-                  fit: BoxFit.cover,
-                ),
+        child: GestureDetector(
+          onTap: () => context.read<VideoCallBloc>().add(SwitchCamera()),
+          child: Container(
+            width: 120.w,
+            height: 160.h,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20.r),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.4),
+                width: 2,
               ),
             ),
-            Positioned(
-              bottom: 8,
-              right: 8,
-              child: Container(
-                padding: EdgeInsets.all(4.w),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.3),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(Icons.refresh, color: Colors.white, size: 16.sp),
-              ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(18.r),
+              child: state.isCameraOff
+                  ? ColoredBox(
+                      color: Colors.black54,
+                      child: Icon(Icons.videocam_off, color: Colors.white, size: 32.sp),
+                    )
+                  : AgoraVideoTile(
+                      engine: state.engine,
+                      uid: 0,
+                      isLocal: true,
+                    ),
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -331,7 +358,6 @@ class VideoCallView extends StatelessWidget {
   }
 
   Widget _buildControlButtons(BuildContext context, VideoCallState state) {
-    /// change icon image like mute unmute mic i not change because not getting similar icon in unmuted
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 26.w),
       child: Row(
@@ -339,33 +365,26 @@ class VideoCallView extends StatelessWidget {
         children: [
           _buildCircleButton(
             icon: 'hugeicons_mic-02.png',
-            onPressed: () {},
-            // onPressed: () => context.read<VideoCallBloc>().add(SwitchCamera()),
+            onPressed: () =>
+                context.read<VideoCallBloc>().add(SwitchCamera()),
           ),
           _buildCircleButton(
-            icon: state.isCameraOff
-                ? 'akar-icons_camera.png'
-                : 'akar-icons_camera.png',
-            onPressed: () => context.read<VideoCallBloc>().add(ToggleCamera()),
+            icon: 'akar-icons_camera.png',
+            onPressed: () =>
+                context.read<VideoCallBloc>().add(ToggleCamera()),
           ),
           _buildCircleButton(
             icon: 'hugeicons_call-02.png',
             color: AppColors.primary,
-            onPressed: () {
-              context.read<VideoCallBloc>().add(EndCall());
-              context.pop();
-            },
+            onPressed: () => context.read<VideoCallBloc>().add(EndCall()),
           ),
           _buildCircleButton(
-            icon: state.isSpeakerOn
-                ? 'humbleicons_volume-1.png'
-                : 'humbleicons_volume-1.png',
-            onPressed: () => context.read<VideoCallBloc>().add(ToggleSpeaker()),
+            icon: 'humbleicons_volume-1.png',
+            onPressed: () =>
+                context.read<VideoCallBloc>().add(ToggleSpeaker()),
           ),
           _buildCircleButton(
-            icon: state.isMuted
-                ? 'hugeicons_mic-02.png'
-                : 'hugeicons_mic-02.png',
+            icon: 'hugeicons_mic-02.png',
             onPressed: () => context.read<VideoCallBloc>().add(ToggleMute()),
           ),
         ],
@@ -387,7 +406,7 @@ class VideoCallView extends StatelessWidget {
         decoration: BoxDecoration(
           color: color.withOpacity(color == AppColors.primary ? 0.9 : 0.2),
           shape: BoxShape.circle,
-          border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
+          border: Border.all(color: Colors.white.withOpacity(0.3)),
         ),
         child: CommonImage(path: 'assets/image/$icon'),
       ),

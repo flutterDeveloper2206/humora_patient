@@ -10,8 +10,6 @@ import '../../../../core/constants/app_text_styles.dart';
 import '../bloc/healing_focus_bloc.dart';
 import '../bloc/healing_focus_event.dart';
 import '../bloc/healing_focus_state.dart';
-import 'package:humora_patient/features/healing_focus/data/models/healing_focus_models.dart';
-import '../widgets/healing_dropdown_field.dart';
 
 class HealingFocusScreen extends StatefulWidget {
   const HealingFocusScreen({super.key});
