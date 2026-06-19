@@ -31,6 +31,7 @@ class VoiceCallBloc extends Bloc<VoiceCallEvent, VoiceCallState> {
   bool _rtcJoinNotified = false;
   bool _tokenRetried = false;
   AgoraTokenRefreshScheduler? _tokenRefresh;
+  bool _isEnding = false;
 
   VoiceCallBloc({
     required CallRouteArgs args,
@@ -287,7 +288,8 @@ class VoiceCallBloc extends Bloc<VoiceCallEvent, VoiceCallState> {
   }
 
   Future<void> _onEndCall(EndCall event, Emitter<VoiceCallState> emit) async {
-    if (state.phase == CallPhase.ended) return;
+    if (state.phase == CallPhase.ended || _isEnding) return;
+    _isEnding = true;
     _timer?.cancel();
     _tokenRefresh?.dispose();
     _tokenRefresh = null;

@@ -1,4 +1,8 @@
 class ApiEndpoints {
+
+  // static const String baseUrl = 'http://192.168.29.118:5001/api/v1';
+  // static const String origin = 'http://192.168.29.118:5001';
+
   static const String baseUrl = 'https://api.devhealer.hyperbeen.com/api/v1';
   static const String origin = 'https://api.devhealer.hyperbeen.com';
 

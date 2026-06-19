@@ -2,7 +2,9 @@ import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:humora_patient/features/chat/presentation/bloc/chat_inbox_bloc.dart';
 import 'package:humora_patient/features/chat/presentation/bloc/chat_inbox_event.dart';
 import 'package:humora_patient/features/chat/presentation/pages/chat_screen.dart';
@@ -124,51 +126,142 @@ class _HomeShellState extends State<_HomeShell> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: Stack(
-        clipBehavior: Clip.none,
-        alignment: Alignment.bottomCenter,
-        children: [
-          SafeArea(
-            bottom: false,
-            child: IndexedStack(
-              index: _currentIndex,
-              children: [
-                BlocBuilder<HomeBloc, HomeState>(
-                  builder: (context, state) {
-                    if (state is HomeError) {
-                      return Center(child: Text(state.message));
-                    }
-                    final isLoading =
-                        state is HomeLoading || state is HomeInitial;
-                    final continueHealing = (state is HomeLoaded)
-                        ? state.continueHealingHealers
-                        : List.generate(3, (_) => HealerModel.dummy());
-                    final available = (state is HomeLoaded)
-                        ? state.availableHealers
-                        : List.generate(4, (_) => HealerModel.dummy());
-                    return HomeTabBody(
-                      isLoading: isLoading,
-                      continueHealing: continueHealing,
-                      available: available,
-                    );
-                  },
-                ),
-                const MySessionsView(embedded: true),
-                const WalletView(embedded: true),
-                const ChatView(embedded: true),
-                const HomeProfileTab(),
-              ],
-            ),
+  Future<bool> _showExitDialog(BuildContext context) async {
+    return await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20.r),
+        ),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        title: Text(
+          'Exit App',
+          style: TextStyle(
+            fontSize: 18.sp,
+            fontWeight: FontWeight.bold,
+            color: const Color(0xFF0C0C1C),
           ),
-          HomeBottomNavBar(
-            currentIndex: _currentIndex,
-            onTap: _onTabSelected,
+          textAlign: TextAlign.center,
+        ),
+        content: Text(
+          'Are you sure you want to exit the app?',
+          style: TextStyle(
+            fontSize: 14.sp,
+            color: const Color(0xFF656565),
+          ),
+          textAlign: TextAlign.center,
+        ),
+        actionsPadding: EdgeInsets.only(left: 16.w, right: 16.w, bottom: 20.h),
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  style: OutlinedButton.styleFrom(
+                    padding: EdgeInsets.symmetric(vertical: 12.h),
+                    side: const BorderSide(color: Color(0xFFE0E0E0)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
+                  ),
+                  child: Text(
+                    'Cancel',
+                    style: TextStyle(
+                      color: const Color(0xFF656565),
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(width: 12.w),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFE53935),
+                    padding: EdgeInsets.symmetric(vertical: 12.h),
+                    elevation: 0,
+                    shadowColor: Colors.transparent,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
+                  ),
+                  child: Text(
+                    'Exit',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
+      ),
+    ) ?? false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        final exitConfirm = await _showExitDialog(context);
+        if (exitConfirm && context.mounted) {
+          SystemNavigator.pop();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.bottomCenter,
+          children: [
+            SafeArea(
+              bottom: false,
+              child: IndexedStack(
+                index: _currentIndex,
+                children: [
+                  BlocBuilder<HomeBloc, HomeState>(
+                    builder: (context, state) {
+                      if (state is HomeError) {
+                        return Center(child: Text(state.message));
+                      }
+                      final isLoading =
+                          state is HomeLoading || state is HomeInitial;
+                      final continueHealing = (state is HomeLoaded)
+                          ? state.continueHealingHealers
+                          : List.generate(3, (_) => HealerModel.dummy());
+                      final available = (state is HomeLoaded)
+                          ? state.availableHealers
+                          : List.generate(4, (_) => HealerModel.dummy());
+                      return HomeTabBody(
+                        isLoading: isLoading,
+                        continueHealing: continueHealing,
+                        available: available,
+                      );
+                    },
+                  ),
+                  const MySessionsView(embedded: true),
+                  const WalletView(embedded: true),
+                  const ChatView(embedded: true),
+                  const HomeProfileTab(),
+                ],
+              ),
+            ),
+            HomeBottomNavBar(
+              currentIndex: _currentIndex,
+              onTap: _onTabSelected,
+            ),
+          ],
+        ),
       ),
     );
   }

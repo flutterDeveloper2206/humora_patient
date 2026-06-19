@@ -420,6 +420,7 @@ class _HealerAvailabilityRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
     if (healer.isLiveOnline) {
       return _StatusChip(
         emoji: '🟢',
@@ -436,6 +437,15 @@ class _HealerAvailabilityRow extends StatelessWidget {
         textColor: const Color(0xFFE6A817),
         bgColor: const Color(0xFFFFF8E6),
         borderColor: const Color(0xFFFFE4A8),
+      );
+    }
+    if (healer.liveStatus == 'Offline') {
+      return _StatusChip(
+        emoji: '⚪',
+        label: 'Offline',
+        textColor: AppColors.textSecondary,
+        bgColor: const Color(0xFFF5F5F5),
+        borderColor: AppColors.divider,
       );
     }
     if (healer.isAvailableNow) {

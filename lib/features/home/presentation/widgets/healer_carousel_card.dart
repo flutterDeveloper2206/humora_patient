@@ -101,7 +101,7 @@ class _HealerCarouselCardState extends State<HealerCarouselCard> {
                       children: [
                         _buildChip(widget.healer.specialization),
                         SizedBox(width: 10.w),
-                        _buildChip("${widget.healer.feesPerMin}\$/Session"),
+                        _buildChip("₹${widget.healer.feesPerMin}/Session"),
                       ],
                     ),
                     Container(

@@ -7,6 +7,8 @@ import '../../data/datasource/live_api_service.dart';
 import '../../data/models/live_models.dart';
 import '../bloc/live_session_cubit.dart';
 
+final Set<String> _endingBookings = {};
+
 /// Opens the e-receipt screen using session end payload data.
 void navigateToLiveReceipt({
   required BuildContext context,
@@ -48,12 +50,15 @@ Future<void> endLiveSessionAndNavigate({
   String? healingType,
   String? sessionType,
 }) async {
+  if (_endingBookings.contains(bookingId)) return;
+  _endingBookings.add(bookingId);
   SessionEndedSummary? summary;
   try {
     summary = await LiveApiService().endSession(
       LiveEndBody(bookingId: bookingId),
     );
   } catch (_) {}
+  _endingBookings.remove(bookingId);
 
   if (!context.mounted) return;
 

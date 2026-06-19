@@ -31,6 +31,7 @@ class VideoCallBloc extends Bloc<VideoCallEvent, VideoCallState> {
   bool _rtcJoinNotified = false;
   bool _tokenRetried = false;
   AgoraTokenRefreshScheduler? _tokenRefresh;
+  bool _isEnding = false;
 
   VideoCallBloc({
     required CallRouteArgs args,
@@ -260,7 +261,8 @@ class VideoCallBloc extends Bloc<VideoCallEvent, VideoCallState> {
   }
 
   Future<void> _onEndCall(EndCall event, Emitter<VideoCallState> emit) async {
-    if (state.phase == CallPhase.ended) return;
+    if (state.phase == CallPhase.ended || _isEnding) return;
+    _isEnding = true;
     _timer?.cancel();
     _tokenRefresh?.dispose();
     _tokenRefresh = null;
