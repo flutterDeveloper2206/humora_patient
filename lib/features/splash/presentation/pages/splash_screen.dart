@@ -36,7 +36,7 @@ class _SplashScreenState extends State<SplashScreen>
   Future<void> _checkLoginState() async {
     // Delay to show splash screen animation
     await Future.delayed(const Duration(seconds: 3));
-    
+
     if (!mounted) return;
 
     final hasToken = await SessionManager.hasToken();
@@ -60,22 +60,20 @@ class _SplashScreenState extends State<SplashScreen>
       backgroundColor: AppColors.white,
       body: Stack(
         children: [
-
-
           FadeTransition(
             opacity: _fadeAnimation,
             child: Center(
               child: CommonImage(
                 height: double.maxFinite,
                 fit: BoxFit.fill,
-              path:   'assets/image/splash.png',
-
+                path: 'assets/image/splash.png',
               ),
             ),
           ),
           Positioned(
             bottom: 15.h,
-            right: 0,left: 0,
+            right: 0,
+            left: 0,
             child: Padding(
               padding: EdgeInsets.only(bottom: 32.h),
               child: Center(
@@ -91,11 +89,8 @@ class _SplashScreenState extends State<SplashScreen>
               ),
             ),
           ),
-
         ],
       ),
     );
   }
-
-
 }

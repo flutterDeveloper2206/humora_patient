@@ -422,7 +422,21 @@ class MyBookingsGrouper {
       map.putIfAbsent(booking.bookingDate, () => []).add(booking);
     }
 
-    final keys = map.keys.toList()..sort();
+    final keys = map.keys.toList();
+    keys.sort((a, b) {
+      final da = DateTime.tryParse(a);
+      final db = DateTime.tryParse(b);
+      if (da == null || db == null) return a.compareTo(b);
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final aUp = !da.isBefore(today);
+      final bUp = !db.isBefore(today);
+      if (aUp && !bUp) return -1;
+      if (!aUp && bUp) return 1;
+      if (aUp && bUp) return da.compareTo(db);
+      return db.compareTo(da);
+    });
+
     return keys.map((key) {
       final entry = map[key]!;
       DateTime? dt;
