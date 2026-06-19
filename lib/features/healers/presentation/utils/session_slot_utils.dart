@@ -11,6 +11,9 @@ class SlotDisplayItem {
 }
 
 class SessionSlotUtils {
+  static const int availabilityAllDays = 1;
+  static const int availabilityWeekDays = 2;
+
   static DateTime dateOnly(DateTime date) =>
       DateTime(date.year, date.month, date.day);
 
@@ -57,15 +60,34 @@ class SessionSlotUtils {
     return rawSlots.where((s) => s.sessionType == type.value).toList();
   }
 
+  /// Backend WeekDays: Monday=1 … Sunday=7 (same as [DateTime.weekday]).
+  static bool _hasValidDayOfWeek(int dayOfWeek) =>
+      dayOfWeek >= DateTime.monday && dayOfWeek <= DateTime.sunday;
+
+  static bool slotAppliesOnDate(
+    SessionSlotItem slot,
+    SessionType type,
+    DateTime date,
+  ) {
+    if (slot.sessionType != type.value) return false;
+
+    // WeekDays — ignore [date]; recur every matching weekday.
+    if (slot.availabilityType == availabilityWeekDays) {
+      if (!_hasValidDayOfWeek(slot.dayOfWeek)) return false;
+      return date.weekday == slot.dayOfWeek;
+    }
+
+    // AllDays — exact [date] only; null/empty date slots are hidden.
+    if (slot.date.isEmpty) return false;
+    return slot.date == dateKey(date);
+  }
+
   static bool hasSlotsOnDate(
     List<SessionSlotItem> rawSlots,
     SessionType type,
     DateTime date,
   ) {
-    final key = dateKey(date);
-    return rawSlots.any(
-      (s) => s.sessionType == type.value && s.date == key,
-    );
+    return rawSlots.any((s) => slotAppliesOnDate(s, type, date));
   }
 
   static List<SessionSlotItem> slotsOnDate(
@@ -73,9 +95,8 @@ class SessionSlotUtils {
     SessionType type,
     DateTime date,
   ) {
-    final key = dateKey(date);
     return rawSlots
-        .where((s) => s.sessionType == type.value && s.date == key)
+        .where((s) => slotAppliesOnDate(s, type, date))
         .toList();
   }
 
@@ -84,20 +105,10 @@ class SessionSlotUtils {
     SessionType type, {
     DateTime? after,
   }) {
-    final dates = rawSlots
-        .where((s) => s.sessionType == type.value && s.date.isNotEmpty)
-        .map((s) => s.date)
-        .toSet()
-        .toList()
-      ..sort();
-    for (final dateStr in dates) {
-      try {
-        final dt = DateTime.parse(dateStr);
-        if (after != null && dt.isBefore(DateTime(after.year, after.month, after.day))) {
-          continue;
-        }
-        return dt;
-      } catch (_) {}
+    final start = dateOnly(after ?? DateTime.now());
+    for (var offset = 0; offset < 366; offset++) {
+      final day = start.add(Duration(days: offset));
+      if (hasSlotsOnDate(rawSlots, type, day)) return day;
     }
     return null;
   }
@@ -114,9 +125,6 @@ class SessionSlotUtils {
   }
 
   static SessionType defaultSessionType(List<SessionSlotItem> rawSlots) {
-    if (rawSlots.any((s) => s.sessionType == SessionType.live.value)) {
-      return SessionType.live;
-    }
     if (rawSlots.any((s) => s.sessionType == SessionType.personal.value)) {
       return SessionType.personal;
     }
@@ -189,6 +197,7 @@ class SessionSlotUtils {
     DateTime date,
     String category,
   ) {
+    final seen = <String>{};
     return slotsOnDate(rawSlots, type, date)
         .where(
           (slot) =>
@@ -200,6 +209,7 @@ class SessionSlotUtils {
             label: formatTimeRange(slot.startTime, slot.endTime),
           ),
         )
+        .where((item) => seen.add(item.label))
         .toList();
   }
 }

@@ -27,29 +27,37 @@ class AvailabilityChip extends StatelessWidget {
 
     return Container(
       width: 84.w,
-      padding: EdgeInsets.symmetric(vertical: 7.h, horizontal: 10.w),
+      padding: EdgeInsets.symmetric(vertical: 5.h, horizontal: 10.w),
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(8.r),
         border: Border.all(color: borderColor),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: AppTextStyles.bodySmall.copyWith(
               color: isAvailable ? AppColors.textPrimary : Color(0xff989C9F),
               fontSize: 11.sp,
+              height: 1.15,
             ),
           ),
-          SizedBox(height: 2.h),
+          SizedBox(height: 1.h),
           Text(
-            isAvailable ? "Available" : "Unavailable",
+            isAvailable ? 'Available' : 'Unavailable',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: AppTextStyles.bodySmall.copyWith(
               color: isAvailable ? Color(0xffE81848) : Color(0xff989C9F),
               fontWeight: FontWeight.w400,
               fontSize: 10.sp,
+              height: 1.15,
             ),
           ),
         ],

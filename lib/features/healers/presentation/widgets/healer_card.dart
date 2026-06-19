@@ -48,13 +48,13 @@ class HealerCard extends StatelessWidget {
       name: 'HealerCard',
     );
 
-    if (!healer.isLiveOnline) {
-      CommonFlushbar.error(
-        context,
-        'This healer is not online for live sessions right now.',
-      );
-      return;
-    }
+    // if (!healer.isLiveOnline) {
+    //   CommonFlushbar.error(
+    //     context,
+    //     'This healer is not online for live sessions right now.',
+    //   );
+    //   return;
+    // }
 
     final canAfford = await LiveWalletPreflight.ensureCanAfford(
       context: context,
@@ -229,7 +229,7 @@ class HealerCard extends StatelessWidget {
                 },
               ),
             ),
-          if (_showLiveActions)
+          // if (_showLiveActions)
             _LiveConsultationFooter(
               onChat: () => _startLiveConsultation(context, 0),
               onAudio: () => _startLiveConsultation(context, 1),
@@ -295,32 +295,32 @@ class _LiveConsultationFooterState extends State<_LiveConsultationFooter> {
         children: [
           Row(
             children: [
-              Container(
-                width: 7.w,
-                height: 7.w,
-                decoration: BoxDecoration(
-                  color: _socketColor,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: _socketColor.withValues(alpha: 0.45),
-                      blurRadius: 4,
-                      spreadRadius: 1,
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(width: 6.w),
-              Text(
-                _isConnected
-                    ? 'Live socket connected'
-                    : 'Live socket ${LiveHubService.connectionLabel(_socketState).toLowerCase()}',
-                style: AppTextStyles.caption.copyWith(
-                  color: _socketColor,
-                  fontSize: 10.sp,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+              // Container(
+              //   width: 7.w,
+              //   height: 7.w,
+              //   decoration: BoxDecoration(
+              //     color: _socketColor,
+              //     shape: BoxShape.circle,
+              //     boxShadow: [
+              //       BoxShadow(
+              //         color: _socketColor.withValues(alpha: 0.45),
+              //         blurRadius: 4,
+              //         spreadRadius: 1,
+              //       ),
+              //     ],
+              //   ),
+              // ),
+              // SizedBox(width: 6.w),
+              // Text(
+              //   _isConnected
+              //       ? 'Live socket connected'
+              //       : 'Live socket ${LiveHubService.connectionLabel(_socketState).toLowerCase()}',
+              //   style: AppTextStyles.caption.copyWith(
+              //     color: _socketColor,
+              //     fontSize: 10.sp,
+              //     fontWeight: FontWeight.w500,
+              //   ),
+              // ),
             ],
           ),
           SizedBox(height: 6.h),

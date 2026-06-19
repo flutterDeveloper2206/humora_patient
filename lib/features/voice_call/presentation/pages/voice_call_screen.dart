@@ -80,6 +80,10 @@ class VoiceCallView extends StatelessWidget {
                         context: context,
                         bookingId: bookingId,
                         summary: summary,
+                        healerName: context.read<VoiceCallBloc>().state.callerName,
+                        healerImage: context.read<VoiceCallBloc>().state.callerImage,
+                        healerRole: 'Healer',
+                        sessionType: 'Live',
                       );
                     },
                   ),
@@ -115,6 +119,10 @@ class VoiceCallView extends StatelessWidget {
                       context: context,
                       bookingId: bookingId,
                       summary: state.sessionSummary,
+                      healerName: state.callerName,
+                      healerImage: state.callerImage,
+                      healerRole: 'Healer',
+                      sessionType: 'Live',
                     );
                   },
                 ),
@@ -258,10 +266,13 @@ class VoiceCallView extends StatelessWidget {
           ),
           SizedBox(width: 32.w),
           _buildCircleButton(
-            icon: 'solar_menu-dots-bold.png',
-            onPressed: () {},
-            backgroundColor: const Color(0xFFF5F7F9),
-            iconColor: Colors.black,
+            icon: 'humbleicons_volume-1.png',
+            onPressed: () =>
+                context.read<VoiceCallBloc>().add(ToggleSpeaker()),
+            backgroundColor: state.isSpeakerOn
+                ? const Color(0xFF1E1E1E)
+                : const Color(0xFFF5F7F9),
+            iconColor: state.isSpeakerOn ? Colors.white : Colors.black,
             size: 58.w,
             iconSize: 24.w,
           ),

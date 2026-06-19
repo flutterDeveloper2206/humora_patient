@@ -1,12 +1,23 @@
+import 'dart:convert';
+
 import 'package:auto_skeleton/auto_skeleton.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:humora_patient/common/widgets/common_image.dart';
+import 'package:humora_patient/core/constants/app_colors.dart';
 import 'package:humora_patient/core/constants/app_text_styles.dart';
+import 'package:humora_patient/core/notifications/notification_badge_controller.dart';
+import 'package:intl/intl.dart';
 import 'package:humora_patient/features/healers/data/models/healer_model.dart';
 import 'package:humora_patient/features/healers/presentation/widgets/healer_card.dart';
+import 'package:humora_patient/features/home/presentation/bloc/home_bloc.dart';
+import 'package:humora_patient/features/home/presentation/bloc/home_event.dart';
+import 'package:humora_patient/features/home/presentation/bloc/home_state.dart';
 import 'package:humora_patient/features/home/presentation/widgets/healer_carousel_card.dart';
+import '../../../../core/utils/session_manager.dart';
+import '../../data/models/user_profile_model.dart';
 
 class HomeTabBody extends StatefulWidget {
   final bool isLoading;
@@ -27,6 +38,14 @@ class HomeTabBody extends StatefulWidget {
 class _HomeTabBodyState extends State<HomeTabBody> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
+  String _userName = 'Meet';
+  String _userImage = 'assets/image/doctorprofile.png';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCachedProfile();
+  }
 
   @override
   void dispose() {
@@ -34,11 +53,58 @@ class _HomeTabBodyState extends State<HomeTabBody> {
     super.dispose();
   }
 
+  Future<void> _loadCachedProfile() async {
+    try {
+      final raw = await SessionManager.getUserProfileJson();
+      if (raw == null || raw.isEmpty || !mounted) return;
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) return;
+      final profile = UserProfileModel.fromJson(decoded);
+      final name = profile.displayName.trim().isNotEmpty
+          ? profile.displayName.trim()
+          : 'Meet';
+      final image = profile.profilePic.trim().isNotEmpty
+          ? profile.profilePic.trim()
+          : 'assets/image/doctorprofile.png';
+      if (!mounted) return;
+      setState(() {
+        _userName = name;
+        _userImage = image;
+      });
+    } catch (_) {}
+  }
+
+  String get _todayLabel =>
+      DateFormat('EEE, dd MMM yyyy').format(DateTime.now()).toUpperCase();
+
+  Future<void> _onRefresh() async {
+    if (widget.isLoading) return;
+
+    final bloc = context.read<HomeBloc>();
+    bloc.add(const RefreshHomeData());
+    await bloc.stream.firstWhere(
+      (s) => (s is HomeLoaded && !s.isRefreshing) || s is HomeError,
+    );
+    await _loadCachedProfile();
+    await NotificationBadgeController.instance.refreshUnreadCount();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: EdgeInsets.only(bottom: 120.h),
-      child: Column(
+    final isRefreshing = context.select<HomeBloc, bool>(
+      (bloc) => bloc.state is HomeLoaded && (bloc.state as HomeLoaded).isRefreshing,
+    );
+    final interactionsEnabled = !widget.isLoading && !isRefreshing;
+
+    return RefreshIndicator(
+      color: AppColors.primary,
+      onRefresh: interactionsEnabled ? _onRefresh : () async {},
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
+        padding: EdgeInsets.only(bottom: 120.h),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
@@ -55,7 +121,7 @@ class _HomeTabBodyState extends State<HomeTabBody> {
                     ),
                     SizedBox(width: 8.w),
                     Text(
-                      'SAT, 25 FEB 2026',
+                      _todayLabel,
                       style: AppTextStyles.bodySmall.copyWith(
                         color: const Color(0xFF454847),
                         fontWeight: FontWeight.w400,
@@ -64,10 +130,47 @@ class _HomeTabBodyState extends State<HomeTabBody> {
                     ),
                   ],
                 ),
-                Icon(
-                  Icons.notifications_rounded,
-                  color: const Color(0xFF627167),
-                  size: 24.sp,
+                ValueListenableBuilder<int>(
+                  valueListenable:
+                      NotificationBadgeController.instance.count,
+                  builder: (context, count, _) {
+                    return GestureDetector(
+                      onTap: () => context.push('/notifications'),
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Icon(
+                            Icons.notifications_rounded,
+                            color: const Color(0xFF627167),
+                            size: 24.sp,
+                          ),
+                          if (count > 0)
+                            Positioned(
+                              right: -2.w,
+                              top: -2.h,
+                              child: Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: count > 9 ? 4.w : 5.w,
+                                  vertical: 2.h,
+                                ),
+                                decoration: const BoxDecoration(
+                                  color: AppColors.primary,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Text(
+                                  count > 99 ? '99+' : '$count',
+                                  style: AppTextStyles.caption.copyWith(
+                                    color: Colors.white,
+                                    fontSize: 9.sp,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
@@ -90,10 +193,7 @@ class _HomeTabBodyState extends State<HomeTabBody> {
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(18.r),
-                      child: const CommonImage(
-                        path: 'assets/image/doctorprofile.png',
-                        fit: BoxFit.cover,
-                      ),
+                      child: CommonImage(path: _userImage, fit: BoxFit.cover),
                     ),
                   ),
                   SizedBox(width: 16.w),
@@ -102,7 +202,7 @@ class _HomeTabBodyState extends State<HomeTabBody> {
                     textBaseline: TextBaseline.alphabetic,
                     children: [
                       Text(
-                        'Hello, Meet!',
+                        'Hello, $_userName!',
                         style: AppTextStyles.h1.copyWith(
                           fontSize: 20.sp,
                           fontWeight: FontWeight.w600,
@@ -128,9 +228,9 @@ class _HomeTabBodyState extends State<HomeTabBody> {
               ),
               child: TextField(
                 readOnly: true,
-                onTap: widget.isLoading
-                    ? null
-                    : () => context.push('/healers-list'),
+                onTap: interactionsEnabled
+                    ? () => context.push('/healers-list')
+                    : null,
                 decoration: InputDecoration(
                   hintText: 'Search here...',
                   hintStyle: AppTextStyles.bodyMedium.copyWith(
@@ -165,9 +265,9 @@ class _HomeTabBodyState extends State<HomeTabBody> {
                   ),
                 ),
                 InkWell(
-                  onTap: widget.isLoading
-                      ? null
-                      : () => context.push('/healers-list'),
+                  onTap: interactionsEnabled
+                      ? () => context.push('/healers-list')
+                      : null,
                   child: Text(
                     'All Healers',
                     style: AppTextStyles.bodySmall.copyWith(
@@ -189,11 +289,11 @@ class _HomeTabBodyState extends State<HomeTabBody> {
                   padding: EdgeInsets.symmetric(horizontal: 20.w),
                   child: HealerCarouselCard(
                     healer: widget.continueHealing[index],
-                    onTap: widget.isLoading
-                        ? () {}
-                        : () => context.push(
-                              '/healer-detail/${widget.continueHealing[index].id}',
-                            ),
+                    onTap: interactionsEnabled
+                        ? () => context.push(
+                            '/healer-detail/${widget.continueHealing[index].id}',
+                          )
+                        : () {},
                   ),
                 );
               },
@@ -251,16 +351,17 @@ class _HomeTabBodyState extends State<HomeTabBody> {
               itemBuilder: (context, index) {
                 return HealerCard(
                   healer: widget.available[index],
-                  onTap: widget.isLoading
-                      ? () {}
-                      : () => context.push(
-                            '/healer-detail/${widget.available[index].id}',
-                          ),
+                  onTap: interactionsEnabled
+                      ? () => context.push(
+                          '/healer-detail/${widget.available[index].id}',
+                        )
+                      : () {},
                 );
               },
             ),
           ),
         ],
+      ),
       ),
     );
   }

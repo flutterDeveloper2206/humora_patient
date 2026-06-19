@@ -38,4 +38,6 @@ class UpdateDuration extends VoiceCallEvent {
 
 class ToggleMute extends VoiceCallEvent {}
 
+class ToggleSpeaker extends VoiceCallEvent {}
+
 class EndCall extends VoiceCallEvent {}

@@ -35,7 +35,8 @@ class HealerDetailScreen extends StatelessWidget {
       create: (context) => HealerDetailBloc()..add(LoadHealerDetail(healerId)),
       child: BlocBuilder<HealerDetailBloc, HealerDetailState>(
         builder: (context, state) {
-          final isLoading = state is HealerDetailLoading || state is HealerDetailInitial;
+          final isLoading =
+              state is HealerDetailLoading || state is HealerDetailInitial;
           final loadedState = state is HealerDetailLoaded
               ? state
               : HealerDetailLoaded(
@@ -49,7 +50,8 @@ class HealerDetailScreen extends StatelessWidget {
           return Scaffold(
             backgroundColor: Colors.white,
             body: _buildBody(context, state, loadedState, isLoading),
-            bottomNavigationBar: (state is HealerDetailLoaded || state is HealerDetailLoading)
+            bottomNavigationBar:
+                (state is HealerDetailLoaded || state is HealerDetailLoading)
                 ? _buildBottomBar(context, loadedState)
                 : null,
           );
@@ -491,6 +493,8 @@ class HealerDetailScreen extends StatelessWidget {
     );
   }
 
+  static const _detailSessionTypes = [SessionType.personal, SessionType.group];
+
   Widget _buildSessionTypeSelector(
     BuildContext context,
     HealerDetailLoaded state,
@@ -502,10 +506,8 @@ class HealerDetailScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(19.r),
       ),
       child: Row(
-        children: SessionType.values.map((type) {
-          return Expanded(
-            child: _buildSessionTypeTab(context, state, type),
-          );
+        children: _detailSessionTypes.map((type) {
+          return Expanded(child: _buildSessionTypeTab(context, state, type));
         }).toList(),
       ),
     );
@@ -518,7 +520,8 @@ class HealerDetailScreen extends StatelessWidget {
   ) {
     final isSelected = state.selectedSessionType == type;
     return GestureDetector(
-      onTap: () => context.read<HealerDetailBloc>().add(ChangeSessionType(type)),
+      onTap: () =>
+          context.read<HealerDetailBloc>().add(ChangeSessionType(type)),
       child: Container(
         decoration: BoxDecoration(
           color: isSelected ? Colors.white : Colors.transparent,
@@ -632,9 +635,9 @@ class HealerDetailScreen extends StatelessWidget {
           children: [
             GestureDetector(
               onTap: SessionSlotUtils.canNavigateToPreviousWeek(date)
-                  ? () => context
-                      .read<HealerDetailBloc>()
-                      .add(const NavigateWeek(-1))
+                  ? () => context.read<HealerDetailBloc>().add(
+                      const NavigateWeek(-1),
+                    )
                   : null,
               child: Icon(
                 Icons.chevron_left,
@@ -671,13 +674,15 @@ class HealerDetailScreen extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: dates.map((date) {
           final isPast = SessionSlotUtils.isPastDate(date);
-          final hasSlots = !isPast &&
+          final hasSlots =
+              !isPast &&
               SessionSlotUtils.hasSlotsOnDate(
                 healer.rawSlots,
                 state.selectedSessionType,
                 date,
               );
-          final isSelected = state.selectedDate != null &&
+          final isSelected =
+              state.selectedDate != null &&
               state.selectedDate!.year == date.year &&
               state.selectedDate!.month == date.month &&
               state.selectedDate!.day == date.day;
@@ -688,9 +693,9 @@ class HealerDetailScreen extends StatelessWidget {
               child: GestureDetector(
                 onTap: isPast
                     ? null
-                    : () => context
-                        .read<HealerDetailBloc>()
-                        .add(SelectDate(date)),
+                    : () => context.read<HealerDetailBloc>().add(
+                        SelectDate(date),
+                      ),
                 child: Container(
                   height: 72.h,
                   padding: EdgeInsets.symmetric(horizontal: 2.w),
@@ -735,8 +740,8 @@ class HealerDetailScreen extends StatelessWidget {
                           color: isSelected
                               ? Colors.white
                               : (hasSlots
-                                  ? const Color(0xff7D7D7D)
-                                  : const Color(0xffC4C4C4)),
+                                    ? const Color(0xff7D7D7D)
+                                    : const Color(0xffC4C4C4)),
                           fontSize: 11.sp,
                         ),
                       ),
@@ -747,8 +752,8 @@ class HealerDetailScreen extends StatelessWidget {
                           color: isSelected
                               ? Colors.white
                               : (hasSlots
-                                  ? AppColors.textPrimary
-                                  : const Color(0xffC4C4C4)),
+                                    ? AppColors.textPrimary
+                                    : const Color(0xffC4C4C4)),
                           fontSize: 14.sp,
                         ),
                       ),
@@ -800,8 +805,8 @@ class HealerDetailScreen extends StatelessWidget {
 
           return GestureDetector(
             onTap: () => context.read<HealerDetailBloc>().add(
-                  SelectTimeCategory(category),
-                ),
+              SelectTimeCategory(category),
+            ),
             child: Container(
               width: 100.w,
               padding: EdgeInsets.symmetric(horizontal: 20.w),
@@ -843,8 +848,8 @@ class HealerDetailScreen extends StatelessWidget {
                     color: isSelected
                         ? Colors.white
                         : (hasCategorySlots
-                            ? const Color(0xff2F2F2F)
-                            : const Color(0xffA8A8A8)),
+                              ? const Color(0xff2F2F2F)
+                              : const Color(0xffA8A8A8)),
                   ),
                 ),
               ),
@@ -894,8 +899,8 @@ class HealerDetailScreen extends StatelessWidget {
         final isSelected = state.selectedSlotId == item.id;
         return GestureDetector(
           onTap: () => context.read<HealerDetailBloc>().add(
-                SelectSlot(slotId: item.id, displayTime: item.label),
-              ),
+            SelectSlot(slotId: item.id, displayTime: item.label),
+          ),
           child: Container(
             padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 9.h),
             decoration: BoxDecoration(
@@ -937,7 +942,10 @@ class HealerDetailScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _onBookNow(BuildContext context, HealerDetailLoaded state) async {
+  Future<void> _onBookNow(
+    BuildContext context,
+    HealerDetailLoaded state,
+  ) async {
     final healer = state.healer;
 
     if (state.selectedSessionType == SessionType.live) {
@@ -1304,7 +1312,8 @@ class HealerDetailScreen extends StatelessWidget {
             Expanded(
               child: SwipeableButton(
                 animationWidth: 210.0.w,
-                buttonText: 'Book Now',isShowIcon: true,
+                buttonText: 'Book Now',
+                isShowIcon: true,
                 backgroundColor: AppColors.primary,
                 iconPath: 'assets/image/gradiantarrow.png',
                 onSwipeComplete: () => _onBookNow(context, state),
@@ -1453,4 +1462,3 @@ class DiagonalStrikesPainter extends CustomPainter {
         oldDelegate.spacing != spacing;
   }
 }
-

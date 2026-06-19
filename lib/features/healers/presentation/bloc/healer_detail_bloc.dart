@@ -12,10 +12,10 @@ class HealerDetailBloc extends Bloc<HealerDetailEvent, HealerDetailState> {
   final FetchHealerDetailsUseCase _fetchHealerDetails;
 
   HealerDetailBloc({HealerRepository? repository})
-      : _fetchHealerDetails = FetchHealerDetailsUseCase(
-          repository ?? HealerRepositoryImpl(),
-        ),
-        super(HealerDetailInitial()) {
+    : _fetchHealerDetails = FetchHealerDetailsUseCase(
+        repository ?? HealerRepositoryImpl(),
+      ),
+      super(HealerDetailInitial()) {
     on<LoadHealerDetail>(_onLoadHealerDetail);
     on<ChangeTab>(_onChangeTab);
     on<SelectDate>(_onSelectDate);
@@ -89,30 +89,44 @@ class HealerDetailBloc extends Bloc<HealerDetailEvent, HealerDetailState> {
   void _onNavigateWeek(NavigateWeek event, Emitter<HealerDetailState> emit) {
     if (state is! HealerDetailLoaded) return;
     final loaded = state as HealerDetailLoaded;
-    final current =
-        loaded.focusedDate ?? loaded.selectedDate ?? DateTime.now();
-    if (event.weeks < 0 && !SessionSlotUtils.canNavigateToPreviousWeek(current)) {
+    final current = loaded.focusedDate ?? loaded.selectedDate ?? DateTime.now();
+    if (event.weeks < 0 &&
+        !SessionSlotUtils.canNavigateToPreviousWeek(current)) {
       return;
     }
     final newFocus = current.add(Duration(days: event.weeks * 7));
     final weekDays = SessionSlotUtils.weekDates(newFocus);
     final previous = loaded.selectedDate;
-    final dateInWeek = previous != null && !SessionSlotUtils.isPastDate(previous)
+    final dateInWeek =
+        previous != null && !SessionSlotUtils.isPastDate(previous)
         ? weekDays.firstWhere(
             (d) => d.weekday == previous.weekday,
             orElse: () => SessionSlotUtils.preferredDateInWeek(weekDays),
           )
         : SessionSlotUtils.preferredDateInWeek(weekDays);
     if (SessionSlotUtils.isPastDate(dateInWeek)) return;
+    final resolvedDate = SessionSlotUtils.hasSlotsOnDate(
+      loaded.healer.rawSlots,
+      loaded.selectedSessionType,
+      dateInWeek,
+    )
+        ? dateInWeek
+        : SessionSlotUtils.firstDateInWeekWithSlots(
+              loaded.healer.rawSlots,
+              loaded.selectedSessionType,
+              newFocus,
+            ) ??
+            dateInWeek;
+    if (SessionSlotUtils.isPastDate(resolvedDate)) return;
     final selection = _selectionForDate(
       loaded.healer,
       loaded.selectedSessionType,
-      dateInWeek,
+      resolvedDate,
     );
     emit(
       loaded.copyWith(
         focusedDate: newFocus,
-        selectedDate: dateInWeek,
+        selectedDate: resolvedDate,
         selectedTimeCategory: selection.category,
         selectedTime: selection.time,
         selectedSlotId: selection.slotId,
@@ -132,11 +146,25 @@ class HealerDetailBloc extends Bloc<HealerDetailEvent, HealerDetailState> {
     if (SessionSlotUtils.isPastDate(date)) {
       date = SessionSlotUtils.dateOnly(DateTime.now());
     }
-    final selection = _selectionForDate(
-      loaded.healer,
+    if (!SessionSlotUtils.hasSlotsOnDate(
+      loaded.healer.rawSlots,
       event.sessionType,
       date,
-    );
+    )) {
+      date =
+          SessionSlotUtils.firstDateInWeekWithSlots(
+            loaded.healer.rawSlots,
+            event.sessionType,
+            focus,
+          ) ??
+          SessionSlotUtils.firstDateWithSlots(
+            loaded.healer.rawSlots,
+            event.sessionType,
+            after: SessionSlotUtils.dateOnly(DateTime.now()),
+          ) ??
+          date;
+    }
+    final selection = _selectionForDate(loaded.healer, event.sessionType, date);
     emit(
       loaded.copyWith(
         selectedSessionType: event.sessionType,

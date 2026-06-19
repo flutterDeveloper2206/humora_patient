@@ -3,11 +3,14 @@ import 'dart:developer' as developer;
 import 'package:flutter/widgets.dart';
 
 import '../utils/session_manager.dart';
+import '../notifications/notification_badge_controller.dart';
+import '../notifications/session_hub_service.dart';
 import '../../features/chat/data/datasource/chat_hub_service.dart';
+import '../../features/group_session/presentation/coordinators/group_session_coordinator.dart';
 import '../../features/live_consultation/data/datasource/live_hub_service.dart';
+import '../../features/live_consultation/presentation/coordinators/live_waitlist_turn_coordinator.dart';
 
-/// Keeps SignalR hubs connected while the app is in the foreground and
-/// suspends them when the app moves to the background.
+/// Keeps SignalR hubs connected from app start until app close.
 class AppHubLifecycle extends StatefulWidget {
   final Widget child;
 
@@ -19,8 +22,6 @@ class AppHubLifecycle extends StatefulWidget {
 
 class _AppHubLifecycleState extends State<AppHubLifecycle>
     with WidgetsBindingObserver {
-  bool _backgrounded = false;
-
   @override
   void initState() {
     super.initState();
@@ -40,21 +41,15 @@ class _AppHubLifecycleState extends State<AppHubLifecycle>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     switch (state) {
       case AppLifecycleState.resumed:
-        if (_backgrounded) {
-          _backgrounded = false;
-          _connectHubs(rejoinSessions: true);
-        }
+        _connectHubs(rejoinSessions: true);
+        NotificationBadgeController.instance.refreshUnreadCount();
+        break;
+      case AppLifecycleState.detached:
+        _disconnectHubs();
         break;
       case AppLifecycleState.paused:
-      case AppLifecycleState.detached:
       case AppLifecycleState.hidden:
-        if (!_backgrounded) {
-          _backgrounded = true;
-          _suspendHubs();
-        }
-        break;
       case AppLifecycleState.inactive:
-        // Transitional (dialogs, control center) — keep sockets alive.
         break;
     }
   }
@@ -62,6 +57,21 @@ class _AppHubLifecycleState extends State<AppHubLifecycle>
   Future<void> _connectHubs({required bool rejoinSessions}) async {
     final token = await SessionManager.getToken();
     if (token == null || token.trim().isEmpty) return;
+
+    await NotificationBadgeController.instance.refreshUnreadCount();
+
+    try {
+      await SessionHubService.instance.connect();
+      developer.log(
+        'AppHubLifecycle → session hub connected',
+        name: 'AppHubLifecycle',
+      );
+    } catch (e) {
+      developer.log(
+        'AppHubLifecycle → session hub connect failed: $e',
+        name: 'AppHubLifecycle',
+      );
+    }
 
     try {
       await LiveHubService.instance.connect();
@@ -80,6 +90,20 @@ class _AppHubLifecycleState extends State<AppHubLifecycle>
       );
     }
 
+    try {
+      await ChatHubService.instance.connect();
+      developer.log(
+        'AppHubLifecycle → chat hub '
+        '${ChatHubService.instance.state.name}',
+        name: 'AppHubLifecycle',
+      );
+    } catch (e) {
+      developer.log(
+        'AppHubLifecycle → chat hub connect failed: $e',
+        name: 'AppHubLifecycle',
+      );
+    }
+
     if (rejoinSessions) {
       try {
         await ChatHubService.instance.rejoinActiveChatIfNeeded();
@@ -92,14 +116,22 @@ class _AppHubLifecycleState extends State<AppHubLifecycle>
     }
   }
 
-  Future<void> _suspendHubs() async {
-    developer.log('AppHubLifecycle → suspending hubs', name: 'AppHubLifecycle');
+  Future<void> _disconnectHubs() async {
+    developer.log(
+      'AppHubLifecycle → disconnecting hubs',
+      name: 'AppHubLifecycle',
+    );
     await Future.wait([
-      LiveHubService.instance.suspend(),
-      ChatHubService.instance.suspend(),
+      SessionHubService.instance.disconnect(),
+      LiveHubService.instance.disconnect(),
+      ChatHubService.instance.disconnect(),
     ]);
   }
 
   @override
-  Widget build(BuildContext context) => widget.child;
+  Widget build(BuildContext context) {
+    return GroupSessionCoordinator(
+      child: LiveWaitlistTurnCoordinator(child: widget.child),
+    );
+  }
 }

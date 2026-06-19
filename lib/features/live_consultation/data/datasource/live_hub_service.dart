@@ -40,6 +40,10 @@ class LiveHubService {
   final _sessionEnded = StreamController<SessionEndedSummary>.broadcast();
   final _healerStatusChanged =
       StreamController<HealerStatusChangedPayload>.broadcast();
+  final _waitlistYourTurn =
+      StreamController<WaitlistYourTurnPayload>.broadcast();
+  final _waitlistTurnExpired =
+      StreamController<WaitlistTurnExpiredPayload>.broadcast();
   final _hubError = StreamController<String>.broadcast();
   final _connectionState = StreamController<HubConnectionState>.broadcast();
 
@@ -51,6 +55,10 @@ class LiveHubService {
   Stream<SessionEndedSummary> get sessionEnded => _sessionEnded.stream;
   Stream<HealerStatusChangedPayload> get healerStatusChanged =>
       _healerStatusChanged.stream;
+  Stream<WaitlistYourTurnPayload> get waitlistYourTurn =>
+      _waitlistYourTurn.stream;
+  Stream<WaitlistTurnExpiredPayload> get waitlistTurnExpired =>
+      _waitlistTurnExpired.stream;
   Stream<String> get hubError => _hubError.stream;
   Stream<HubConnectionState> get connectionState => _connectionState.stream;
 
@@ -262,6 +270,28 @@ class LiveHubService {
         if (args == null || args.isEmpty) return;
         _healerStatusChanged.add(
           HealerStatusChangedPayload.fromJson(_asMap(args[0])),
+        );
+      },
+    );
+    SignalREventLogger.on(
+      connection,
+      hubName: _hubName,
+      eventName: 'WaitlistYourTurn',
+      handler: (args) {
+        if (args == null || args.isEmpty) return;
+        _waitlistYourTurn.add(
+          WaitlistYourTurnPayload.fromJson(_asMap(args[0])),
+        );
+      },
+    );
+    SignalREventLogger.on(
+      connection,
+      hubName: _hubName,
+      eventName: 'WaitlistTurnExpired',
+      handler: (args) {
+        if (args == null || args.isEmpty) return;
+        _waitlistTurnExpired.add(
+          WaitlistTurnExpiredPayload.fromJson(_asMap(args[0])),
         );
       },
     );

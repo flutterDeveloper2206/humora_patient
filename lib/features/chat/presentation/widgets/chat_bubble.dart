@@ -7,9 +7,15 @@ import '../bloc/chat_state.dart';
 
 class ChatBubble extends StatelessWidget {
   final ChatMessage message;
-  final String avatar;
+  final String senderAvatar;
+  final String receiverAvatar;
 
-  const ChatBubble({super.key, required this.message, required this.avatar});
+  const ChatBubble({
+    super.key,
+    required this.message,
+    required this.senderAvatar,
+    required this.receiverAvatar,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -21,7 +27,7 @@ class ChatBubble extends StatelessWidget {
             : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          if (!message.isMe) _buildAvatar(),
+          if (!message.isMe) _buildAvatar(isMe: false),
           SizedBox(width: 2.w),
           Flexible(
             child: Container(
@@ -40,7 +46,7 @@ class ChatBubble extends StatelessWidget {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.02),
+                    color: Colors.black.withValues(alpha: 0.02),
                     blurRadius: 10,
                     offset: const Offset(0, 2),
                   ),
@@ -98,13 +104,14 @@ class ChatBubble extends StatelessWidget {
             ),
           ),
           SizedBox(width: 8.w),
-          if (message.isMe) _buildAvatar(),
+          if (message.isMe) _buildAvatar(isMe: true),
         ],
       ),
     );
   }
 
-  Widget _buildAvatar() {
+  Widget _buildAvatar({required bool isMe}) {
+    final avatarPath = isMe ? senderAvatar : receiverAvatar;
     return Container(
       width: 32.w,
       height: 32.w,
@@ -115,7 +122,7 @@ class ChatBubble extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(19.r),
-        child: CommonImage(path: avatar, fit: BoxFit.cover),
+        child: CommonImage(path: avatarPath, fit: BoxFit.cover),
       ),
     );
   }

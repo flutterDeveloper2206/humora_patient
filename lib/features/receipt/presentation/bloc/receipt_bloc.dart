@@ -5,7 +5,10 @@ import 'receipt_state.dart';
 class ReceiptBloc extends Bloc<ReceiptEvent, ReceiptState> {
   ReceiptBloc() : super(const ReceiptState()) {
     on<LoadReceipt>((event, emit) {
-      // For now, it just emits the default state with mock data
+      final args = event.args;
+      if (args != null) {
+        emit(ReceiptState.fromArgs(args));
+      }
     });
   }
 }

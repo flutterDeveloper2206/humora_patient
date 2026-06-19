@@ -12,26 +12,67 @@ enum SessionJoinAction {
 }
 
 extension BookingDetailJoin on BookingDetailModel {
-  List<SessionJoinAction> get availableJoinActions {
-    final consultation =
-        ConsultationType.fromValue(consultationType ?? 0);
-    final session = SessionType.fromValue(serviceType);
+  bool get canJoinSession => canJoin;
 
-    switch (consultation) {
-      case ConsultationType.chat:
-        return [SessionJoinAction.chat];
-      case ConsultationType.audio:
-        return [SessionJoinAction.voiceCall];
-      case ConsultationType.video:
-        if (session == SessionType.group) {
-          return [SessionJoinAction.groupSession];
-        }
-        return [SessionJoinAction.videoCall];
-    }
+  List<SessionJoinAction> get availableJoinActions {
+    if (!canJoinSession) return [];
+    return _joinActionsFor(
+      consultationType: consultationType ?? 0,
+      serviceType: serviceType,
+    );
   }
 
   /// On-demand live consultation booking (`serviceType == 1`).
   bool get isLiveBooking => serviceType == SessionType.live.value;
+}
+
+extension MyBookingJoin on MyBookingModel {
+  List<SessionJoinAction> get availableJoinActions {
+    if (!canJoin) return [];
+    return _joinActionsFor(
+      consultationType: consultationType ?? 0,
+      serviceType: serviceType,
+    );
+  }
+
+  bool get isLiveBooking => serviceType == SessionType.live.value;
+
+  BookingDetailModel toDetailModel() {
+    return BookingDetailModel(
+      id: id,
+      bookingReference: bookingReference,
+      healerName: healerName,
+      bookingDate: bookingDate,
+      scheduledStartTime: scheduledStartTime,
+      scheduledEndTime: scheduledEndTime,
+      serviceType: serviceType,
+      status: status,
+      fixedPrice: fixedPrice,
+      holdAmount: holdAmount,
+      consultationType: consultationType,
+      agoraInfo: agoraInfo,
+    );
+  }
+}
+
+List<SessionJoinAction> _joinActionsFor({
+  required int consultationType,
+  required int serviceType,
+}) {
+  final consultation = ConsultationType.fromValue(consultationType);
+  final session = SessionType.fromValue(serviceType);
+
+  switch (consultation) {
+    case ConsultationType.chat:
+      return [SessionJoinAction.chat];
+    case ConsultationType.audio:
+      return [SessionJoinAction.voiceCall];
+    case ConsultationType.video:
+      if (session == SessionType.group) {
+        return [SessionJoinAction.groupSession];
+      }
+      return [SessionJoinAction.videoCall];
+  }
 }
 
 extension SessionJoinActionLabels on SessionJoinAction {

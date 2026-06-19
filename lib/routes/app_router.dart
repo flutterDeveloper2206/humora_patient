@@ -10,6 +10,7 @@ import '../features/language/presentation/pages/language_selection_screen.dart';
 import '../features/expertise/presentation/pages/primary_expertise_screen.dart';
 import '../features/specialization/presentation/pages/specialization_selection_screen.dart';
 import '../features/notifications/presentation/pages/notification_permission_screen.dart';
+import '../features/notifications/presentation/pages/notification_inbox_screen.dart';
 import '../features/security_number/presentation/pages/security_number_screen.dart';
 import '../common/screens/common_success_screen.dart';
 import '../features/healing_sessions/presentation/pages/healing_sessions_screen.dart';
@@ -30,6 +31,7 @@ import '../features/group_session/presentation/pages/group_session_screen.dart';
 import '../features/payment/presentation/pages/payment_method_screen.dart';
 import '../features/wallet/presentation/pages/wallet_screen.dart';
 import '../features/receipt/presentation/pages/receipt_screen.dart';
+import '../features/receipt/presentation/models/receipt_args.dart';
 import '../features/scheduled_sessions/presentation/pages/scheduled_sessions_screen.dart';
 import '../features/live_counselling_session/presentation/pages/live_counselling_session_screen.dart';
 import '../features/live_consultation/presentation/models/live_consultation_args.dart';
@@ -41,6 +43,8 @@ import '../features/my_sessions/presentation/pages/my_sessions_screen.dart';
 import '../features/my_sessions/presentation/pages/my_session_detail_screen.dart';
 import '../features/appointment_reminder/presentation/pages/appointment_reminder_screen.dart';
 import '../features/home/presentation/pages/home_screen.dart';
+import '../features/home/presentation/pages/edit_profile_screen.dart';
+import '../features/home/data/models/user_profile_model.dart';
 
 class AppRouter {
   static final GlobalKey<NavigatorState> rootNavigatorKey =
@@ -52,6 +56,12 @@ class AppRouter {
     // initialLocation: '/location-picker',
     routes: [
       GoRoute(path: '/home', builder: (context, state) => const HomeScreen()),
+      GoRoute(
+        path: '/edit-profile',
+        builder: (context, state) => EditProfileScreen(
+          initialProfile: state.extra as UserProfileModel?,
+        ),
+      ),
       GoRoute(
         path: '/appointment-reminder',
         builder: (context, state) => const AppointmentReminderScreen(),
@@ -129,6 +139,10 @@ class AppRouter {
           return NotificationPermissionScreen(fromSignup: fromSignup);
         },
       ),
+      GoRoute(
+        path: '/notifications',
+        builder: (context, state) => const NotificationInboxScreen(),
+      ),
 
       GoRoute(
         path: '/security-number',
@@ -181,6 +195,22 @@ class AppRouter {
       ),
       GoRoute(path: '/chat', builder: (context, state) => const ChatScreen()),
       GoRoute(
+        path: '/chat/with/:otherPartyUserId',
+        builder: (context, state) {
+          final otherPartyUserId =
+              state.pathParameters['otherPartyUserId'] ?? '';
+          final args = state.extra as ChatSessionArgs?;
+          return ChatSessionPage(
+            bookingId: '',
+            args: args?.copyWith(
+              otherPartyUserId: otherPartyUserId,
+              bookingId: '',
+            ) ??
+                ChatSessionArgs(otherPartyUserId: otherPartyUserId),
+          );
+        },
+      ),
+      GoRoute(
         path: '/chat/:bookingId',
         builder: (context, state) {
           final bookingId = state.pathParameters['bookingId'] ?? '';
@@ -226,7 +256,9 @@ class AppRouter {
       ),
       GoRoute(
         path: '/receipt',
-        builder: (context, state) => const ReceiptScreen(),
+        builder: (context, state) => ReceiptScreen(
+          args: state.extra as ReceiptArgs?,
+        ),
       ),
       GoRoute(
         path: '/scheduled-sessions',

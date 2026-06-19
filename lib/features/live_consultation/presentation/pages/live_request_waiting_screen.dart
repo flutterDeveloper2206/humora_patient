@@ -17,6 +17,7 @@ import '../bloc/live_request_event.dart';
 import '../bloc/live_request_state.dart';
 import '../models/live_consultation_args.dart';
 import '../utils/live_request_routing.dart';
+import '../utils/live_waitlist_cache.dart';
 
 class LiveRequestWaitingScreen extends StatelessWidget {
   final LiveConsultationArgs args;
@@ -25,6 +26,7 @@ class LiveRequestWaitingScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    LiveWaitlistCache.instance.remember(args);
     return BlocProvider(
       create: (_) => LiveRequestBloc()
         ..add(
@@ -50,6 +52,7 @@ class LiveRequestWaitingView extends StatefulWidget {
 class _LiveRequestWaitingViewState extends State<LiveRequestWaitingView> {
   Timer? _countdownTimer;
   int _secondsLeft = 60;
+  bool _navigatedToSession = false;
 
   @override
   void dispose() {
@@ -82,6 +85,8 @@ class _LiveRequestWaitingViewState extends State<LiveRequestWaitingView> {
     BuildContext context,
     RequestAcceptedPayload payload,
   ) async {
+    if (_navigatedToSession || !mounted) return;
+    _navigatedToSession = true;
     await navigateAfterLiveRequestAccepted(
       context: context,
       args: widget.args,
@@ -115,6 +120,10 @@ class _LiveRequestWaitingViewState extends State<LiveRequestWaitingView> {
           canPop: false,
           onPopInvokedWithResult: (didPop, _) {
             if (didPop) return;
+            if (state is LiveRequestQueued) {
+              context.go('/home');
+              return;
+            }
             context.read<LiveRequestBloc>().add(const CancelRequest());
             safePop(context);
           },
@@ -126,12 +135,18 @@ class _LiveRequestWaitingViewState extends State<LiveRequestWaitingView> {
               leading: IconButton(
                 icon: Icon(Icons.close, color: AppColors.textPrimary, size: 22.sp),
                 onPressed: () {
+                  if (state is LiveRequestQueued) {
+                    context.go('/home');
+                    return;
+                  }
                   context.read<LiveRequestBloc>().add(const CancelRequest());
                   safePop(context);
                 },
               ),
               title: Text(
-                'Waiting for healer',
+                state is LiveRequestQueued
+                    ? 'In queue'
+                    : 'Waiting for healer',
                 style: AppTextStyles.titleMedium.copyWith(fontSize: 18.sp),
               ),
               centerTitle: true,
@@ -161,6 +176,10 @@ class _LiveRequestWaitingViewState extends State<LiveRequestWaitingView> {
 
     if (state is LiveRequestWalletError) {
       return _buildWalletError(context);
+    }
+
+    if (state is LiveRequestQueued) {
+      return _buildQueuedBody(context, state);
     }
 
     final hubBanner = state is LiveRequestWaiting && !state.hubConnected;
@@ -223,6 +242,81 @@ class _LiveRequestWaitingViewState extends State<LiveRequestWaitingView> {
           height: 52.h,
           onPressed: () {
             context.read<LiveRequestBloc>().add(const CancelRequest());
+            safePop(context);
+          },
+        ),
+        SizedBox(height: 24.h),
+      ],
+    );
+  }
+
+  Widget _buildQueuedBody(BuildContext context, LiveRequestQueued state) {
+    final waitLabel = state.estimatedWaitMinutes != null
+        ? '~${state.estimatedWaitMinutes} min wait'
+        : 'Please wait for your turn';
+    final rank = state.position <= 1 ? '1st' : '${state.position}th';
+
+    return Column(
+      children: [
+        SizedBox(height: 48.h),
+        CommonImage(
+          path: widget.args.healerImage,
+          width: 120.w,
+          height: 120.w,
+          fit: BoxFit.cover,
+          borderRadius: 60.r,
+        ),
+        SizedBox(height: 24.h),
+        Text(
+          widget.args.healerName,
+          style: AppTextStyles.h3.copyWith(fontWeight: FontWeight.w600),
+          textAlign: TextAlign.center,
+        ),
+        SizedBox(height: 8.h),
+        Text(
+          'You are $rank in queue',
+          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
+          textAlign: TextAlign.center,
+        ),
+        SizedBox(height: 8.h),
+        Text(
+          waitLabel,
+          style: AppTextStyles.bodySmall.copyWith(color: AppColors.textHint),
+          textAlign: TextAlign.center,
+        ),
+        SizedBox(height: 24.h),
+        Container(
+          width: double.infinity,
+          padding: EdgeInsets.all(16.w),
+          decoration: BoxDecoration(
+            color: AppColors.primaryLite,
+            borderRadius: BorderRadius.circular(12.r),
+            border: Border.all(color: AppColors.primaryLiteChip),
+          ),
+          child: Text(
+            'We will notify you when it is your turn. '
+            'You will have 60 seconds to accept.',
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textSecondary,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+        const Spacer(),
+        CommonButton(
+          text: 'Wait',
+          borderRadius: 12.r,
+          height: 52.h,
+          onPressed: () => context.go('/home'),
+        ),
+        SizedBox(height: 12.h),
+        CommonButton(
+          text: 'Leave Queue',
+          backgroundColor: AppColors.darkButton,
+          borderRadius: 12.r,
+          height: 52.h,
+          onPressed: () {
+            context.read<LiveRequestBloc>().add(const LeaveWaitlist());
             safePop(context);
           },
         ),

@@ -15,3 +15,20 @@ class LoadBookingDetail extends MySessionDetailEvent {
   @override
   List<Object?> get props => [bookingId];
 }
+
+class CancelBooking extends MySessionDetailEvent {
+  final String bookingId;
+  final String reason;
+
+  const CancelBooking({
+    required this.bookingId,
+    required this.reason,
+  });
+
+  @override
+  List<Object?> get props => [bookingId, reason];
+}
+
+class ClearDetailFeedback extends MySessionDetailEvent {
+  const ClearDetailFeedback();
+}

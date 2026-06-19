@@ -28,6 +28,46 @@ class LiveRequestWaiting extends LiveRequestState {
   List<Object?> get props => [requestId, expiresAt, hubConnected];
 }
 
+class LiveRequestQueued extends LiveRequestState {
+  final String waitlistId;
+  final String healerId;
+  final int consultationType;
+  final int position;
+  final int? estimatedWaitMinutes;
+  final DateTime? joinedAt;
+
+  const LiveRequestQueued({
+    required this.waitlistId,
+    required this.healerId,
+    required this.consultationType,
+    required this.position,
+    this.estimatedWaitMinutes,
+    this.joinedAt,
+  });
+
+  LiveRequestQueued copyWith({
+    String? waitlistId,
+    String? healerId,
+    int? consultationType,
+    int? position,
+    int? estimatedWaitMinutes,
+    DateTime? joinedAt,
+  }) {
+    return LiveRequestQueued(
+      waitlistId: waitlistId ?? this.waitlistId,
+      healerId: healerId ?? this.healerId,
+      consultationType: consultationType ?? this.consultationType,
+      position: position ?? this.position,
+      estimatedWaitMinutes: estimatedWaitMinutes ?? this.estimatedWaitMinutes,
+      joinedAt: joinedAt ?? this.joinedAt,
+    );
+  }
+
+  @override
+  List<Object?> get props =>
+      [waitlistId, healerId, position, estimatedWaitMinutes, joinedAt];
+}
+
 class LiveRequestAccepted extends LiveRequestState {
   final RequestAcceptedPayload payload;
 

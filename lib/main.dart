@@ -1,15 +1,21 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:auto_skeleton/auto_skeleton.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
+import 'firebase_options.dart';
 import 'routes/app_router.dart';
 import 'core/constants/app_colors.dart';
 import 'core/constants/stripe_config.dart';
 import 'core/network/app_hub_lifecycle.dart';
 import 'core/network/connectivity_service.dart';
 import 'core/network/signalr_logging.dart';
+import 'core/notifications/firebase_background_handler.dart';
+import 'core/notifications/notification_service.dart';
+import 'core/notifications/session_reminder_coordinator.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
 
 import 'package:flutter/services.dart';
@@ -24,6 +30,14 @@ bool _isBenignDebugAssertion(Object error) {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  if (!kIsWeb) {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    await NotificationService.instance.init();
+  }
 
   Stripe.publishableKey = StripeConfig.publishableKey;
   Stripe.urlScheme = StripeConfig.urlScheme;
@@ -99,6 +113,11 @@ class MyApp extends StatelessWidget {
                 fontFamily: 'GeneralSans',
               ),
               routerConfig: AppRouter.router,
+              builder: (context, child) {
+                return SessionReminderCoordinator(
+                  child: child ?? const SizedBox.shrink(),
+                );
+              },
             ),
           ),
         );

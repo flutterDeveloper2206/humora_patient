@@ -11,6 +11,7 @@ class VideoCallState extends Equatable {
   final bool isCameraOff;
   final bool isSpeakerOn;
   final String healerName;
+  final String healerImage;
   final String? errorMessage;
   final int? remoteUid;
   final RtcEngine? engine;
@@ -23,6 +24,7 @@ class VideoCallState extends Equatable {
     this.isCameraOff = false,
     this.isSpeakerOn = true,
     this.healerName = 'Healer',
+    this.healerImage = 'assets/image/doctorprofile.png',
     this.errorMessage,
     this.remoteUid,
     this.engine,
@@ -41,6 +43,7 @@ class VideoCallState extends Equatable {
     bool? isCameraOff,
     bool? isSpeakerOn,
     String? healerName,
+    String? healerImage,
     String? errorMessage,
     int? remoteUid,
     RtcEngine? engine,
@@ -54,6 +57,7 @@ class VideoCallState extends Equatable {
       isCameraOff: isCameraOff ?? this.isCameraOff,
       isSpeakerOn: isSpeakerOn ?? this.isSpeakerOn,
       healerName: healerName ?? this.healerName,
+      healerImage: healerImage ?? this.healerImage,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       remoteUid: remoteUid ?? this.remoteUid,
       engine: engine ?? this.engine,
@@ -69,6 +73,7 @@ class VideoCallState extends Equatable {
         isCameraOff,
         isSpeakerOn,
         healerName,
+        healerImage,
         errorMessage,
         remoteUid,
         engine,

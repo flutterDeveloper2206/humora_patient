@@ -1,5 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:humora_patient/core/notifications/notification_service.dart';
 import 'notification_permission_event.dart';
 import 'notification_permission_state.dart';
 
@@ -16,9 +16,9 @@ class NotificationPermissionBloc
   ) async {
     emit(state.copyWith(status: NotificationPermissionStatus.loading));
 
-    final status = await Permission.notification.request();
+    final granted = await NotificationService.instance.requestPermission();
 
-    if (status.isGranted) {
+    if (granted) {
       emit(state.copyWith(status: NotificationPermissionStatus.granted));
     } else {
       emit(state.copyWith(status: NotificationPermissionStatus.denied));

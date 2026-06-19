@@ -141,22 +141,21 @@ class ChatInboxPage extends StatelessWidget {
     );
   }
 
-  List<ConversationListItemDto> _placeholderConversations() {
+  List<ChatInboxEntryDto> _placeholderConversations() {
     return List.generate(
       4,
-      (i) => ConversationListItemDto(
-        conversationId: 'placeholder-$i',
-        bookingId: 'placeholder-$i',
-        bookingReference: 'REF-$i',
+      (i) => ChatInboxEntryDto(
+        otherPartyUserId: 'placeholder-$i',
         otherPartyName: 'Healer name',
         lastMessage: 'Last message preview…',
+        bookingCount: i == 0 ? 3 : 1,
       ),
     );
   }
 }
 
 class _InboxList extends StatelessWidget {
-  final List<ConversationListItemDto> conversations;
+  final List<ChatInboxEntryDto> conversations;
   final double bottomPadding;
   final bool interactionsEnabled;
 
@@ -176,7 +175,8 @@ class _InboxList extends StatelessWidget {
               bloc.add(const RefreshChatInbox());
               await bloc.stream.firstWhere(
                 (s) =>
-                    (s is ChatInboxLoaded && !s.isRefreshing) || s is ChatInboxError,
+                    (s is ChatInboxLoaded && !s.isRefreshing) ||
+                    s is ChatInboxError,
               );
             }
           : () async {},
@@ -194,10 +194,12 @@ class _InboxList extends StatelessWidget {
             onTap: interactionsEnabled
                 ? () {
                     context.push(
-                      '/chat/${item.bookingId}',
+                      '/chat/with/${item.otherPartyUserId}',
                       extra: ChatSessionArgs(
-                        bookingId: item.bookingId,
+                        otherPartyUserId: item.otherPartyUserId,
                         healerName: item.otherPartyName,
+                        otherUserProfile: item.otherPartyPhoto,
+                        bookingCount: item.bookingCount,
                       ),
                     );
                   }
@@ -210,7 +212,7 @@ class _InboxList extends StatelessWidget {
 }
 
 class _ConversationTile extends StatelessWidget {
-  final ConversationListItemDto item;
+  final ChatInboxEntryDto item;
   final VoidCallback? onTap;
 
   const _ConversationTile({required this.item, this.onTap});
@@ -254,7 +256,8 @@ class _ConversationTile extends StatelessWidget {
               ClipRRect(
                 borderRadius: BorderRadius.circular(24.r),
                 child: CommonImage(
-                  path: item.otherPartyPhoto ?? 'assets/image/doctorprofile.png',
+                  path:
+                      item.otherPartyPhoto ?? 'assets/image/doctorprofile.png',
                   width: 48.w,
                   height: 48.w,
                   fit: BoxFit.cover,
@@ -269,7 +272,7 @@ class _ConversationTile extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            item.otherPartyName ?? 'Healer',
+                            item.otherPartyName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: AppTextStyles.bodyMedium.copyWith(
@@ -289,6 +292,17 @@ class _ConversationTile extends StatelessWidget {
                       ],
                     ),
                     SizedBox(height: 4.h),
+                    if (item.bookingCount > 1) ...[
+                      Text(
+                        '${item.bookingCount} sessions',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.primary,
+                          fontSize: 11.sp,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      SizedBox(height: 4.h),
+                    ],
                     Row(
                       children: [
                         Expanded(
@@ -302,7 +316,7 @@ class _ConversationTile extends StatelessWidget {
                             ),
                           ),
                         ),
-                        if (item.unreadCount > 0) ...[
+                        if (item.totalUnreadCount > 0) ...[
                           SizedBox(width: 8.w),
                           Container(
                             padding: EdgeInsets.symmetric(
@@ -314,7 +328,7 @@ class _ConversationTile extends StatelessWidget {
                               borderRadius: BorderRadius.circular(10.r),
                             ),
                             child: Text(
-                              '${item.unreadCount}',
+                              '${item.totalUnreadCount}',
                               style: AppTextStyles.label.copyWith(
                                 color: Colors.white,
                                 fontSize: 10.sp,

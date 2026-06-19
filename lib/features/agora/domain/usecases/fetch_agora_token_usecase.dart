@@ -34,7 +34,7 @@ class FetchAgoraTokenUseCase {
           isLive: isLive,
           liveMode: liveMode,
         );
-        if (response.isValid) return response;
+        if (response.isValid && response.agoraUidWire.isNotEmpty) return response;
         lastError = Exception(
           'Call credentials were empty. The session may still be starting.',
         );

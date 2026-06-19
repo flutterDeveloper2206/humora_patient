@@ -19,6 +19,8 @@ import '../utils/my_sessions_loading.dart';
 import '../utils/session_join_navigator.dart';
 import '../widgets/booking_countdown_banner.dart';
 import '../widgets/booking_status_chip.dart';
+import '../widgets/cancel_booking_dialog.dart';
+import '../widgets/group_session_waiting_card.dart';
 import '../widgets/session_join_option_tile.dart';
 import '../../domain/session_join_resolver.dart';
 
@@ -80,13 +82,40 @@ class MySessionDetailView extends StatelessWidget {
       ),
       body: BlocConsumer<MySessionDetailBloc, MySessionDetailState>(
         listenWhen: (prev, curr) {
-          if (curr is! MySessionDetailError) return false;
-          if (prev is MySessionDetailLoaded && prev.isRefreshing) return false;
-          return true;
+          if (curr is MySessionDetailError) {
+            if (prev is MySessionDetailLoaded && prev.isRefreshing) {
+              return false;
+            }
+            return true;
+          }
+          if (curr is MySessionDetailLoaded) {
+            if (curr.successMessage != null &&
+                (prev is! MySessionDetailLoaded ||
+                    prev.successMessage != curr.successMessage)) {
+              return true;
+            }
+            if (curr.cancelError != null &&
+                (prev is! MySessionDetailLoaded ||
+                    prev.cancelError != curr.cancelError)) {
+              return true;
+            }
+          }
+          return false;
         },
         listener: (context, state) {
           if (state is MySessionDetailError) {
             CommonFlushbar.error(context, state.message);
+            return;
+          }
+          if (state is MySessionDetailLoaded) {
+            final bloc = context.read<MySessionDetailBloc>();
+            if (state.successMessage != null) {
+              CommonFlushbar.success(context, state.successMessage!);
+              bloc.add(const ClearDetailFeedback());
+            } else if (state.cancelError != null) {
+              CommonFlushbar.error(context, state.cancelError!);
+              bloc.add(const ClearDetailFeedback());
+            }
           }
         },
         builder: (context, state) {
@@ -104,12 +133,16 @@ class MySessionDetailView extends StatelessWidget {
           final booking = state is MySessionDetailLoaded
               ? state.booking
               : BookingDetailModel.placeholder();
+          final isCancelling =
+              state is MySessionDetailLoaded && state.isCancelling;
 
           return AutoSkeleton(
             enabled: isLoading,
             child: _DetailBody(
               booking: booking,
+              bookingId: bookingId,
               interactionsEnabled: !isLoading,
+              isCancelling: isCancelling,
             ),
           );
         },
@@ -164,11 +197,15 @@ class _DetailErrorBody extends StatelessWidget {
 
 class _DetailBody extends StatelessWidget {
   final BookingDetailModel booking;
+  final String bookingId;
   final bool interactionsEnabled;
+  final bool isCancelling;
 
   const _DetailBody({
     required this.booking,
+    required this.bookingId,
     this.interactionsEnabled = true,
+    this.isCancelling = false,
   });
 
   @override
@@ -230,9 +267,16 @@ class _DetailBody extends StatelessWidget {
                     BookingStatusChip(status: status),
                   ],
                 ),
-                if (interactionsEnabled && status.showCountdown) ...[
+                if (interactionsEnabled && booking.isUpcomingConfirmed) ...[
                   SizedBox(height: 14.h),
-                  BookingCountdownBanner(target: booking.startDateTime),
+                  BookingCountdownBanner(
+                    target: booking.startDateTime,
+                    endTime: booking.endDateTime,
+                  ),
+                ],
+                if (interactionsEnabled && booking.isWaitingForGroupStart) ...[
+                  SizedBox(height: 14.h),
+                  GroupSessionWaitingCard(booking: booking),
                 ],
               ],
             ),
@@ -267,7 +311,7 @@ class _DetailBody extends StatelessWidget {
           ),
           if (interactionsEnabled) ...[
             SizedBox(height: 24.h),
-            if (status.showJoinButton) ...[
+            if (booking.canJoinSession) ...[
               Text(
                 'Join your session',
                 style: AppTextStyles.h3.copyWith(fontSize: 16.sp),
@@ -293,6 +337,30 @@ class _DetailBody extends StatelessWidget {
                 text: 'View Receipt',
                 onPressed: () => context.push('/receipt'),
                 borderRadius: 12.r,
+              ),
+            ],
+            if (status.canCancel) ...[
+              if (booking.canJoinSession || status.showReceipt)
+                SizedBox(height: 12.h),
+              CommonButton(
+                text: 'Cancel Booking',
+                isLoading: isCancelling,
+                isDisabled: isCancelling,
+                backgroundColor: Colors.white,
+                textColor: AppColors.error,
+                side: const BorderSide(color: AppColors.error),
+                borderRadius: 12.r,
+                onPressed: () => CancelBookingDialog.show(
+                  context: context,
+                  onConfirm: (reason) {
+                    context.read<MySessionDetailBloc>().add(
+                          CancelBooking(
+                            bookingId: bookingId,
+                            reason: reason,
+                          ),
+                        );
+                  },
+                ),
               ),
             ],
           ],

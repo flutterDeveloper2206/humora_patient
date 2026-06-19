@@ -34,12 +34,14 @@ class VerifyOtpRequest {
   final String countryCode;
   final String code;
   final String timeZone;
+  final String? fcmToken;
 
   const VerifyOtpRequest({
     required this.mobile,
     required this.countryCode,
     required this.code,
     required this.timeZone,
+    this.fcmToken,
   });
 
   Map<String, dynamic> toJson() {
@@ -48,6 +50,7 @@ class VerifyOtpRequest {
       'countryCode': countryCode,
       'code': code,
       'timeZone': timeZone,
+      if (fcmToken != null && fcmToken!.isNotEmpty) 'fcmToken': fcmToken,
     };
   }
 }

@@ -9,6 +9,10 @@ abstract class HomeEvent extends Equatable {
 
 class FetchHomeData extends HomeEvent {}
 
+class RefreshHomeData extends HomeEvent {
+  const RefreshHomeData();
+}
+
 class UpdateHealerLiveStatus extends HomeEvent {
   final String healerId;
   final String liveStatus;

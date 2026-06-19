@@ -14,7 +14,35 @@ class SessionJoinNavigator {
     BookingDetailModel booking,
     SessionJoinAction action,
   ) {
+    _navigate(context, booking, action);
+  }
+
+  static void goFromList(
+    BuildContext context,
+    MyBookingModel booking,
+    SessionJoinAction action,
+  ) {
+    _navigate(context, booking.toDetailModel(), action);
+  }
+
+  /// Opens detail when consultation type is unknown; otherwise joins directly.
+  static void joinOrOpenDetail(BuildContext context, MyBookingModel booking) {
+    final actions = booking.availableJoinActions;
+    if (actions.isEmpty || booking.consultationType == null) {
+      context.push('/my-session/${booking.id}');
+      return;
+    }
+    goFromList(context, booking, actions.first);
+  }
+
+  static void _navigate(
+    BuildContext context,
+    BookingDetailModel booking,
+    SessionJoinAction action,
+  ) {
     final isLive = booking.isLiveBooking;
+    final agoraInfo = booking.agoraInfo;
+
     switch (action) {
       case SessionJoinAction.chat:
         context.push(
@@ -34,6 +62,7 @@ class SessionJoinNavigator {
             healerName: booking.healerName,
             mode: CallMode.audio,
             isLive: isLive,
+            prefetchedAgoraInfo: agoraInfo,
           ),
         );
         break;
@@ -46,6 +75,7 @@ class SessionJoinNavigator {
             healerName: booking.healerName,
             mode: CallMode.video,
             isLive: isLive,
+            prefetchedAgoraInfo: agoraInfo,
           ),
         );
         break;
@@ -56,6 +86,7 @@ class SessionJoinNavigator {
             bookingId: booking.id,
             healerName: booking.healerName,
             mode: CallMode.group,
+            prefetchedAgoraInfo: agoraInfo,
           ),
         );
         break;

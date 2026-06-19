@@ -4,6 +4,9 @@ class SessionManager {
   static const String _keyToken = 'auth_token';
   static const String _keyPatientId = 'patient_id';
   static const String _keyCurrencyId = 'currency_id';
+  static const String _keyUserProfileJson = 'user_profile_json';
+  static const String _keyFcmToken = 'fcm_token';
+  static const String _keyLastSyncedFcmToken = 'last_synced_fcm_token';
 
   static Future<void> saveToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
@@ -20,6 +23,9 @@ class SessionManager {
     await prefs.remove(_keyToken);
     await prefs.remove(_keyPatientId);
     await prefs.remove(_keyCurrencyId);
+    await prefs.remove(_keyUserProfileJson);
+    await prefs.remove(_keyFcmToken);
+    await prefs.remove(_keyLastSyncedFcmToken);
   }
 
   static Future<bool> hasToken() async {
@@ -45,5 +51,46 @@ class SessionManager {
   static Future<String?> getCurrencyId() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_keyCurrencyId);
+  }
+
+  static Future<void> saveUserProfileJson(String json) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyUserProfileJson, json);
+  }
+
+  static Future<String?> getUserProfileJson() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyUserProfileJson);
+  }
+
+  static Future<void> saveFcmToken(String token) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyFcmToken, token);
+  }
+
+  static Future<String?> getFcmToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyFcmToken);
+  }
+
+  static Future<void> saveLastSyncedFcmToken(String token) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyLastSyncedFcmToken, token);
+  }
+
+  static Future<String?> getLastSyncedFcmToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyLastSyncedFcmToken);
+  }
+
+  static Future<void> clearFcmToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_keyFcmToken);
+    await prefs.remove(_keyLastSyncedFcmToken);
+  }
+
+  static Future<void> clearLastSyncedFcmToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_keyLastSyncedFcmToken);
   }
 }

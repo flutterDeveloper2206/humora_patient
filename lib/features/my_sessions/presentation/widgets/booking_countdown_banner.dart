@@ -8,8 +8,13 @@ import '../../../../core/constants/app_text_styles.dart';
 
 class BookingCountdownBanner extends StatefulWidget {
   final DateTime target;
+  final DateTime? endTime;
 
-  const BookingCountdownBanner({super.key, required this.target});
+  const BookingCountdownBanner({
+    super.key,
+    required this.target,
+    this.endTime,
+  });
 
   @override
   State<BookingCountdownBanner> createState() => _BookingCountdownBannerState();
@@ -39,7 +44,17 @@ class _BookingCountdownBannerState extends State<BookingCountdownBanner> {
   }
 
   String get _label {
-    if (_remaining == Duration.zero) return 'Starting soon';
+    final now = DateTime.now();
+    final end = widget.endTime;
+    if (end != null && !now.isBefore(end)) {
+      return 'Session window ended';
+    }
+    if (_remaining == Duration.zero) {
+      if (end != null && now.isBefore(end)) {
+        return 'Session in progress';
+      }
+      return 'Starting soon';
+    }
     final h = _remaining.inHours;
     final m = _remaining.inMinutes.remainder(60);
     final s = _remaining.inSeconds.remainder(60);

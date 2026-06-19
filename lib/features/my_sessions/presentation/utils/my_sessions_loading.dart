@@ -13,5 +13,6 @@ extension MySessionDetailStateLoading on MySessionDetailState {
       this is MySessionDetailInitial ||
       this is MySessionDetailLoading ||
       (this is MySessionDetailLoaded &&
-          (this as MySessionDetailLoaded).isRefreshing);
+          ((this as MySessionDetailLoaded).isRefreshing ||
+              (this as MySessionDetailLoaded).isCancelling));
 }

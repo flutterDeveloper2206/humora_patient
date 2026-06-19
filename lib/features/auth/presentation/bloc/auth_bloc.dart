@@ -1,4 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:humora_patient/core/notifications/notification_service.dart';
+import 'package:humora_patient/core/notifications/notification_badge_controller.dart';
 import 'package:humora_patient/core/utils/session_manager.dart';
 import 'package:humora_patient/features/auth/data/models/otp_models.dart';
 import 'package:humora_patient/features/auth/data/models/profile_models.dart';
@@ -17,10 +19,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final SaveProfileUseCase _saveProfile;
 
   AuthBloc({AuthRepository? repository})
-      : _sendOtp = SendOtpUseCase(repository ?? AuthRepositoryImpl()),
-        _verifyOtp = VerifyOtpUseCase(repository ?? AuthRepositoryImpl()),
-        _saveProfile = SaveProfileUseCase(repository ?? AuthRepositoryImpl()),
-        super(AuthInitial()) {
+    : _sendOtp = SendOtpUseCase(repository ?? AuthRepositoryImpl()),
+      _verifyOtp = VerifyOtpUseCase(repository ?? AuthRepositoryImpl()),
+      _saveProfile = SaveProfileUseCase(repository ?? AuthRepositoryImpl()),
+      super(AuthInitial()) {
     on<SendOtpRequested>((event, emit) async {
       emit(AuthLoading());
       try {
@@ -36,12 +38,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<VerifyOtpRequested>((event, emit) async {
       emit(AuthLoading());
       try {
+        final fcmToken = await NotificationService.instance.getDeviceToken();
         final response = await _verifyOtp(
           VerifyOtpRequest(
             mobile: event.mobile,
             countryCode: event.countryCode,
             code: event.code,
             timeZone: 'Asia/Kolkata',
+            fcmToken: fcmToken,
           ),
         );
         if (response.token.isNotEmpty) {
@@ -158,6 +162,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     });
 
     on<LogoutRequested>((event, emit) async {
+      await NotificationService.instance.clearLocalToken();
+      NotificationBadgeController.instance.reset();
       await SessionManager.clearSession();
       emit(AuthUnauthenticated());
     });

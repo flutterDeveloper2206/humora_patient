@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../models/receipt_args.dart';
 
 class ReceiptState extends Equatable {
   final String healerName;
@@ -28,6 +29,23 @@ class ReceiptState extends Equatable {
     this.totalAmount = 85.0,
     this.receiptId = '10297U 12819GA18217',
   });
+
+  factory ReceiptState.fromArgs(ReceiptArgs args) {
+    return ReceiptState(
+      healerName: args.healerName,
+      healerRole: args.healerRole,
+      healerImage: args.healerImage,
+      startTime: args.startTime,
+      endTime: args.endTime,
+      duration: args.duration,
+      date: args.date,
+      mode: args.mode,
+      healingType: args.healingType,
+      sessionType: args.sessionType,
+      totalAmount: args.totalAmount,
+      receiptId: args.receiptId,
+    );
+  }
 
   @override
   List<Object?> get props => [

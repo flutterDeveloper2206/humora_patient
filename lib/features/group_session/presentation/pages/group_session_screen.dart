@@ -11,10 +11,12 @@ import '../../../agora/presentation/models/call_phase.dart';
 import '../../../agora/presentation/models/call_route_args.dart';
 import '../../../agora/presentation/widgets/call_error_body.dart';
 import '../../../agora/presentation/widgets/call_missing_args_screen.dart';
+import '../../../receipt/presentation/models/receipt_args.dart';
 import '../bloc/group_session_bloc.dart';
 import '../bloc/group_session_event.dart';
 import '../bloc/group_session_state.dart';
 import '../widgets/group_participant_card.dart';
+import '../widgets/group_session_healer_waiting_body.dart';
 import '../widgets/main_speaker_card.dart';
 
 class GroupSessionScreen extends StatelessWidget {
@@ -46,9 +48,56 @@ class GroupSessionView extends StatelessWidget {
       backgroundColor: Colors.white,
       appBar: _buildAppBar(context),
       body: BlocConsumer<GroupSessionBloc, GroupSessionState>(
-        listenWhen: (prev, curr) => curr.phase == CallPhase.ended,
+        listenWhen: (prev, curr) =>
+            curr.phase == CallPhase.ended && prev.phase != CallPhase.ended,
         listener: (context, state) {
-          if (state.phase == CallPhase.ended) context.pop();
+          if (state.endSummary != null) {
+            final receiptArgs = ReceiptArgs.fromGroupSessionEnd(
+              summary: state.endSummary!,
+              sessionDuration: state.duration,
+              healerName: state.sessionTitle,
+              autoDisconnected: state.sessionAutoDisconnected,
+            );
+            context.pushReplacement('/receipt', extra: receiptArgs);
+            return;
+          }
+          if (state.sessionAutoDisconnected) {
+            final receiptArgs = ReceiptArgs(
+              healerName: state.sessionTitle,
+              healerRole: 'Healer',
+              healerImage: 'assets/image/doctorprofile.png',
+              startTime: '--:--',
+              endTime: '--:--',
+              duration: _groupDurationLabel(state.duration),
+              date: '--',
+              mode: 'Video Consultation',
+              healingType: 'Group Healing',
+              sessionType: 'Group (auto-ended)',
+              totalAmount: 0,
+              receiptId: '',
+            );
+            context.pushReplacement('/receipt', extra: receiptArgs);
+            return;
+          }
+          if (state.sessionEndedByHealer) {
+            final receiptArgs = ReceiptArgs(
+              healerName: state.sessionTitle,
+              healerRole: 'Healer',
+              healerImage: 'assets/image/doctorprofile.png',
+              startTime: '--:--',
+              endTime: '--:--',
+              duration: _groupDurationLabel(state.duration),
+              date: '--',
+              mode: 'Video Consultation',
+              healingType: 'Group Healing',
+              sessionType: 'Group',
+              totalAmount: 0,
+              receiptId: '',
+            );
+            context.pushReplacement('/receipt', extra: receiptArgs);
+            return;
+          }
+          context.pop();
         },
         builder: (context, state) {
           if (state.phase == CallPhase.error) {
@@ -63,6 +112,20 @@ class GroupSessionView extends StatelessWidget {
             return AutoSkeleton(
               enabled: true,
               child: const Center(child: Text('Connecting to group session…')),
+            );
+          }
+
+          if (state.isWaitingForHealer) {
+            return Stack(
+              children: [
+                GroupSessionHealerWaitingBody(state: state),
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: _buildBottomControlBar(context, state),
+                ),
+              ],
             );
           }
 
@@ -82,8 +145,11 @@ class GroupSessionView extends StatelessWidget {
           }
 
           final mainSpeaker = state.participants.firstWhere(
-            (p) => p.isMainSpeaker,
-            orElse: () => state.participants.first,
+            (p) => p.isMainSpeaker && !p.isLocal,
+            orElse: () => state.participants.firstWhere(
+              (p) => !p.isLocal,
+              orElse: () => state.participants.first,
+            ),
           );
           final otherParticipants = state.participants
               .where((p) => p.agoraUid != mainSpeaker.agoraUid)
@@ -228,4 +294,13 @@ class GroupSessionView extends StatelessWidget {
       ),
     );
   }
+}
+
+String _groupDurationLabel(Duration duration) {
+  final totalSeconds = duration.inSeconds;
+  if (totalSeconds <= 0) return '0m';
+  final mins = totalSeconds ~/ 60;
+  final secs = totalSeconds % 60;
+  if (mins > 0) return secs > 0 ? '${mins}m ${secs}s' : '${mins}m';
+  return '${secs}s';
 }

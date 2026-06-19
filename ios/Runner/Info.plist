@@ -13,7 +13,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>humora_patient</string>
+	<string>Humora Patient</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -45,12 +45,19 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>remote-notification</string>
+	</array>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>This app needs access to your photo library to let you send photos in chat.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>This app needs camera access for video calls and to send photos in chat.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>This app needs microphone access for voice and video calls.</string>
+	<string>This app needs microphone access for voice notes in chat and for voice/video calls.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>This app needs photo library access to attach and share media in chat.</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>This app uses Bluetooth for audio during voice and video calls.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
@@ -61,7 +68,7 @@
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>CFBundleURLName</key>
-			<string>com.example.humoraPatient.stripe</string>
+			<string>com.humorapatient.app.stripe</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>humorapatient</string>

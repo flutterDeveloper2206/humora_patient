@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../../common/widgets/common_image.dart';
+import '../../../../common/widgets/common_button.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import '../../data/models/my_booking_models.dart';
@@ -9,11 +10,13 @@ import 'booking_status_chip.dart';
 class MyBookingCard extends StatelessWidget {
   final MyBookingModel booking;
   final VoidCallback? onTap;
+  final VoidCallback? onJoin;
 
   const MyBookingCard({
     super.key,
     required this.booking,
     this.onTap,
+    this.onJoin,
   });
 
   @override
@@ -160,6 +163,20 @@ class MyBookingCard extends StatelessWidget {
                 ],
               ),
             ),
+            if (booking.canJoin && onJoin != null) ...[
+              Divider(height: 1.h, color: AppColors.divider),
+              Padding(
+                padding: EdgeInsets.fromLTRB(14.w, 10.h, 14.w, 14.h),
+                child: CommonButton(
+                  text: booking.bookingStatus == BookingStatus.active
+                      ? 'Join now'
+                      : 'Join session',
+                  height: 44.h,
+                  borderRadius: 12.r,
+                  onPressed: onJoin!,
+                ),
+              ),
+            ],
           ],
         ),
       ),

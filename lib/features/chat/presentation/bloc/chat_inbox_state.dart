@@ -14,7 +14,7 @@ class ChatInboxInitial extends ChatInboxState {}
 class ChatInboxLoading extends ChatInboxState {}
 
 class ChatInboxLoaded extends ChatInboxState {
-  final List<ConversationListItemDto> conversations;
+  final List<ChatInboxEntryDto> conversations;
   final bool isRefreshing;
 
   const ChatInboxLoaded({
@@ -25,7 +25,7 @@ class ChatInboxLoaded extends ChatInboxState {
   bool get isEmpty => conversations.isEmpty;
 
   ChatInboxLoaded copyWith({
-    List<ConversationListItemDto>? conversations,
+    List<ChatInboxEntryDto>? conversations,
     bool? isRefreshing,
   }) {
     return ChatInboxLoaded(

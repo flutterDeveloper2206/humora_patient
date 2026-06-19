@@ -7,6 +7,7 @@ import '../../data/datasource/live_api_service.dart';
 import '../../data/datasource/live_hub_service.dart';
 import '../../data/models/live_models.dart';
 import '../utils/live_request_routing.dart';
+import '../utils/live_waitlist_cache.dart';
 import 'live_request_event.dart';
 import 'live_request_state.dart';
 
@@ -23,6 +24,7 @@ class LiveRequestBloc extends Bloc<LiveRequestEvent, LiveRequestState> {
   String? _lastHealerId;
   int? _lastConsultationType;
   String? _activeRequestId;
+  String? _activeWaitlistId;
 
   LiveRequestBloc({LiveApiService? api, LiveHubService? hub})
     : _api = api ?? LiveApiService(),
@@ -32,6 +34,8 @@ class LiveRequestBloc extends Bloc<LiveRequestEvent, LiveRequestState> {
     on<CancelRequest>(_onCancelRequest);
     on<RetryRequest>(_onRetryRequest);
     on<PollRequestStatus>(_onPollRequest);
+    on<PollWaitlistPosition>(_onPollWaitlistPosition);
+    on<LeaveWaitlist>(_onLeaveWaitlist);
     on<_AcceptedHubEvent>(_onAcceptedHub);
     on<_RejectedHubEvent>(_onRejectedHub);
     on<_ExpiredHubEvent>(_onExpiredHub);
@@ -76,7 +80,25 @@ class LiveRequestBloc extends Bloc<LiveRequestEvent, LiveRequestState> {
         ),
       );
 
+      if (response.isQueued) {
+        _activeRequestId = null;
+        _activeWaitlistId = response.waitlistId;
+        emit(
+          LiveRequestQueued(
+            waitlistId: response.waitlistId,
+            healerId: response.healerId,
+            consultationType: response.consultationType,
+            position: response.position,
+            estimatedWaitMinutes: response.estimatedWaitMinutes,
+            joinedAt: response.joinedAt,
+          ),
+        );
+        _startWaitlistPoll();
+        return;
+      }
+
       _activeRequestId = response.requestId;
+      _activeWaitlistId = null;
       emit(
         LiveRequestWaiting(
           requestId: response.requestId,
@@ -91,13 +113,27 @@ class LiveRequestBloc extends Bloc<LiveRequestEvent, LiveRequestState> {
     } on LiveApiException catch (e) {
       if (e.walletError != null) {
         emit(LiveRequestWalletError(e.walletError!));
-      } else if (e.statusCode == 409) {
+      } else if (e.statusCode == 409 && e.queuePosition != null) {
+        _activeRequestId = null;
+        _activeWaitlistId = null;
         emit(
-          const LiveRequestError(
-            'This healer is busy or your request expired. Please try again.',
+          LiveRequestQueued(
+            waitlistId: '',
+            healerId: event.healerId,
+            consultationType: event.consultationType,
+            position: e.queuePosition!,
           ),
         );
-      } else {
+        _startWaitlistPoll();
+      }
+      // else if (e.statusCode == 409) {
+      //   emit(
+      //     const LiveRequestError(
+      //       'This healer is busy or your request expired. Please try again.',
+      //     ),
+      //   );
+      // }
+    else {
         emit(LiveRequestError(e.message));
       }
     } catch (e) {
@@ -154,6 +190,55 @@ class LiveRequestBloc extends Bloc<LiveRequestEvent, LiveRequestState> {
     });
   }
 
+  void _startWaitlistPoll() {
+    _pollTimer?.cancel();
+    _pollTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      if (!isClosed) add(const PollWaitlistPosition());
+    });
+  }
+
+  Future<void> _onPollWaitlistPosition(
+    PollWaitlistPosition event,
+    Emitter<LiveRequestState> emit,
+  ) async {
+    final healerId = _lastHealerId;
+    if (healerId == null || state is! LiveRequestQueued) return;
+
+    try {
+      final position = await _api.getWaitlistPosition(healerId);
+      final current = state as LiveRequestQueued;
+      emit(
+        current.copyWith(
+          waitlistId: position.waitlistId.isNotEmpty
+              ? position.waitlistId
+              : current.waitlistId,
+          position: position.position,
+          estimatedWaitMinutes: position.estimatedWaitMinutes,
+          joinedAt: position.joinedAt ?? current.joinedAt,
+        ),
+      );
+      _activeWaitlistId = position.waitlistId.isNotEmpty
+          ? position.waitlistId
+          : _activeWaitlistId;
+    } catch (_) {}
+  }
+
+  Future<void> _onLeaveWaitlist(
+    LeaveWaitlist event,
+    Emitter<LiveRequestState> emit,
+  ) async {
+    final healerId = _lastHealerId;
+    if (healerId == null) return;
+
+    await _cancelSubscriptions();
+    try {
+      await _api.leaveWaitlist(healerId);
+    } catch (_) {}
+    _activeWaitlistId = null;
+    LiveWaitlistCache.instance.forget(healerId);
+    emit(LiveRequestInitial());
+  }
+
   Future<void> _onCancelRequest(
     CancelRequest event,
     Emitter<LiveRequestState> emit,
@@ -184,6 +269,7 @@ class LiveRequestBloc extends Bloc<LiveRequestEvent, LiveRequestState> {
     _AcceptedHubEvent event,
     Emitter<LiveRequestState> emit,
   ) async {
+    if (state is! LiveRequestWaiting) return;
     await _cancelSubscriptions();
     _activeRequestId = null;
     emit(

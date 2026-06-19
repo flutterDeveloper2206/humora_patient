@@ -7,8 +7,13 @@ import '../../../agora/domain/usecases/fetch_agora_token_usecase.dart';
 import '../../../agora/presentation/models/call_phase.dart';
 import '../../../agora/presentation/models/call_route_args.dart';
 import '../../../agora/presentation/services/agora_rtc_service.dart';
+import '../../../agora/presentation/utils/agora_call_token_resolver.dart';
+import '../../../agora/presentation/utils/agora_token_refresh_scheduler.dart';
 import '../../../agora/presentation/utils/call_permissions.dart';
 import '../../../../core/network/connectivity_service.dart';
+import '../../../../core/notifications/session_hub_service.dart';
+import '../../data/group_session_remote_end_bus.dart';
+import '../../data/models/group_session_hub_models.dart';
 import 'group_session_event.dart';
 import 'group_session_state.dart';
 
@@ -20,8 +25,12 @@ class GroupSessionBloc extends Bloc<GroupSessionEvent, GroupSessionState> {
 
   Timer? _timer;
   StreamSubscription<AgoraCallEvent>? _rtcSub;
+  StreamSubscription<GroupSessionRemoteEnd>? _remoteEndSub;
+  StreamSubscription<GroupSessionEndedPayload>? _hubEndedSub;
+  StreamSubscription<GroupSessionAutoDisconnectedPayload>? _hubAutoDisconnectSub;
   String? _agoraUid;
   int _localRtcUid = 0;
+  AgoraTokenRefreshScheduler? _tokenRefresh;
 
   GroupSessionBloc({
     required CallRouteArgs args,
@@ -43,7 +52,42 @@ class GroupSessionBloc extends Bloc<GroupSessionEvent, GroupSessionState> {
     on<ToggleMyMute>(_onToggleMyMute);
     on<ToggleMyVideo>(_onToggleMyVideo);
     on<EndSession>(_onEndSession);
+    on<RemoteSessionEnded>(_onRemoteSessionEnded);
     on<UpdateSessionTimer>(_onUpdateSessionTimer);
+
+    _remoteEndSub = GroupSessionRemoteEndBus.instance.stream.listen((remote) {
+      if (!_bookingIdMatches(remote.bookingId)) return;
+      add(RemoteSessionEnded(remote));
+    });
+
+    final hub = SessionHubService.instance;
+    _hubEndedSub = hub.groupSessionEnded.listen((payload) {
+      if (!_bookingIdMatches(payload.bookingId)) return;
+      add(
+        RemoteSessionEnded(
+          GroupSessionRemoteEnd(
+            bookingId: payload.bookingId,
+            summary: payload,
+          ),
+        ),
+      );
+    });
+    _hubAutoDisconnectSub = hub.groupSessionAutoDisconnected.listen((payload) {
+      if (!_bookingIdMatches(payload.bookingId)) return;
+      add(
+        RemoteSessionEnded(
+          GroupSessionRemoteEnd(
+            bookingId: payload.bookingId,
+            isAutoDisconnected: true,
+          ),
+        ),
+      );
+    });
+  }
+
+  bool _bookingIdMatches(String other) {
+    return _args.bookingId.trim().toLowerCase() ==
+        other.trim().toLowerCase();
   }
 
   Future<void> _onLoadSession(
@@ -91,18 +135,26 @@ class GroupSessionBloc extends Bloc<GroupSessionEvent, GroupSessionState> {
     }
 
     try {
+      await SessionHubService.instance.connect();
+    } catch (_) {}
+
+    try {
       await _rtcSub?.cancel();
       await _rtc.leaveAndDispose();
       _rtc.dispose();
       _rtc = AgoraRtcService();
 
-      final tokenResponse = await _fetchToken(_args.bookingId);
+      final tokenResponse = await AgoraCallTokenResolver.resolve(
+        args: _args,
+        fetchToken: _fetchToken,
+      );
       if (tokenResponse.channelName.isEmpty) {
         throw Exception('Invalid channel from server');
       }
-      _agoraUid = tokenResponse.agoraUid.isNotEmpty
-          ? tokenResponse.agoraUid
-          : tokenResponse.uid.toString();
+      _agoraUid = tokenResponse.agoraUidWire;
+      _tokenRefresh?.dispose();
+      _tokenRefresh = AgoraTokenRefreshScheduler(rtc: _rtc)
+        ..schedule(args: _args, tokenResponse: tokenResponse);
       emit(state.copyWith(phase: CallPhase.connecting));
 
       await _rtcSub?.cancel();
@@ -113,12 +165,14 @@ class GroupSessionBloc extends Bloc<GroupSessionEvent, GroupSessionState> {
         enableVideo: true,
       );
 
-      final uid = tokenResponse.uid == 0 ? 0 : tokenResponse.uid;
-      _localRtcUid = uid;
+      _localRtcUid = tokenResponse.uidForSdk;
       await _rtc.joinChannel(
         token: tokenResponse.token,
         channelId: tokenResponse.channelName,
-        uid: uid,
+        uid: tokenResponse.uidForSdk,
+        userAccount: tokenResponse.requiresUserAccountJoin
+            ? tokenResponse.userAccountForJoin
+            : null,
         publishVideo: true,
       );
 
@@ -135,10 +189,10 @@ class GroupSessionBloc extends Bloc<GroupSessionEvent, GroupSessionState> {
     }
   }
 
-  void _onAgoraEngineEvent(
+  Future<void> _onAgoraEngineEvent(
     AgoraEngineEvent event,
     Emitter<GroupSessionState> emit,
-  ) {
+  ) async {
     switch (event.event.type) {
       case AgoraCallEventType.joinSuccess:
         if (_agoraUid != null && _agoraUid!.isNotEmpty) {
@@ -157,6 +211,7 @@ class GroupSessionBloc extends Bloc<GroupSessionEvent, GroupSessionState> {
                   agoraUid: localUid,
                   name: 'You',
                   isMainSpeaker: true,
+                  isLocal: true,
                 ),
                 ...state.participants,
               ];
@@ -177,19 +232,37 @@ class GroupSessionBloc extends Bloc<GroupSessionEvent, GroupSessionState> {
         if (remoteUid == null) break;
         final existing = state.participants.any((p) => p.agoraUid == remoteUid);
         if (existing) break;
+        final isFirstRemote = !state.participants.any((p) => !p.isLocal);
+        final remoteParticipant = GroupParticipant(
+          agoraUid: remoteUid,
+          name: isFirstRemote ? _args.healerName : 'Participant',
+          isMainSpeaker: isFirstRemote,
+          isHealer: isFirstRemote,
+        );
         final updated = [
-          ...state.participants,
-          GroupParticipant(
-            agoraUid: remoteUid,
-            name: 'Participant ${state.participants.length + 1}',
-            isMainSpeaker: state.participants.isEmpty,
-          ),
+          for (final participant in state.participants)
+            participant.isLocal
+                ? participant.copyWith(isMainSpeaker: false)
+                : participant,
+          remoteParticipant,
         ];
         emit(state.copyWith(participants: updated));
         break;
       case AgoraCallEventType.userOffline:
         final remoteUid = event.event.uid;
         if (remoteUid == null) break;
+        GroupParticipant? offlineParticipant;
+        for (final participant in state.participants) {
+          if (participant.agoraUid == remoteUid) {
+            offlineParticipant = participant;
+            break;
+          }
+        }
+        if (offlineParticipant?.isHealer == true &&
+            state.phase == CallPhase.inProgress) {
+          await _leaveSession(emit, sessionEndedByHealer: true);
+          break;
+        }
         emit(
           state.copyWith(
             participants: state.participants
@@ -241,7 +314,31 @@ class GroupSessionBloc extends Bloc<GroupSessionEvent, GroupSessionState> {
     EndSession event,
     Emitter<GroupSessionState> emit,
   ) async {
+    await _leaveSession(emit);
+  }
+
+  Future<void> _onRemoteSessionEnded(
+    RemoteSessionEnded event,
+    Emitter<GroupSessionState> emit,
+  ) async {
+    if (state.phase == CallPhase.ended) return;
+    await _leaveSession(
+      emit,
+      endSummary: event.remoteEnd.summary,
+      sessionAutoDisconnected: event.remoteEnd.isAutoDisconnected,
+      sessionEndedByHealer: !event.remoteEnd.isAutoDisconnected,
+    );
+  }
+
+  Future<void> _leaveSession(
+    Emitter<GroupSessionState> emit, {
+    GroupSessionEndedPayload? endSummary,
+    bool sessionAutoDisconnected = false,
+    bool sessionEndedByHealer = false,
+  }) async {
     _timer?.cancel();
+    _tokenRefresh?.dispose();
+    _tokenRefresh = null;
     try {
       if (_agoraUid != null && _agoraUid!.isNotEmpty) {
         await _agoraSession.notifyLeft(bookingId: _args.bookingId);
@@ -250,12 +347,25 @@ class GroupSessionBloc extends Bloc<GroupSessionEvent, GroupSessionState> {
     await _rtcSub?.cancel();
     await _rtc.leaveAndDispose();
     _rtc.dispose();
-    emit(state.copyWith(phase: CallPhase.ended, engine: null));
+    if (emit.isDone) return;
+    emit(
+      state.copyWith(
+        phase: CallPhase.ended,
+        clearEngine: true,
+        endSummary: endSummary,
+        sessionAutoDisconnected: sessionAutoDisconnected,
+        sessionEndedByHealer: sessionEndedByHealer,
+      ),
+    );
   }
 
   @override
   Future<void> close() {
     _timer?.cancel();
+    _tokenRefresh?.dispose();
+    _remoteEndSub?.cancel();
+    _hubEndedSub?.cancel();
+    _hubAutoDisconnectSub?.cancel();
     _rtcSub?.cancel();
     _rtc.leaveAndDispose();
     _rtc.dispose();

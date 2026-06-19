@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter/widgets.dart';
+import 'dart:typed_data';
 
 import '../../data/models/chat_models.dart';
 
@@ -29,6 +30,34 @@ class SendChatMessage extends ChatSessionEvent {
 
   @override
   List<Object?> get props => [content];
+}
+
+class SendChatAttachment extends ChatSessionEvent {
+  final Uint8List bytes;
+  final String fileName;
+  final String contentType;
+  final String messageType;
+  final String? thumbnailPath;
+  final String caption;
+
+  const SendChatAttachment({
+    required this.bytes,
+    required this.fileName,
+    required this.contentType,
+    required this.messageType,
+    this.thumbnailPath,
+    this.caption = '',
+  });
+
+  @override
+  List<Object?> get props => [
+    bytes.length,
+    fileName,
+    contentType,
+    messageType,
+    thumbnailPath,
+    caption,
+  ];
 }
 
 class ChatUserTyping extends ChatSessionEvent {
@@ -135,6 +164,10 @@ class MarkVisibleMessageRead extends ChatSessionEvent {
 
   @override
   List<Object?> get props => [messageId];
+}
+
+class MarkConversationReadOnEnter extends ChatSessionEvent {
+  const MarkConversationReadOnEnter();
 }
 
 class ChatAppLifecycleChanged extends ChatSessionEvent {

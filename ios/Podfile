@@ -1,5 +1,5 @@
-# Stripe Payment Sheet requires iOS 13+
-platform :ios, '13.0'
+# firebase_core 4.x requires iOS 15+; Stripe supports 13+
+platform :ios, '15.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -41,11 +41,13 @@ post_install do |installer|
     flutter_additional_ios_build_settings(target)
     # permission_handler: enable mic/camera for Agora calls on iOS
     target.build_configurations.each do |config|
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
       config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= [
         '$(inherited)',
       ]
       config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'PERMISSION_CAMERA=1'
       config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'PERMISSION_MICROPHONE=1'
+      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'PERMISSION_PHOTOS=1'
     end
   end
 end

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:developer' as developer;
 
 import 'package:flutter/widgets.dart';
@@ -27,10 +28,14 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
   Duration _clockDrift = Duration.zero;
   ChatAccessResponse? _lastAccess;
   List<ChatMessageDto> _messages = const [];
+  List<ChatBookingMessageGroup> _bookingGroups = const [];
+  Set<String> _trackedBookingIds = {};
+  String? _activeBookingId;
   String? _patientId;
   int _historyPage = 1;
   bool _hasMoreHistory = false;
   bool _isTyping = false;
+  bool _markConversationReadOnEnterDone = false;
   final Set<String> _markedReadIds = {};
 
   final List<StreamSubscription<dynamic>> _hubSubs = [];
@@ -49,6 +54,7 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
     on<RefreshChatAccess>(_onRefreshAccess);
     on<RetryChatSession>(_onRetry);
     on<SendChatMessage>(_onSend);
+    on<SendChatAttachment>(_onSendAttachment);
     on<ChatUserTyping>(_onUserTyping);
     on<ChatUserStoppedTyping>(_onUserStoppedTyping);
     on<HubMessageReceived>(_onHubMessage);
@@ -70,6 +76,7 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
     on<ChatComposerLocked>(_onComposerLocked);
     on<LoadOlderChatMessages>(_onLoadOlder);
     on<MarkVisibleMessageRead>(_onMarkVisibleRead);
+    on<MarkConversationReadOnEnter>(_onMarkConversationReadOnEnter);
     on<ChatAppLifecycleChanged>(_onLifecycleChanged);
     on<EditChatMessage>(_onEditMessage);
     on<DeleteChatMessage>(_onDeleteMessage);
@@ -84,47 +91,72 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
     _subscribeHub();
   }
 
+  bool get _isGrouped => _args.isGroupedHealerChat;
+
+  String get _effectiveBookingId =>
+      (_activeBookingId != null && _activeBookingId!.isNotEmpty)
+      ? _activeBookingId!
+      : _args.bookingId;
+
+  bool _matchesBooking(String? bookingId) {
+    if (bookingId == null || bookingId.isEmpty) return false;
+    if (_isGrouped) return _trackedBookingIds.contains(bookingId);
+    return bookingId == _args.bookingId;
+  }
+
+  void _syncActiveGroupFromMessages() {
+    final activeId = _activeBookingId;
+    if (!_isGrouped || activeId == null || activeId.isEmpty) return;
+    _bookingGroups = _bookingGroups
+        .map(
+          (group) => group.booking.bookingId == activeId
+              ? group.copyWith(messages: List<ChatMessageDto>.from(_messages))
+              : group,
+        )
+        .toList();
+  }
+
   void _subscribeHub() {
     _hubSubs.add(
       _hub.messageSent.listen((m) {
-        if (m.bookingId == _args.bookingId) add(HubMessageReceived(m));
+        if (_matchesBooking(m.bookingId)) add(HubMessageReceived(m));
       }),
     );
     _hubSubs.add(
       _hub.messageEdited.listen((m) {
-        if (m.bookingId == _args.bookingId) add(HubMessageEdited(m));
+        if (_matchesBooking(m.bookingId)) add(HubMessageEdited(m));
       }),
     );
     _hubSubs.add(
       _hub.messageDeleted.listen((payload) {
-        if (payload['bookingId']?.toString() != _args.bookingId) return;
+        if (!_matchesBooking(payload['bookingId']?.toString())) return;
         final messageId = payload['messageId']?.toString();
         if (messageId != null) add(HubMessageDeleted(messageId));
       }),
     );
     _hubSubs.add(
       _hub.messageDelivered.listen((payload) {
-        if (payload['bookingId']?.toString() != _args.bookingId) return;
+        if (!_matchesBooking(payload['bookingId']?.toString())) return;
         final messageId = payload['messageId']?.toString();
         if (messageId != null) add(HubMessageDelivered(messageId));
       }),
     );
     _hubSubs.add(
       _hub.messageRead.listen((payload) {
-        if (payload['bookingId']?.toString() != _args.bookingId) return;
+        if (!_matchesBooking(payload['bookingId']?.toString())) return;
         final messageId = payload['messageId']?.toString();
         if (messageId != null) add(HubMessageRead(messageId));
       }),
     );
     _hubSubs.add(
       _hub.conversationRead.listen((payload) {
-        if (payload['bookingId']?.toString() != _args.bookingId) return;
+        if (!_matchesBooking(payload['bookingId']?.toString())) return;
         add(const HubConversationRead());
       }),
     );
     _hubSubs.add(
       _hub.reactionAdded.listen((payload) {
-        if (payload['bookingId']?.toString() != _args.bookingId) return;
+        if (!_matchesBooking(payload['bookingId']?.toString())) return;
         add(
           HubReactionAdded(
             messageId: payload['messageId']?.toString() ?? '',
@@ -136,7 +168,7 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
     );
     _hubSubs.add(
       _hub.reactionRemoved.listen((payload) {
-        if (payload['bookingId']?.toString() != _args.bookingId) return;
+        if (!_matchesBooking(payload['bookingId']?.toString())) return;
         add(
           HubReactionRemoved(
             messageId: payload['messageId']?.toString() ?? '',
@@ -148,7 +180,7 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
     );
     _hubSubs.add(
       _hub.typingStarted.listen((payload) {
-        if (payload['bookingId']?.toString() != _args.bookingId) return;
+        if (!_matchesBooking(payload['bookingId']?.toString())) return;
         final userId = payload['userId']?.toString();
         if (userId != null && userId == _patientId) return;
         add(HubTypingStarted(payload['userName']?.toString() ?? 'Healer'));
@@ -156,13 +188,13 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
     );
     _hubSubs.add(
       _hub.typingStopped.listen((payload) {
-        if (payload['bookingId']?.toString() != _args.bookingId) return;
+        if (!_matchesBooking(payload['bookingId']?.toString())) return;
         add(const HubTypingStopped());
       }),
     );
     _hubSubs.add(
       _hub.userOnline.listen((payload) {
-        if (payload['bookingId']?.toString() != _args.bookingId) return;
+        if (!_matchesBooking(payload['bookingId']?.toString())) return;
         final userId = payload['userId']?.toString();
         if (userId != null && userId == _patientId) return;
         add(const HubUserOnline());
@@ -170,7 +202,7 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
     );
     _hubSubs.add(
       _hub.userOffline.listen((payload) {
-        if (payload['bookingId']?.toString() != _args.bookingId) return;
+        if (!_matchesBooking(payload['bookingId']?.toString())) return;
         final userId = payload['userId']?.toString();
         if (userId != null && userId == _patientId) return;
         add(const HubUserOffline());
@@ -178,7 +210,7 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
     );
     _hubSubs.add(
       _hub.chatWindow.listen((payload) {
-        if (payload['bookingId']?.toString() != _args.bookingId) return;
+        if (!_matchesBooking(payload['bookingId']?.toString())) return;
         add(
           HubChatWindow(
             ChatAccessResponse(
@@ -197,7 +229,7 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
     _hubSubs.add(
       _hub.chatAccessDenied.listen((payload) {
         final bookingId = payload['bookingId']?.toString();
-        if (bookingId != null && bookingId != _args.bookingId) return;
+        if (!_matchesBooking(bookingId)) return;
         add(
           HubAccessDenied(
             code: payload['code']?.toString() ?? 'SESSION_ENDED',
@@ -223,7 +255,12 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
     Emitter<ChatSessionState> emit,
   ) async {
     emit(ChatSessionAccessLoading(healerName: _args.healerName));
-    await _loadSession(emit);
+    if (_isGrouped) {
+      await _loadGroupedSession(emit);
+    } else {
+      await _loadSession(emit);
+    }
+    add(const MarkConversationReadOnEnter());
   }
 
   Future<void> _onRetry(
@@ -231,20 +268,108 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
     Emitter<ChatSessionState> emit,
   ) async {
     emit(ChatSessionAccessLoading(healerName: _args.healerName));
-    await _loadSession(emit);
+    if (_isGrouped) {
+      await _loadGroupedSession(emit);
+    } else {
+      await _loadSession(emit);
+    }
   }
 
   Future<void> _onRefreshAccess(
     RefreshChatAccess event,
     Emitter<ChatSessionState> emit,
   ) async {
+    if (_isGrouped && _effectiveBookingId.isEmpty) return;
     try {
-      final access = await _api.getAccess(_args.bookingId);
+      final access = await _api.getAccess(_effectiveBookingId);
       _lastAccess = access;
       _clockDrift = access.clockDrift;
       await _emitForAccess(access, emit, preserveMessages: true);
     } catch (e) {
       // Silent on poll failure — keep current UI.
+    }
+  }
+
+  Future<void> _loadGroupedSession(Emitter<ChatSessionState> emit) async {
+    _cancelTimers();
+    try {
+      _patientId ??= await _requirePatientId();
+      final response = await _api.getHealerBookings(_args.otherPartyUserId!);
+      final groups = <ChatBookingMessageGroup>[];
+      final bookingIds = <String>{};
+
+      for (final booking in response.bookings) {
+        bookingIds.add(booking.bookingId);
+        groups.add(
+          ChatBookingMessageGroup(
+            booking: booking,
+            messages: booking.conversationMessages,
+          ),
+        );
+      }
+
+      _bookingGroups = groups;
+      _trackedBookingIds = bookingIds;
+
+      ChatBookingItemDto? activeBooking;
+      for (final booking in response.bookings) {
+        if (booking.isActive) {
+          activeBooking = booking;
+          break;
+        }
+      }
+
+      final healerName = response.otherPartyName.isNotEmpty
+          ? response.otherPartyName
+          : _args.healerName;
+
+      if (activeBooking != null) {
+        final active = activeBooking;
+        _activeBookingId = active.bookingId;
+        _messages = groups
+            .firstWhere((g) => g.booking.bookingId == active.bookingId)
+            .messages;
+        final access = await _api.getAccess(active.bookingId);
+        _lastAccess = access;
+        _clockDrift = access.clockDrift;
+        await _emitForAccess(
+          access,
+          emit,
+          healerNameOverride: healerName,
+          bookingGroups: groups,
+          activeBookingId: active.bookingId,
+        );
+        _startAccessPoll();
+        _startCountdownTimer();
+        _scheduleCloseTimer(access);
+        add(const LoadConversationDetail());
+        return;
+      }
+
+      _activeBookingId = null;
+      _messages = const [];
+      final access = ChatAccessResponse(
+        canRead: true,
+        canWrite: false,
+        code: 'SESSION_ENDED',
+        message:
+            'Your session has ended. Please book again to continue chatting.',
+      );
+      _lastAccess = access;
+      emit(
+        ChatSessionHistoryOnly(
+          access: access,
+          messages: const [],
+          healerName: healerName,
+          showBookAgain: true,
+          bookingGroups: groups,
+        ),
+      );
+      await _leaveHub();
+    } catch (e) {
+      emit(
+        ChatSessionError(message: _cleanError(e), healerName: _args.healerName),
+      );
     }
   }
 
@@ -283,14 +408,20 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
     ChatAccessResponse access,
     Emitter<ChatSessionState> emit, {
     bool preserveMessages = false,
+    String? healerNameOverride,
+    List<ChatBookingMessageGroup>? bookingGroups,
+    String? activeBookingId,
   }) async {
     if (!preserveMessages) {
       // _messages already loaded on full session load.
     }
 
     final code = access.code.toUpperCase();
-    final healerName = _args.healerName;
+    final healerName = healerNameOverride ?? _args.healerName;
     final isLive = _args.isLiveSession;
+    final groups =
+        bookingGroups ?? (_bookingGroups.isNotEmpty ? _bookingGroups : null);
+    final activeId = activeBookingId ?? _activeBookingId;
 
     if (code == 'BOOKING_CANCELLED') {
       emit(
@@ -339,9 +470,10 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
       emit(
         ChatSessionHistoryOnly(
           access: access,
-          messages: _messages,
+          messages: _isGrouped ? const [] : _messages,
           healerName: healerName,
           showBookAgain: code == 'SESSION_ENDED' || !access.canWrite,
+          bookingGroups: groups,
         ),
       );
       await _leaveHub();
@@ -352,9 +484,10 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
       emit(
         ChatSessionHistoryOnly(
           access: access,
-          messages: _messages,
+          messages: _isGrouped ? const [] : _messages,
           healerName: healerName,
           showBookAgain: true,
+          bookingGroups: groups,
         ),
       );
       await _leaveHub();
@@ -372,6 +505,8 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
           isLiveSession: isLive,
           canCompose: access.canWrite && !_isPastClose(access),
           hasMoreHistory: _hasMoreHistory,
+          bookingGroups: groups,
+          activeBookingId: activeId,
         ),
       );
       _scheduleCloseTimer(access);
@@ -388,9 +523,10 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
       emit(
         ChatSessionHistoryOnly(
           access: access,
-          messages: _messages,
+          messages: _isGrouped ? const [] : _messages,
           healerName: healerName,
           showBookAgain: isLive,
+          bookingGroups: groups,
         ),
       );
       await _leaveHub();
@@ -422,7 +558,7 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
     final idempotencyKey = _uuid.v4();
     final pending = ChatMessageDto(
       messageId: 'pending-$idempotencyKey',
-      bookingId: _args.bookingId,
+      bookingId: _effectiveBookingId,
       senderId: _patientId ?? '',
       senderName: 'You',
       senderRole: 'Patient',
@@ -440,13 +576,13 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
     try {
       if (_hub.isConnected) {
         await _hub.sendMessage(
-          bookingId: _args.bookingId,
+          bookingId: _effectiveBookingId,
           content: content,
           idempotencyKey: idempotencyKey,
         );
       } else {
         final confirmed = await _api.sendMessageRest(
-          bookingId: _args.bookingId,
+          bookingId: _effectiveBookingId,
           content: content,
           idempotencyKey: idempotencyKey,
         );
@@ -475,6 +611,132 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
     }
   }
 
+  Future<void> _onSendAttachment(
+    SendChatAttachment event,
+    Emitter<ChatSessionState> emit,
+  ) async {
+    final current = state;
+    if (current is! ChatSessionActive || !current.canCompose) return;
+
+    _patientId ??= await _requirePatientId();
+    final idempotencyKey = _uuid.v4();
+    final caption = event.caption.trim();
+    final pendingAttachment = AttachmentInfo(
+      fileName: event.fileName,
+      fileUrl: event.thumbnailPath?.trim().isNotEmpty == true
+          ? event.thumbnailPath!.trim()
+          : '',
+      contentType: event.contentType,
+      fileSizeBytes: event.bytes.length,
+      thumbnailUrl: event.thumbnailPath,
+    );
+    final pending = ChatMessageDto(
+      messageId: 'pending-$idempotencyKey',
+      bookingId: _effectiveBookingId,
+      senderId: _patientId ?? '',
+      senderName: 'You',
+      senderRole: 'Patient',
+      content: caption.isNotEmpty ? caption : event.fileName,
+      messageType: event.messageType,
+      attachment: pendingAttachment,
+      createdAt: DateTime.now().toUtc(),
+      idempotencyKey: idempotencyKey,
+      isPending: true,
+    );
+
+    _messages = [..._messages, pending];
+    emit(
+      current.copyWith(
+        messages: List.from(_messages),
+        clearSendError: true,
+        isUploadingAttachment: true,
+      ),
+    );
+
+    try {
+      final uploaded = await _api.uploadAttachment(
+        bytes: event.bytes,
+        fileName: event.fileName,
+      );
+      _messages = _messages.map((m) {
+        if (m.idempotencyKey != idempotencyKey) return m;
+        return m.copyWith(
+          attachment: AttachmentInfo(
+            fileName: uploaded.fileName.isNotEmpty
+                ? uploaded.fileName
+                : event.fileName,
+            fileUrl: uploaded.fileUrl,
+            contentType: uploaded.contentType,
+            fileSizeBytes: uploaded.fileSizeBytes > 0
+                ? uploaded.fileSizeBytes
+                : event.bytes.length,
+            thumbnailUrl: uploaded.thumbnailUrl,
+          ),
+        );
+      }).toList();
+      if (state is ChatSessionActive) {
+        emit(
+          (state as ChatSessionActive).copyWith(
+            messages: List.from(_messages),
+            isUploadingAttachment: true,
+          ),
+        );
+      }
+      final attachmentJson = jsonEncode(
+        AttachmentUploadInfo(
+          fileId: _uuid.v4(),
+          fileName: uploaded.fileName.isNotEmpty
+              ? uploaded.fileName
+              : event.fileName,
+          fileUrl: uploaded.fileUrl,
+          contentType: uploaded.contentType,
+          fileSizeBytes: uploaded.fileSizeBytes > 0
+              ? uploaded.fileSizeBytes
+              : event.bytes.length,
+          thumbnailUrl: uploaded.thumbnailUrl,
+        ).toJson(),
+      );
+
+      if (_hub.isConnected) {
+        await _hub.sendMessage(
+          bookingId: _effectiveBookingId,
+          content: caption,
+          messageType: event.messageType,
+          idempotencyKey: idempotencyKey,
+          attachmentJson: attachmentJson,
+        );
+      } else {
+        final confirmed = await _api.sendMessageRest(
+          bookingId: _effectiveBookingId,
+          content: caption,
+          messageType: event.messageType,
+          idempotencyKey: idempotencyKey,
+          attachmentJson: attachmentJson,
+        );
+        add(HubMessageReceived(confirmed));
+      }
+      add(const ChatUserStoppedTyping());
+      if (state is ChatSessionActive) {
+        emit(
+          (state as ChatSessionActive).copyWith(isUploadingAttachment: false),
+        );
+      }
+    } catch (e) {
+      _messages = _messages
+          .where((m) => m.idempotencyKey != idempotencyKey)
+          .toList();
+      if (state is ChatSessionActive) {
+        emit(
+          (state as ChatSessionActive).copyWith(
+            messages: List.from(_messages),
+            sendError: _cleanError(e),
+            isUploadingAttachment: false,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _onUserTyping(
     ChatUserTyping event,
     Emitter<ChatSessionState> emit,
@@ -486,7 +748,7 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
     if (!_isTyping) {
       _isTyping = true;
       try {
-        await _hub.startTyping(_args.bookingId);
+        await _hub.startTyping(_effectiveBookingId);
       } catch (_) {}
     }
     _typingStopTimer?.cancel();
@@ -503,7 +765,7 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
     _isTyping = false;
     _typingStopTimer?.cancel();
     try {
-      await _hub.stopTyping(_args.bookingId);
+      await _hub.stopTyping(_effectiveBookingId);
     } catch (_) {}
   }
 
@@ -536,6 +798,10 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
         isPending: false,
         isDelivered: true,
         idempotencyKey: incoming.idempotencyKey ?? pending.idempotencyKey,
+        attachment: incoming.attachment ?? pending.attachment,
+        messageType: incoming.messageType.isNotEmpty
+            ? incoming.messageType
+            : pending.messageType,
       );
       _messages = updated;
       _emitMessagesUpdate(emit);
@@ -543,6 +809,32 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
     }
 
     _messages = _removeMatchingPending(incoming);
+
+    final incomingAttachment = incoming.attachment;
+    if (incomingAttachment != null) {
+      final ownAttachmentIdx = _messages.lastIndexWhere(
+        (m) =>
+            !m.isPending &&
+            (m.senderRole.toLowerCase() == 'patient' ||
+                (_patientId != null &&
+                    _patientId!.isNotEmpty &&
+                    m.senderId == _patientId)) &&
+            _isSameAttachment(m.attachment, incomingAttachment),
+      );
+      if (ownAttachmentIdx >= 0) {
+        final updated = List<ChatMessageDto>.from(_messages);
+        updated[ownAttachmentIdx] = incoming.copyWith(
+          isPending: false,
+          isDelivered: true,
+          idempotencyKey:
+              incoming.idempotencyKey ??
+              updated[ownAttachmentIdx].idempotencyKey,
+        );
+        _messages = updated;
+        _emitMessagesUpdate(emit);
+        return;
+      }
+    }
 
     final normalizedContent = incoming.content.trim();
     if (normalizedContent.isNotEmpty) {
@@ -561,7 +853,8 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
           isPending: false,
           isDelivered: true,
           idempotencyKey:
-              incoming.idempotencyKey ?? updated[ownDuplicateIdx].idempotencyKey,
+              incoming.idempotencyKey ??
+              updated[ownDuplicateIdx].idempotencyKey,
         );
         _messages = updated;
         _emitMessagesUpdate(emit);
@@ -569,7 +862,9 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
       }
     }
 
-    if (incoming.messageId.isNotEmpty || incoming.content.trim().isNotEmpty) {
+    if (incoming.messageId.isNotEmpty ||
+        incoming.content.trim().isNotEmpty ||
+        incoming.attachment != null) {
       _messages = [
         ..._messages,
         incoming.copyWith(isPending: false, isDelivered: incoming.isDelivered),
@@ -579,7 +874,7 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
     _emitMessagesUpdate(emit);
   }
 
-  /// Pending rows are always local optimistic sends — match by key or content.
+  /// Pending rows are always local optimistic sends — match by key/content/attachment.
   int _findPendingIndexForIncoming(ChatMessageDto incoming) {
     final incomingKey = incoming.idempotencyKey;
     if (incomingKey != null && incomingKey.isNotEmpty) {
@@ -592,6 +887,17 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
         (m) => m.isPending && m.messageId == 'pending-$incomingKey',
       );
       if (byPendingId >= 0) return byPendingId;
+    }
+
+    final incomingAttachment = incoming.attachment;
+    if (incomingAttachment != null) {
+      for (var i = _messages.length - 1; i >= 0; i--) {
+        final m = _messages[i];
+        if (!m.isPending) continue;
+        if (_isSameAttachment(m.attachment, incomingAttachment)) {
+          return i;
+        }
+      }
     }
 
     final normalizedContent = incoming.content.trim();
@@ -610,6 +916,7 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
   List<ChatMessageDto> _removeMatchingPending(ChatMessageDto incoming) {
     final normalizedContent = incoming.content.trim();
     final incomingKey = incoming.idempotencyKey;
+    final incomingAttachment = incoming.attachment;
 
     return _messages.where((m) {
       if (!m.isPending) return true;
@@ -623,8 +930,22 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
           m.content.trim() == normalizedContent) {
         return false;
       }
+      if (_isSameAttachment(m.attachment, incomingAttachment)) {
+        return false;
+      }
       return true;
     }).toList();
+  }
+
+  bool _isSameAttachment(AttachmentInfo? a, AttachmentInfo? b) {
+    if (a == null || b == null) return false;
+    final aUrl = a.fileUrl.trim();
+    final bUrl = b.fileUrl.trim();
+    if (aUrl.isNotEmpty && bUrl.isNotEmpty && aUrl == bUrl) return true;
+    return a.fileName == b.fileName &&
+        a.contentType == b.contentType &&
+        a.fileSizeBytes > 0 &&
+        a.fileSizeBytes == b.fileSizeBytes;
   }
 
   void _onHubEdited(HubMessageEdited event, Emitter<ChatSessionState> emit) {
@@ -788,14 +1109,17 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
     LoadOlderChatMessages event,
     Emitter<ChatSessionState> emit,
   ) async {
-    if (!_hasMoreHistory || state is! ChatSessionActive) return;
+    if (_isGrouped || !_hasMoreHistory || state is! ChatSessionActive) return;
     final current = state as ChatSessionActive;
     if (current.isLoadingOlder) return;
 
     emit(current.copyWith(isLoadingOlder: true));
     try {
       final nextPage = _historyPage + 1;
-      final history = await _api.getHistory(_args.bookingId, page: nextPage);
+      final history = await _api.getHistory(
+        _effectiveBookingId,
+        page: nextPage,
+      );
       _historyPage = history.page;
       _hasMoreHistory = history.hasMore;
       _messages = [...history.messages, ..._messages];
@@ -818,7 +1142,60 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
     if (_markedReadIds.contains(event.messageId)) return;
     _markedReadIds.add(event.messageId);
     try {
-      await _hub.markRead(_args.bookingId, event.messageId);
+      await _hub.markRead(_effectiveBookingId, event.messageId);
+    } catch (_) {}
+  }
+
+  Future<void> _onMarkConversationReadOnEnter(
+    MarkConversationReadOnEnter event,
+    Emitter<ChatSessionState> emit,
+  ) async {
+    if (_markConversationReadOnEnterDone) return;
+    final access = _lastAccess;
+    if (access == null || !access.canRead) {
+      if (_isGrouped && _trackedBookingIds.isNotEmpty) {
+        await _markAllGroupedConversationsRead();
+      }
+      return;
+    }
+    try {
+      if (_isGrouped && _trackedBookingIds.isNotEmpty) {
+        await _markAllGroupedConversationsRead();
+        _markConversationReadOnEnterDone = true;
+        return;
+      }
+      if (_hub.isConnected) {
+        await _hub.joinChat(_effectiveBookingId);
+        await _hub.markConversationRead(_effectiveBookingId);
+        _markConversationReadOnEnterDone = true;
+        if (!access.canWrite) {
+          await _hub.leaveChat(_effectiveBookingId);
+        }
+        return;
+      }
+      // Ensure we still fire MarkConversationRead when entering chat, even
+      // if page initially lands in history-only mode.
+      final joined = await _joinHub();
+      if (joined) {
+        _markConversationReadOnEnterDone = true;
+        if (!access.canWrite) {
+          await _hub.leaveChat(_effectiveBookingId);
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _markAllGroupedConversationsRead() async {
+    if (_trackedBookingIds.isEmpty) return;
+    try {
+      await _hub.connect();
+      for (final bookingId in _trackedBookingIds) {
+        try {
+          await _hub.joinChat(bookingId);
+          await _hub.markConversationRead(bookingId);
+          await _hub.leaveChat(bookingId);
+        } catch (_) {}
+      }
     } catch (_) {}
   }
 
@@ -852,7 +1229,7 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
     try {
       if (_hub.isConnected) {
         await _hub.editMessage(
-          bookingId: _args.bookingId,
+          bookingId: _effectiveBookingId,
           messageId: event.messageId,
           newContent: event.content,
         );
@@ -889,7 +1266,7 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
     try {
       if (_hub.isConnected) {
         await _hub.deleteMessage(
-          bookingId: _args.bookingId,
+          bookingId: _effectiveBookingId,
           messageId: event.messageId,
         );
       } else {
@@ -914,9 +1291,9 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
     if (patientId.isEmpty) return;
 
     final message = _messages.cast<ChatMessageDto?>().firstWhere(
-          (m) => m?.messageId == event.messageId,
-          orElse: () => null,
-        );
+      (m) => m?.messageId == event.messageId,
+      orElse: () => null,
+    );
     if (message == null || !_isPersistedMessageId(event.messageId)) return;
 
     final alreadyReacted = message.reactions.any(
@@ -952,7 +1329,7 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
     try {
       if (_hub.isConnected) {
         await _hub.addReaction(
-          bookingId: _args.bookingId,
+          bookingId: _effectiveBookingId,
           messageId: event.messageId,
           emoji: event.emoji,
         );
@@ -986,7 +1363,7 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
     try {
       if (_hub.isConnected) {
         await _hub.removeReaction(
-          bookingId: _args.bookingId,
+          bookingId: _effectiveBookingId,
           messageId: event.messageId,
           emoji: event.emoji,
         );
@@ -1019,8 +1396,9 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
           reactions.add(ChatReactionDto(emoji: emoji, userIds: [userId]));
         }
       } else if (idx >= 0) {
-        final users =
-            reactions[idx].userIds.where((id) => id != userId).toList();
+        final users = reactions[idx].userIds
+            .where((id) => id != userId)
+            .toList();
         if (users.isEmpty) {
           reactions.removeAt(idx);
         } else {
@@ -1036,7 +1414,7 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
     Emitter<ChatSessionState> emit,
   ) async {
     try {
-      final detail = await _api.getConversation(_args.bookingId);
+      final detail = await _api.getConversation(_effectiveBookingId);
       final current = state;
       if (current is ChatSessionActive) {
         emit(
@@ -1060,7 +1438,7 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
       return;
     }
     try {
-      final results = await _api.searchMessages(_args.bookingId, query);
+      final results = await _api.searchMessages(_effectiveBookingId, query);
       final ids = results.map((m) => m.messageId).toSet();
       emit((state as ChatSessionActive).copyWith(searchHighlightIds: ids));
     } catch (_) {}
@@ -1146,18 +1524,27 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
   }
 
   void _emitMessagesUpdate(Emitter<ChatSessionState> emit) {
+    _syncActiveGroupFromMessages();
     final current = state;
     if (current is ChatSessionActive) {
-      emit(current.copyWith(messages: List.from(_messages)));
+      emit(
+        current.copyWith(
+          messages: List.from(_messages),
+          bookingGroups: _isGrouped ? List.from(_bookingGroups) : null,
+        ),
+      );
     } else if (current is ChatSessionWaitingRoom) {
       emit(current.copyWith(messages: List.from(_messages)));
     } else if (current is ChatSessionHistoryOnly) {
       emit(
         ChatSessionHistoryOnly(
           access: current.access,
-          messages: List.from(_messages),
+          messages: _isGrouped ? const [] : List.from(_messages),
           healerName: current.healerName,
           showBookAgain: current.showBookAgain,
+          bookingGroups: _isGrouped
+              ? List.from(_bookingGroups)
+              : current.bookingGroups,
         ),
       );
     }
@@ -1218,8 +1605,8 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
         if (attempt > 0) {
           await Future.delayed(Duration(milliseconds: 400 * attempt));
         }
-        await _hub.joinChat(_args.bookingId);
-        await _hub.markConversationRead(_args.bookingId);
+        await _hub.joinChat(_effectiveBookingId);
+        await _hub.markConversationRead(_effectiveBookingId);
         return true;
       } catch (e) {
         developer.log(
@@ -1235,7 +1622,7 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
     _typingStopTimer?.cancel();
     _isTyping = false;
     try {
-      await _hub.leaveChat(_args.bookingId);
+      await _hub.leaveChat(_effectiveBookingId);
     } catch (_) {}
   }
 

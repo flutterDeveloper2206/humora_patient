@@ -54,6 +54,8 @@ class ChatHubService {
   final _userOffline = StreamController<Map<String, dynamic>>.broadcast();
   final _chatWindow = StreamController<Map<String, dynamic>>.broadcast();
   final _chatAccessDenied = StreamController<Map<String, dynamic>>.broadcast();
+  final _conversationUpdated =
+      StreamController<ConversationUpdatedEvent>.broadcast();
   final _hubError = StreamController<ChatHubError>.broadcast();
   final _connectionState = StreamController<HubConnectionState>.broadcast();
 
@@ -71,6 +73,8 @@ class ChatHubService {
   Stream<Map<String, dynamic>> get userOffline => _userOffline.stream;
   Stream<Map<String, dynamic>> get chatWindow => _chatWindow.stream;
   Stream<Map<String, dynamic>> get chatAccessDenied => _chatAccessDenied.stream;
+  Stream<ConversationUpdatedEvent> get conversationUpdated =>
+      _conversationUpdated.stream;
   Stream<ChatHubError> get hubError => _hubError.stream;
   Stream<HubConnectionState> get connectionState => _connectionState.stream;
 
@@ -327,6 +331,17 @@ class ChatHubService {
     SignalREventLogger.on(
       connection,
       hubName: _hubName,
+      eventName: 'ConversationUpdated',
+      handler: (args) {
+        if (args == null || args.isEmpty) return;
+        _conversationUpdated.add(
+          ConversationUpdatedEvent.fromJson(_asMap(args[0])),
+        );
+      },
+    );
+    SignalREventLogger.on(
+      connection,
+      hubName: _hubName,
       eventName: 'Error',
       handler: (args) {
         if (args == null || args.isEmpty) return;
@@ -419,11 +434,18 @@ class ChatHubService {
     required String content,
     required String idempotencyKey,
     String messageType = 'Text',
+    String? attachmentJson,
   }) async {
     await _ensureJoined(bookingId);
     await _invoke(
       'SendMessage',
-      args: [bookingId, content, messageType, idempotencyKey, ''],
+      args: [
+        bookingId,
+        content,
+        messageType,
+        idempotencyKey,
+        attachmentJson ?? '',
+      ],
     );
   }
 

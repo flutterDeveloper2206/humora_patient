@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
 
+import 'package:flutter/cupertino.dart';
 import 'package:http/http.dart' as http;
 
 import '../../../../core/constants/api_endpoints.dart';
@@ -64,73 +65,13 @@ class AgoraTokenApiService {
         if (json) 'Content-Type': 'application/json',
       };
 
-  /// Scheduled: GET /booking/{id}/agora-token.
-  /// Live: POST /booking/{id}/join (primary), then POST /agora/token, then GET agora-token.
+  /// Scheduled and live: POST /agora/token (BOOKING_AGORA_JOIN_GUIDE).
   Future<AgoraTokenResponse> fetchToken(
     String bookingId, {
     bool isLive = false,
     String? liveMode,
   }) async {
-    if (isLive) {
-      return _fetchLiveToken(
-        bookingId,
-        mode: liveMode ?? 'audio',
-      );
-    }
-    return _fetchScheduledToken(bookingId);
-  }
-
-  Future<AgoraTokenResponse> _fetchScheduledToken(String bookingId) async {
-    final authToken = await _requireToken();
-    final url = Uri.parse(ApiEndpoints.scheduledAgoraToken(bookingId));
-    developer.log('GET $url', name: 'AgoraTokenApiService');
-    final response = await _client.get(url, headers: _headers(authToken));
-    final data = _parseResponse(response, url);
-    return AgoraTokenResponse.fromJson(data);
-  }
-
-  Future<AgoraTokenResponse> _fetchLiveToken(
-    String bookingId, {
-    required String mode,
-  }) async {
-    Object? lastError;
-
-    for (final strategy in [
-      () => _fetchViaBookingJoin(bookingId, mode),
-      () => _fetchViaAgoraTokenPost(bookingId),
-      () => _fetchScheduledToken(bookingId),
-    ]) {
-      try {
-        final result = await strategy();
-        if (result.isValid) return result;
-        lastError = Exception('Incomplete Agora credentials from server');
-      } catch (e) {
-        lastError = e;
-        developer.log(
-          'Live Agora credential strategy failed: $e',
-          name: 'AgoraTokenApiService',
-        );
-      }
-    }
-
-    throw lastError ?? Exception('Unable to obtain live call credentials');
-  }
-
-  Future<AgoraTokenResponse> _fetchViaBookingJoin(
-    String bookingId,
-    String mode,
-  ) async {
-    final authToken = await _requireToken();
-    final url = Uri.parse(ApiEndpoints.bookingAgoraJoin(bookingId));
-    final body = jsonEncode({'mode': mode});
-    developer.log('POST $url body=$body', name: 'AgoraTokenApiService');
-    final response = await _client.post(
-      url,
-      headers: _headers(authToken, json: true),
-      body: body,
-    );
-    final data = _parseResponse(response, url);
-    return AgoraTokenResponse.fromJson(data);
+    return _fetchViaAgoraTokenPost(bookingId);
   }
 
   Future<AgoraTokenResponse> _fetchViaAgoraTokenPost(String bookingId) async {
@@ -156,6 +97,7 @@ class AgoraTokenApiService {
   }) async {
     final authToken = await _requireToken();
     final url = Uri.parse(ApiEndpoints.agoraJoin);
+    debugPrint('AUTHTOKEN: $authToken');
     final response = await _client.post(
       url,
       headers: _headers(authToken, json: true),

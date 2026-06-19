@@ -17,26 +17,55 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
         ),
         super(HomeInitial()) {
     on<FetchHomeData>(_onFetchHomeData);
+    on<RefreshHomeData>(_onRefreshHomeData);
     on<UpdateHealerLiveStatus>(_onUpdateHealerLiveStatus);
   }
+
+  String _cleanError(Object e) =>
+      e.toString().replaceAll('Exception: ', '');
 
   Future<void> _onFetchHomeData(
     FetchHomeData event,
     Emitter<HomeState> emit,
   ) async {
-    emit(HomeLoading());
+    await _loadHealers(emit, isRefresh: false);
+  }
+
+  Future<void> _onRefreshHomeData(
+    RefreshHomeData event,
+    Emitter<HomeState> emit,
+  ) async {
+    await _loadHealers(emit, isRefresh: true);
+  }
+
+  Future<void> _loadHealers(
+    Emitter<HomeState> emit, {
+    required bool isRefresh,
+  }) async {
+    final current = state;
+    if (isRefresh && current is HomeLoaded) {
+      emit(current.copyWith(isRefreshing: true));
+    } else {
+      emit(HomeLoading());
+    }
+
     try {
       final request = ApprovedHealersRequestModel();
       final healers = await _fetchHealers(request);
-      
+
       emit(
         HomeLoaded(
           continueHealingHealers: healers,
           availableHealers: healers,
+          isRefreshing: false,
         ),
       );
     } catch (e) {
-      emit(HomeError(e.toString()));
+      if (isRefresh && current is HomeLoaded) {
+        emit(current.copyWith(isRefreshing: false));
+        return;
+      }
+      emit(HomeError(_cleanError(e)));
     }
   }
 
@@ -53,7 +82,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     }
 
     emit(
-      HomeLoaded(
+      current.copyWith(
         continueHealingHealers:
             current.continueHealingHealers.map(patch).toList(),
         availableHealers: current.availableHealers.map(patch).toList(),

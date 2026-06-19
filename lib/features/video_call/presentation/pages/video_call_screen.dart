@@ -79,6 +79,9 @@ class VideoCallView extends StatelessWidget {
                   context: context,
                   bookingId: bookingId,
                   summary: summary,
+                  healerName: context.read<VideoCallBloc>().state.healerName,
+                  healerRole: 'Healer',
+                  sessionType: 'Live',
                 );
               },
             ),
@@ -114,6 +117,9 @@ class VideoCallView extends StatelessWidget {
                 context: context,
                 bookingId: bookingId,
                 summary: state.sessionSummary,
+                healerName: state.healerName,
+                healerRole: 'Healer',
+                sessionType: 'Live',
               );
             },
           ),
@@ -158,7 +164,10 @@ class VideoCallView extends StatelessWidget {
                       if (state.isConnecting) ...[
                         _buildConnectingHeader(),
                         const Spacer(),
-                        _buildHealerCenterInfo(state.healerName),
+                        _buildHealerCenterInfo(
+                          state.healerName,
+                          state.healerImage,
+                        ),
                         const Spacer(),
                       ] else if (state.isInCall) ...[
                         _buildConnectedHeader(),
@@ -167,7 +176,10 @@ class VideoCallView extends StatelessWidget {
                         _buildTimer(state.duration),
                       ] else
                         const Spacer(),
-                      _buildHealerOverlayCard(state.healerName),
+                      _buildHealerOverlayCard(
+                        state.healerName,
+                        state.healerImage,
+                      ),
                       SizedBox(height: 10.h),
                       if (state.isInCall)
                         _buildControlButtons(context, state),
@@ -195,15 +207,29 @@ class VideoCallView extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        const CommonImage(
-          path: 'assets/image/vediocallbackground.png',
+        CommonImage(
+          path: state.healerImage,
           fit: BoxFit.cover,
+        ),
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.black.withOpacity(0.15),
+                  Colors.black.withOpacity(0.45),
+                ],
+              ),
+            ),
+          ),
         ),
         if (state.isConnecting)
           Positioned.fill(
             child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-              child: ColoredBox(color: Colors.black.withOpacity(0.2)),
+              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+              child: ColoredBox(color: Colors.black.withOpacity(0.25)),
             ),
           ),
       ],
@@ -224,14 +250,14 @@ class VideoCallView extends StatelessWidget {
     return const SizedBox.shrink();
   }
 
-  Widget _buildHealerCenterInfo(String name) {
+  Widget _buildHealerCenterInfo(String name, String healerImage) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(100.r),
-          child: const CommonImage(
-            path: 'assets/image/doctorprofile.png',
+          child: CommonImage(
+            path: healerImage,
             width: 100,
             height: 100,
             fit: BoxFit.cover,
@@ -250,7 +276,7 @@ class VideoCallView extends StatelessWidget {
     );
   }
 
-  Widget _buildHealerOverlayCard(String name) {
+  Widget _buildHealerOverlayCard(String name, String healerImage) {
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 35.w),
       padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
@@ -264,7 +290,7 @@ class VideoCallView extends StatelessWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(30.r),
             child: CommonImage(
-              path: 'assets/image/doctorprofile.png',
+              path: healerImage,
               width: 44.w,
               height: 44.w,
               fit: BoxFit.cover,
@@ -272,13 +298,25 @@ class VideoCallView extends StatelessWidget {
           ),
           SizedBox(width: 12.w),
           Expanded(
-            child: Text(
-              name,
-              style: AppTextStyles.bodyMedium.copyWith(
-                color: Colors.black,
-                fontWeight: FontWeight.w500,
-                fontSize: 13.sp,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13.sp,
+                  ),
+                ),
+                Text(
+                  'Healer',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: Colors.white.withOpacity(0.85),
+                    fontSize: 11.sp,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -364,7 +402,7 @@ class VideoCallView extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
           _buildCircleButton(
-            icon: 'hugeicons_mic-02.png',
+            iconData: Icons.cameraswitch_rounded,
             onPressed: () =>
                 context.read<VideoCallBloc>().add(SwitchCamera()),
           ),
@@ -372,6 +410,7 @@ class VideoCallView extends StatelessWidget {
             icon: 'akar-icons_camera.png',
             onPressed: () =>
                 context.read<VideoCallBloc>().add(ToggleCamera()),
+            color: state.isCameraOff ? const Color(0xFF1E1E1E) : Colors.white54,
           ),
           _buildCircleButton(
             icon: 'hugeicons_call-02.png',
@@ -382,10 +421,12 @@ class VideoCallView extends StatelessWidget {
             icon: 'humbleicons_volume-1.png',
             onPressed: () =>
                 context.read<VideoCallBloc>().add(ToggleSpeaker()),
+            color: state.isSpeakerOn ? const Color(0xFF1E1E1E) : Colors.white54,
           ),
           _buildCircleButton(
-            icon: 'hugeicons_mic-02.png',
+            icon: state.isMuted ? 'microphone-slash.png' : 'Microphone.png',
             onPressed: () => context.read<VideoCallBloc>().add(ToggleMute()),
+            color: state.isMuted ? const Color(0xFF1E1E1E) : Colors.white54,
           ),
         ],
       ),
@@ -393,7 +434,8 @@ class VideoCallView extends StatelessWidget {
   }
 
   Widget _buildCircleButton({
-    required String icon,
+    String? icon,
+    IconData? iconData,
     required VoidCallback onPressed,
     Color color = Colors.white54,
   }) {
@@ -408,7 +450,13 @@ class VideoCallView extends StatelessWidget {
           shape: BoxShape.circle,
           border: Border.all(color: Colors.white.withOpacity(0.3)),
         ),
-        child: CommonImage(path: 'assets/image/$icon'),
+        child: iconData != null
+            ? Icon(
+                iconData,
+                color: Colors.white,
+                size: 20.sp,
+              )
+            : CommonImage(path: 'assets/image/${icon ?? ''}'),
       ),
     );
   }

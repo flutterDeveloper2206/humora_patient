@@ -13,8 +13,11 @@ import '../bloc/my_sessions_bloc.dart';
 import '../bloc/my_sessions_event.dart';
 import '../bloc/my_sessions_state.dart';
 import '../utils/my_sessions_loading.dart';
+import '../utils/session_join_navigator.dart';
+import '../widgets/group_session_waiting_card.dart';
 import '../widgets/my_booking_card.dart';
 import '../widgets/my_sessions_empty_state.dart';
+import '../widgets/upcoming_joinable_session_card.dart';
 
 class MySessionsScreen extends StatelessWidget {
   const MySessionsScreen({super.key});
@@ -64,6 +67,12 @@ class MySessionsView extends StatelessWidget {
             ? state.groups
             : MyBookingsGrouper.placeholderGroups();
 
+        final allBookings = groups.expand((g) => g.bookings).toList();
+        final upcomingJoinable =
+            UpcomingJoinableSessionCard.findNextUpcoming(allBookings);
+        final waitingGroup =
+            GroupSessionWaitingCard.findWaitingGroup(allBookings);
+
         final showEmpty = state is MySessionsLoaded &&
             state.isEmpty &&
             !isLoading;
@@ -74,6 +83,8 @@ class MySessionsView extends StatelessWidget {
               ? const MySessionsEmptyState()
               : _SessionsListContent(
                   groups: groups,
+                  upcomingJoinable: upcomingJoinable,
+                  waitingGroup: waitingGroup,
                   bottomPadding: _bottomPadding,
                   interactionsEnabled: !isLoading,
                 ),
@@ -166,14 +177,21 @@ class MySessionsView extends StatelessWidget {
 
 class _SessionsListContent extends StatelessWidget {
   final List<BookingDateGroup> groups;
+  final MyBookingModel? upcomingJoinable;
+  final MyBookingModel? waitingGroup;
   final double bottomPadding;
   final bool interactionsEnabled;
 
   const _SessionsListContent({
     required this.groups,
+    this.upcomingJoinable,
+    this.waitingGroup,
     required this.bottomPadding,
     this.interactionsEnabled = true,
   });
+
+  int get _headerCount =>
+      (upcomingJoinable != null ? 1 : 0) + (waitingGroup != null ? 1 : 0);
 
   @override
   Widget build(BuildContext context) {
@@ -195,16 +213,38 @@ class _SessionsListContent extends StatelessWidget {
           parent: BouncingScrollPhysics(),
         ),
         padding: EdgeInsets.fromLTRB(20.w, 8.h, 20.w, bottomPadding.h),
-        itemCount: groups.length,
-        itemBuilder: (context, groupIndex) {
-          final group = groups[groupIndex];
+        itemCount: groups.length + _headerCount,
+        itemBuilder: (context, index) {
+          var cursor = index;
+          if (waitingGroup != null) {
+            if (cursor == 0) {
+              return GroupSessionWaitingCard(booking: waitingGroup!);
+            }
+            cursor -= 1;
+          }
+          if (upcomingJoinable != null) {
+            if (cursor == 0) {
+              return UpcomingJoinableSessionCard(
+                booking: upcomingJoinable!,
+                onJoin: interactionsEnabled && upcomingJoinable!.canJoin
+                    ? () => SessionJoinNavigator.joinOrOpenDetail(
+                          context,
+                          upcomingJoinable!,
+                        )
+                    : null,
+              );
+            }
+            cursor -= 1;
+          }
+
+          final group = groups[cursor];
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
                 margin: EdgeInsets.only(
                   bottom: 12.h,
-                  top: groupIndex > 0 ? 12.h : 0,
+                  top: cursor > 0 ? 12.h : 0,
                 ),
                 padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
                 decoration: BoxDecoration(
@@ -238,6 +278,12 @@ class _SessionsListContent extends StatelessWidget {
                   booking: booking,
                   onTap: interactionsEnabled
                       ? () => context.push('/my-session/${booking.id}')
+                      : null,
+                  onJoin: interactionsEnabled && booking.canJoin
+                      ? () => SessionJoinNavigator.joinOrOpenDetail(
+                            context,
+                            booking,
+                          )
                       : null,
                 ),
               ),

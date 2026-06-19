@@ -1,6 +1,8 @@
 import 'package:equatable/equatable.dart';
 import 'package:intl/intl.dart';
 
+import '../../../agora/data/models/agora_info.dart';
+
 enum BookingStatus {
   pending(1, 'Awaiting confirmation'),
   confirmed(2, 'Confirmed'),
@@ -31,6 +33,9 @@ enum BookingStatus {
 
   bool get showCountdown => this == BookingStatus.confirmed;
 
+  bool get canCancel =>
+      this == BookingStatus.pending || this == BookingStatus.confirmed;
+
   bool get isTerminal =>
       this == BookingStatus.completed ||
       this == BookingStatus.cancelled ||
@@ -51,6 +56,8 @@ class MyBookingModel extends Equatable {
   final int status;
   final int fixedPrice;
   final int holdAmount;
+  final int? consultationType;
+  final AgoraInfo? agoraInfo;
 
   const MyBookingModel({
     required this.id,
@@ -63,6 +70,8 @@ class MyBookingModel extends Equatable {
     required this.status,
     required this.fixedPrice,
     required this.holdAmount,
+    this.consultationType,
+    this.agoraInfo,
   });
 
   factory MyBookingModel.fromJson(Map<String, dynamic> json) {
@@ -73,20 +82,76 @@ class MyBookingModel extends Equatable {
       bookingDate: json['bookingDate']?.toString() ?? '',
       scheduledStartTime: json['scheduledStartTime']?.toString() ?? '',
       scheduledEndTime: json['scheduledEndTime']?.toString() ?? '',
-      serviceType: (json['serviceType'] as num?)?.toInt() ?? 0,
-      status: (json['status'] as num?)?.toInt() ?? 0,
+      serviceType: _parseServiceType(json['serviceType']),
+      status: _parseStatus(json['status']),
       fixedPrice: (json['fixedPrice'] as num?)?.toInt() ?? 0,
       holdAmount: (json['holdAmount'] as num?)?.toInt() ?? 0,
+      consultationType: (json['consultationType'] as num?)?.toInt(),
+      agoraInfo: AgoraInfo.tryParse(json['agoraInfo']),
     );
   }
 
   BookingStatus get bookingStatus => BookingStatus.fromValue(status);
 
-  DateTime get startDateTime {
+  /// Join opens 5 minutes before scheduled start (chat / session access window).
+  static const Duration joinEarlyAccess = Duration(minutes: 5);
+
+  DateTime get startDateTime => _dateTimeFromParts(
+        bookingDate,
+        scheduledStartTime,
+        fallback: DateTime.tryParse(bookingDate) ?? DateTime.now(),
+      );
+
+  DateTime get endDateTime => _dateTimeFromParts(
+        bookingDate,
+        scheduledEndTime,
+        fallback: startDateTime,
+      );
+
+  DateTime get joinOpensAt => startDateTime.subtract(joinEarlyAccess);
+
+  bool get isWithinScheduledWindow {
+    final now = DateTime.now();
+    return !now.isBefore(joinOpensAt) && now.isBefore(endDateTime);
+  }
+
+  /// Join when server sent Agora metadata and the local access window allows it.
+  bool get isGroupBooking => serviceType == 3;
+
+  bool get isWaitingForGroupStart =>
+      isGroupBooking &&
+      bookingStatus == BookingStatus.confirmed &&
+      agoraInfo != null &&
+      DateTime.now().isBefore(endDateTime);
+
+  bool get canJoin {
+    if (agoraInfo == null) return false;
+    if (isGroupBooking) {
+      // Group: patient joins only after healer starts (Active) or SignalR auto-nav.
+      return bookingStatus == BookingStatus.active;
+    }
+    if (bookingStatus == BookingStatus.active) return true;
+    if (bookingStatus == BookingStatus.confirmed) return isWithinScheduledWindow;
+    return false;
+  }
+
+  bool get isUpcomingConfirmed =>
+      bookingStatus == BookingStatus.confirmed &&
+      agoraInfo != null &&
+      DateTime.now().isBefore(startDateTime) &&
+      DateTime.now().isBefore(endDateTime) &&
+      !isGroupBooking;
+
+  DateTime _dateTimeFromParts(
+    String date,
+    String time, {
+    required DateTime fallback,
+  }) {
+    if (time.trim().isEmpty) return fallback;
     try {
-      return DateTime.parse('$bookingDate $scheduledStartTime');
+      return DateTime.parse('$date $time');
     } catch (_) {
-      return DateTime.tryParse(bookingDate) ?? DateTime.now();
+      return fallback;
     }
   }
 
@@ -135,12 +200,47 @@ class MyBookingModel extends Equatable {
         status,
         fixedPrice,
         holdAmount,
+        consultationType,
+        agoraInfo,
       ];
+}
+
+int _parseStatus(dynamic value) {
+  if (value is num) return value.toInt();
+  if (value is String) {
+    final normalized = value.trim().toLowerCase();
+    return switch (normalized) {
+      'pending' || 'awaiting confirmation' => 1,
+      'confirmed' => 2,
+      'active' || 'session in progress' => 3,
+      'completed' || 'done' => 4,
+      'cancelled' => 5,
+      'expired' || 'expired (no-one joined)' => 6,
+      'rejected' || 'cancelled by healer' => 7,
+      'no-show' || 'marked no-show' => 8,
+      'auto disconnected' || 'disconnected mid-session' => 9,
+      _ => int.tryParse(value) ?? 0,
+    };
+  }
+  return 0;
+}
+
+int _parseServiceType(dynamic value) {
+  if (value is num) return value.toInt();
+  if (value is String) {
+    final normalized = value.trim().toLowerCase();
+    return switch (normalized) {
+      'live' || 'live session' => 1,
+      'personal' || 'personal session' => 2,
+      'group' || 'group session' => 3,
+      _ => int.tryParse(value) ?? 0,
+    };
+  }
+  return 0;
 }
 
 class BookingDetailModel extends MyBookingModel {
   final String? healerId;
-  final int? consultationType;
   final String? scheduledStartAt;
   final String? scheduledEndAt;
   final String? refundStatus;
@@ -156,8 +256,9 @@ class BookingDetailModel extends MyBookingModel {
     required super.status,
     required super.fixedPrice,
     required super.holdAmount,
+    super.consultationType,
+    super.agoraInfo,
     this.healerId,
-    this.consultationType,
     this.scheduledStartAt,
     this.scheduledEndAt,
     this.refundStatus,
@@ -171,12 +272,13 @@ class BookingDetailModel extends MyBookingModel {
       bookingDate: json['bookingDate']?.toString() ?? '',
       scheduledStartTime: json['scheduledStartTime']?.toString() ?? '',
       scheduledEndTime: json['scheduledEndTime']?.toString() ?? '',
-      serviceType: (json['serviceType'] as num?)?.toInt() ?? 0,
-      status: (json['status'] as num?)?.toInt() ?? 0,
+      serviceType: _parseServiceType(json['serviceType']),
+      status: _parseStatus(json['status']),
       fixedPrice: (json['fixedPrice'] as num?)?.toInt() ?? 0,
       holdAmount: (json['holdAmount'] as num?)?.toInt() ?? 0,
-      healerId: json['healerId']?.toString(),
       consultationType: (json['consultationType'] as num?)?.toInt(),
+      agoraInfo: AgoraInfo.tryParse(json['agoraInfo']),
+      healerId: json['healerId']?.toString(),
       scheduledStartAt: json['scheduledStartAt']?.toString(),
       scheduledEndAt: json['scheduledEndAt']?.toString(),
       refundStatus: json['refundStatus']?.toString(),
@@ -202,6 +304,26 @@ class BookingDetailModel extends MyBookingModel {
       return 'Refund status pending';
     }
     return 'Refund: $refundStatus';
+  }
+
+  @override
+  DateTime get startDateTime {
+    final iso = scheduledStartAt;
+    if (iso != null && iso.isNotEmpty) {
+      final parsed = DateTime.tryParse(iso);
+      if (parsed != null) return parsed.toLocal();
+    }
+    return super.startDateTime;
+  }
+
+  @override
+  DateTime get endDateTime {
+    final iso = scheduledEndAt;
+    if (iso != null && iso.isNotEmpty) {
+      final parsed = DateTime.tryParse(iso);
+      if (parsed != null) return parsed.toLocal();
+    }
+    return super.endDateTime;
   }
 
   static BookingDetailModel placeholder() {

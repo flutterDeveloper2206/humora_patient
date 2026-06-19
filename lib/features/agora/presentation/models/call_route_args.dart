@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 
+import '../../data/models/agora_info.dart';
 import '../../data/models/agora_token_models.dart';
 
 enum CallMode { audio, video, group }
@@ -12,6 +13,8 @@ class CallRouteArgs extends Equatable {
   final bool isLive;
   /// Agora credentials from RequestAccepted when backend includes them.
   final AgoraTokenResponse? prefetchedToken;
+  /// Channel preview from booking `agoraInfo` (token fetched on join).
+  final AgoraInfo? prefetchedAgoraInfo;
 
   const CallRouteArgs({
     required this.bookingId,
@@ -20,6 +23,7 @@ class CallRouteArgs extends Equatable {
     required this.mode,
     this.isLive = false,
     this.prefetchedToken,
+    this.prefetchedAgoraInfo,
   });
 
   @override
@@ -30,5 +34,6 @@ class CallRouteArgs extends Equatable {
         mode,
         isLive,
         prefetchedToken,
+        prefetchedAgoraInfo,
       ];
 }

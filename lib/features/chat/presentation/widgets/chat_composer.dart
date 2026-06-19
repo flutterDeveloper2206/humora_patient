@@ -12,6 +12,12 @@ class ChatComposer extends StatelessWidget {
   final bool isEditing;
   final String hintText;
   final VoidCallback onSend;
+  final VoidCallback? onAttachmentTap;
+  final VoidCallback? onMicTap;
+  final bool isRecording;
+  final GestureLongPressStartCallback? onRecordLongPressStart;
+  final GestureLongPressMoveUpdateCallback? onRecordLongPressMoveUpdate;
+  final GestureLongPressEndCallback? onRecordLongPressEnd;
   final VoidCallback? onCancelEdit;
   final ValueChanged<String>? onChanged;
 
@@ -20,6 +26,12 @@ class ChatComposer extends StatelessWidget {
     required this.controller,
     required this.enabled,
     required this.onSend,
+    this.onAttachmentTap,
+    this.onMicTap,
+    this.isRecording = false,
+    this.onRecordLongPressStart,
+    this.onRecordLongPressMoveUpdate,
+    this.onRecordLongPressEnd,
     this.focusNode,
     this.isEditing = false,
     this.onCancelEdit,
@@ -44,7 +56,11 @@ class ChatComposer extends StatelessWidget {
               color: AppColors.primaryLite,
               child: Row(
                 children: [
-                  Icon(Icons.edit_outlined, size: 16.sp, color: AppColors.primary),
+                  Icon(
+                    Icons.edit_outlined,
+                    size: 16.sp,
+                    color: AppColors.primary,
+                  ),
                   SizedBox(width: 8.w),
                   Expanded(
                     child: Text(
@@ -72,48 +88,99 @@ class ChatComposer extends StatelessWidget {
           ],
           Padding(
             padding: EdgeInsets.fromLTRB(20.w, 12.h, 20.w, 24.h),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: controller,
-                    focusNode: focusNode,
-                    enabled: enabled,
-                    onChanged: enabled ? onChanged : null,
-                    decoration: InputDecoration(
-                      hintText: enabled
-                          ? (isEditing ? 'Edit your message…' : hintText)
-                          : 'Chat is read-only',
-                      hintStyle: AppTextStyles.bodyMedium.copyWith(
-                        color: AppColors.textHint,
-                        fontWeight: FontWeight.w400,
-                      ),
-                      border: InputBorder.none,
-                    ),
-                    textInputAction: TextInputAction.send,
-                    onSubmitted: enabled ? (_) => onSend() : null,
-                  ),
-                ),
-                SizedBox(width: 8.w),
-                GestureDetector(
-                  onTap: enabled ? onSend : null,
-                  child: Opacity(
-                    opacity: enabled ? 1 : 0.4,
-                    child: Container(
-                      padding: EdgeInsets.all(12.w),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(13.r),
-                      ),
-                      child: CommonImage(
-                        path: 'assets/image/solar_map-arrow-right-bold.png',
-                        height: 25.w,
-                        width: 25.w,
+            child: ValueListenableBuilder<TextEditingValue>(
+              valueListenable: controller,
+              builder: (context, value, _) {
+                final hasText = value.text.trim().isNotEmpty;
+                final showMicButton = !isEditing && !hasText;
+                return Row(
+                  children: [
+                    GestureDetector(
+                      onTap: enabled ? onAttachmentTap : null,
+                      child: Opacity(
+                        opacity: enabled ? 1 : 0.4,
+                        child: Container(
+                          padding: EdgeInsets.all(10.w),
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryLite,
+                            borderRadius: BorderRadius.circular(12.r),
+                            border: Border.all(
+                              color: AppColors.primaryLiteChip,
+                            ),
+                          ),
+                          child: Icon(
+                            Icons.attach_file,
+                            size: 20.sp,
+                            color: AppColors.primary,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-              ],
+                    SizedBox(width: 8.w),
+                    Expanded(
+                      child: TextField(
+                        controller: controller,
+                        focusNode: focusNode,
+                        enabled: enabled,
+                        onChanged: enabled ? onChanged : null,
+                        decoration: InputDecoration(
+                          hintText: enabled
+                              ? (isEditing ? 'Edit your message…' : hintText)
+                              : 'Chat is read-only',
+                          hintStyle: AppTextStyles.bodyMedium.copyWith(
+                            color: AppColors.textHint,
+                            fontWeight: FontWeight.w400,
+                          ),
+                          border: InputBorder.none,
+                        ),
+                        textInputAction: TextInputAction.send,
+                        onSubmitted: enabled ? (_) => onSend() : null,
+                      ),
+                    ),
+                    SizedBox(width: 8.w),
+                    GestureDetector(
+                      onTap: enabled
+                          ? (showMicButton ? onMicTap : onSend)
+                          : null,
+                      onLongPressStart: showMicButton && enabled
+                          ? onRecordLongPressStart
+                          : null,
+                      onLongPressMoveUpdate: showMicButton && enabled
+                          ? onRecordLongPressMoveUpdate
+                          : null,
+                      onLongPressEnd: showMicButton && enabled
+                          ? onRecordLongPressEnd
+                          : null,
+                      child: AnimatedScale(
+                        scale: isRecording ? 1.06 : 1,
+                        duration: const Duration(milliseconds: 120),
+                        child: Opacity(
+                          opacity: enabled ? 1 : 0.4,
+                          child: Container(
+                            padding: EdgeInsets.all(12.w),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.circular(13.r),
+                            ),
+                            child: showMicButton
+                                ? Icon(
+                                    Icons.mic_rounded,
+                                    color: Colors.white,
+                                    size: 24.sp,
+                                  )
+                                : CommonImage(
+                                    path:
+                                        'assets/image/solar_map-arrow-right-bold.png',
+                                    height: 25.w,
+                                    width: 25.w,
+                                  ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         ],

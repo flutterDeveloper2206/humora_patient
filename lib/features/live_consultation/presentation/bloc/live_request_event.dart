@@ -31,3 +31,11 @@ class RetryRequest extends LiveRequestEvent {
 class PollRequestStatus extends LiveRequestEvent {
   const PollRequestStatus();
 }
+
+class PollWaitlistPosition extends LiveRequestEvent {
+  const PollWaitlistPosition();
+}
+
+class LeaveWaitlist extends LiveRequestEvent {
+  const LeaveWaitlist();
+}

@@ -23,7 +23,7 @@ class ChatApiService {
   final http.Client _client;
 
   ChatApiService({http.Client? client})
-      : _client = client ?? AppHttpClient.instance;
+    : _client = client ?? AppHttpClient.instance;
 
   Future<String> _requireToken() async {
     final token = await SessionManager.getToken();
@@ -34,10 +34,10 @@ class ChatApiService {
   }
 
   Map<String, String> _headers(String token, {bool json = false}) => {
-        'accept': '*/*',
-        'Authorization': 'Bearer $token',
-        if (json) 'Content-Type': 'application/json',
-      };
+    'accept': '*/*',
+    'Authorization': 'Bearer $token',
+    if (json) 'Content-Type': 'application/json',
+  };
 
   dynamic _decode(http.Response response, Uri url) {
     developer.log('--- CHAT API ---', name: 'ChatApiService');
@@ -47,10 +47,7 @@ class ChatApiService {
     try {
       data = response.body.isEmpty ? null : jsonDecode(response.body);
     } catch (_) {
-      throw ChatApiException(
-        response.statusCode,
-        'Invalid response format.',
-      );
+      throw ChatApiException(response.statusCode, 'Invalid response format.');
     }
     return data;
   }
@@ -96,7 +93,7 @@ class ChatApiService {
     );
   }
 
-  Future<List<ConversationListItemDto>> getConversations() async {
+  Future<List<ChatInboxEntryDto>> getConversations() async {
     final token = await _requireToken();
     final url = Uri.parse(ApiEndpoints.chatConversations);
     final response = await _client.get(url, headers: _headers(token));
@@ -106,13 +103,24 @@ class ChatApiService {
           ? data
           : (data is Map ? (data['data'] ?? data['items']) : null);
       if (list is List) {
-        return list
-            .map(
-              (e) => ConversationListItemDto.fromJson(
-                Map<String, dynamic>.from(e as Map),
-              ),
-            )
-            .toList();
+        return list.map((e) {
+          final map = Map<String, dynamic>.from(e as Map);
+          if (map['otherPartyUserId'] != null) {
+            return ChatInboxEntryDto.fromJson(map);
+          }
+          // Legacy per-booking row — map to grouped inbox shape.
+          final legacy = ConversationListItemDto.fromJson(map);
+          return ChatInboxEntryDto(
+            otherPartyUserId: legacy.bookingId,
+            otherPartyName: legacy.otherPartyName ?? 'Healer',
+            otherPartyPhoto: legacy.otherPartyPhoto,
+            otherPartyRole: legacy.otherPartyRole ?? 'Healer',
+            lastMessage: legacy.lastMessage,
+            lastMessageAt: legacy.lastMessageAt,
+            totalUnreadCount: legacy.unreadCount,
+            bookingCount: 1,
+          );
+        }).toList();
       }
       return [];
     }
@@ -123,11 +131,33 @@ class ChatApiService {
     );
   }
 
+  Future<ChatHealerBookingsResponse> getHealerBookings(
+    String otherPartyUserId,
+  ) async {
+    final token = await _requireToken();
+    final url = Uri.parse(
+      ApiEndpoints.chatConversationsWithParty(otherPartyUserId),
+    );
+    final response = await _client.get(url, headers: _headers(token));
+    final data = _decode(response, url);
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return ChatHealerBookingsResponse.fromJson(
+        data is Map<String, dynamic> ? data : {},
+      );
+    }
+    final map = data is Map<String, dynamic> ? data : <String, dynamic>{};
+    throw ChatApiException(
+      response.statusCode,
+      map['message']?.toString() ?? 'Failed to load bookings',
+    );
+  }
+
   Future<ChatMessageDto> sendMessageRest({
     required String bookingId,
     required String content,
     required String idempotencyKey,
     String messageType = 'Text',
+    String? attachmentJson,
   }) async {
     final token = await _requireToken();
     final url = Uri.parse(ApiEndpoints.chatSend);
@@ -136,6 +166,8 @@ class ChatApiService {
       'content': content,
       'messageType': messageType,
       'idempotencyKey': idempotencyKey,
+      if (attachmentJson != null && attachmentJson.isNotEmpty)
+        'attachmentJson': attachmentJson,
     });
     final response = await _client.post(
       url,
@@ -153,6 +185,41 @@ class ChatApiService {
     throw ChatApiException(
       response.statusCode,
       map['message']?.toString() ?? 'Send failed',
+      code: map['code']?.toString(),
+    );
+  }
+
+  Future<AttachmentInfo> uploadAttachment({
+    required List<int> bytes,
+    required String fileName,
+  }) async {
+    final token = await _requireToken();
+    final url = Uri.parse(ApiEndpoints.chatUploadAttachment);
+    final request = http.MultipartRequest('POST', url)
+      ..headers.addAll(_headers(token))
+      ..files.add(
+        http.MultipartFile.fromBytes('file', bytes, filename: fileName),
+      );
+
+    developer.log(
+      'POST $url file=$fileName (${bytes.length} bytes)',
+      name: 'ChatApiService',
+    );
+    final streamed = await _client.send(request);
+    final response = await http.Response.fromStream(streamed);
+    final data = _decode(response, url);
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final map = data is Map<String, dynamic>
+          ? (data['data'] is Map ? data['data'] as Map<String, dynamic> : data)
+          : <String, dynamic>{};
+      return AttachmentInfo.fromJson(map);
+    }
+
+    final map = data is Map<String, dynamic> ? data : <String, dynamic>{};
+    throw ChatApiException(
+      response.statusCode,
+      map['message']?.toString() ?? 'Attachment upload failed',
       code: map['code']?.toString(),
     );
   }
@@ -185,13 +252,14 @@ class ChatApiService {
     if (response.statusCode >= 200 && response.statusCode < 300) {
       final list = data is List
           ? data
-          : (data is Map ? (data['data'] ?? data['messages'] ?? data['items']) : null);
+          : (data is Map
+                ? (data['data'] ?? data['messages'] ?? data['items'])
+                : null);
       if (list is List) {
         return list
             .map(
-              (e) => ChatMessageDto.fromJson(
-                Map<String, dynamic>.from(e as Map),
-              ),
+              (e) =>
+                  ChatMessageDto.fromJson(Map<String, dynamic>.from(e as Map)),
             )
             .toList();
       }

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "621139014273",
+    "project_id": "humora-dev-49560",
+    "storage_bucket": "humora-dev-49560.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:621139014273:android:c0a6fd46a0ee98f23dd380",
+        "android_client_info": {
+          "package_name": "com.humorapatient.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA5RYvcsNvq3iULoJsPQjsXM5dOsVQ6NN4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

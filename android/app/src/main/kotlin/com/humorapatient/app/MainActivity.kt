@@ -1,4 +1,4 @@
-package com.example.humora_patient
+package com.humorapatient.app
 
 import io.flutter.embedding.android.FlutterFragmentActivity
 

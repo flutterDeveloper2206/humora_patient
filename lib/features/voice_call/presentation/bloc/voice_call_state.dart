@@ -7,6 +7,7 @@ class VoiceCallState extends Equatable {
   final CallPhase phase;
   final Duration duration;
   final bool isMuted;
+  final bool isSpeakerOn;
   final String callerName;
   final String callerImage;
   final String? errorMessage;
@@ -17,6 +18,7 @@ class VoiceCallState extends Equatable {
     this.phase = CallPhase.initial,
     this.duration = Duration.zero,
     this.isMuted = false,
+    this.isSpeakerOn = true,
     this.callerName = 'Healer',
     this.callerImage = 'assets/image/doctorprofile.png',
     this.errorMessage,
@@ -31,6 +33,7 @@ class VoiceCallState extends Equatable {
     CallPhase? phase,
     Duration? duration,
     bool? isMuted,
+    bool? isSpeakerOn,
     String? callerName,
     String? callerImage,
     String? errorMessage,
@@ -42,6 +45,7 @@ class VoiceCallState extends Equatable {
       phase: phase ?? this.phase,
       duration: duration ?? this.duration,
       isMuted: isMuted ?? this.isMuted,
+      isSpeakerOn: isSpeakerOn ?? this.isSpeakerOn,
       callerName: callerName ?? this.callerName,
       callerImage: callerImage ?? this.callerImage,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
@@ -55,6 +59,7 @@ class VoiceCallState extends Equatable {
         phase,
         duration,
         isMuted,
+        isSpeakerOn,
         callerName,
         callerImage,
         errorMessage,

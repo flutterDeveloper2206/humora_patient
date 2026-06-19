@@ -133,6 +133,7 @@ class LiveRequestBody extends Equatable {
 
 class LiveRequestResponse extends Equatable {
   final String requestId;
+  final String waitlistId;
   final String healerId;
   final String healerName;
   final int consultationType;
@@ -141,9 +142,13 @@ class LiveRequestResponse extends Equatable {
   final DateTime? expiresAt;
   final String? bookingId;
   final String? bookingReference;
+  final int position;
+  final int? estimatedWaitMinutes;
+  final DateTime? joinedAt;
 
   const LiveRequestResponse({
     required this.requestId,
+    this.waitlistId = '',
     required this.healerId,
     required this.healerName,
     required this.consultationType,
@@ -152,7 +157,13 @@ class LiveRequestResponse extends Equatable {
     this.expiresAt,
     this.bookingId,
     this.bookingReference,
+    this.position = 0,
+    this.estimatedWaitMinutes,
+    this.joinedAt,
   });
+
+  bool get isQueued =>
+      waitlistId.isNotEmpty || status.toLowerCase() == 'queued';
 
   factory LiveRequestResponse.fromJson(Map<String, dynamic> json) {
     final data = json['data'] is Map<String, dynamic>
@@ -160,6 +171,7 @@ class LiveRequestResponse extends Equatable {
         : json;
     return LiveRequestResponse(
       requestId: data['requestId']?.toString() ?? '',
+      waitlistId: data['waitlistId']?.toString() ?? '',
       healerId: data['healerId']?.toString() ?? '',
       healerName: data['healerName']?.toString() ?? 'Healer',
       consultationType: parseLiveConsultationType(data['consultationType']),
@@ -168,12 +180,113 @@ class LiveRequestResponse extends Equatable {
       expiresAt: _parseDate(data['expiresAt']),
       bookingId: data['bookingId']?.toString(),
       bookingReference: data['bookingReference']?.toString(),
+      position: (data['position'] as num?)?.toInt() ?? 0,
+      estimatedWaitMinutes: (data['estimatedWaitMinutes'] as num?)?.toInt(),
+      joinedAt: _parseDate(data['joinedAt']),
     );
   }
 
   @override
   List<Object?> get props =>
-      [requestId, healerId, healerName, consultationType, status, expiresAt];
+      [requestId, waitlistId, healerId, healerName, consultationType, status, expiresAt, position];
+}
+
+class WaitlistYourTurnPayload extends Equatable {
+  final String waitlistId;
+  final String healerId;
+  final int consultationType;
+  final DateTime? expiresAt;
+
+  const WaitlistYourTurnPayload({
+    required this.waitlistId,
+    required this.healerId,
+    required this.consultationType,
+    this.expiresAt,
+  });
+
+  factory WaitlistYourTurnPayload.fromJson(Map<String, dynamic> json) {
+    return WaitlistYourTurnPayload(
+      waitlistId: json['waitlistId']?.toString() ?? '',
+      healerId: json['healerId']?.toString() ?? '',
+      consultationType: parseLiveConsultationType(json['consultationType']),
+      expiresAt: _parseDate(json['expiresAt']),
+    );
+  }
+
+  @override
+  List<Object?> get props => [waitlistId, healerId, consultationType, expiresAt];
+}
+
+class WaitlistTurnExpiredPayload extends Equatable {
+  final String waitlistId;
+  final String healerId;
+
+  const WaitlistTurnExpiredPayload({
+    required this.waitlistId,
+    required this.healerId,
+  });
+
+  factory WaitlistTurnExpiredPayload.fromJson(Map<String, dynamic> json) {
+    return WaitlistTurnExpiredPayload(
+      waitlistId: json['waitlistId']?.toString() ?? '',
+      healerId: json['healerId']?.toString() ?? '',
+    );
+  }
+
+  @override
+  List<Object?> get props => [waitlistId, healerId];
+}
+
+class WaitlistPositionResponse extends Equatable {
+  final String waitlistId;
+  final String healerId;
+  final int consultationType;
+  final String status;
+  final int position;
+  final int peopleAhead;
+  final int? estimatedWaitMinutes;
+  final DateTime? joinedAt;
+
+  const WaitlistPositionResponse({
+    required this.waitlistId,
+    required this.healerId,
+    required this.consultationType,
+    required this.status,
+    required this.position,
+    this.peopleAhead = 0,
+    this.estimatedWaitMinutes,
+    this.joinedAt,
+  });
+
+  factory WaitlistPositionResponse.fromJson(Map<String, dynamic> json) {
+    final data = json['data'] is Map<String, dynamic>
+        ? json['data'] as Map<String, dynamic>
+        : json;
+    return WaitlistPositionResponse(
+      waitlistId: data['waitlistId']?.toString() ?? '',
+      healerId: data['healerId']?.toString() ?? '',
+      consultationType: parseLiveConsultationType(data['consultationType']),
+      status: data['status']?.toString() ?? 'Waiting',
+      position: (data['position'] as num?)?.toInt() ?? 0,
+      peopleAhead: (data['peopleAhead'] as num?)?.toInt() ?? 0,
+      estimatedWaitMinutes: (data['estimatedWaitMinutes'] as num?)?.toInt(),
+      joinedAt: _parseDate(data['joinedAt']),
+    );
+  }
+
+  @override
+  List<Object?> get props => [waitlistId, position, peopleAhead, status];
+}
+
+String liveConsultationTypeLabel(int consultationType) {
+  switch (consultationType) {
+    case 1:
+      return 'Audio';
+    case 2:
+      return 'Video';
+    default:
+      return 'Chat';
+  }
 }
 
 class LiveInsufficientWalletResponse extends Equatable {
@@ -418,6 +531,9 @@ int parseLiveConsultationType(dynamic value, {int fallback = 0}) {
 }
 
 String _liveRequestStatusLabel(dynamic status) {
+  if (status is String && status.toLowerCase() == 'queued') {
+    return 'Queued';
+  }
   final code = LiveRequestStatus.parseCode(status);
   switch (code) {
     case LiveRequestStatus.pending:

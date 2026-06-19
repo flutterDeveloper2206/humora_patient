@@ -5,6 +5,7 @@ import 'package:humora_patient/common/widgets/common_image.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import '../../../../core/utils/session_manager.dart';
+import '../../../../core/notifications/notification_badge_controller.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -40,6 +41,7 @@ class _SplashScreenState extends State<SplashScreen>
 
     final hasToken = await SessionManager.hasToken();
     if (hasToken) {
+      await NotificationBadgeController.instance.refreshUnreadCount();
       context.go('/home');
     } else {
       context.go('/welcome');

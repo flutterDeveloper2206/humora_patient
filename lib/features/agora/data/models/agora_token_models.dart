@@ -3,6 +3,9 @@ import 'package:equatable/equatable.dart';
 import '../../../../core/constants/agora_config.dart';
 
 class AgoraTokenResponse extends Equatable {
+  /// Native [RtcEngine.joinChannel] uid must fit signed 32-bit (vendor parity).
+  static const int maxNativeUid = 2147483647;
+
   final String appId;
   final String channelName;
   final String token;
@@ -24,14 +27,32 @@ class AgoraTokenResponse extends Equatable {
   /// UID for [joinChannel] when using numeric uid (matches vendor app).
   int get uidForSdk {
     final fromAgoraUid = int.tryParse(agoraUid);
-    if (fromAgoraUid != null && fromAgoraUid > 0) return fromAgoraUid;
-    if (uid > 0) return uid;
+    if (fromAgoraUid != null &&
+        fromAgoraUid > 0 &&
+        fromAgoraUid <= maxNativeUid) {
+      return fromAgoraUid;
+    }
+    if (uid > 0 && uid <= maxNativeUid) return uid;
     return 0;
   }
 
   /// True when token was issued for a string user account (UUID etc.).
   bool get usesStringUserAccount =>
       agoraUid.isNotEmpty && int.tryParse(agoraUid) == null;
+
+  /// UIDs above [maxNativeUid] must use [joinChannelWithUserAccount].
+  bool get useUserAccountForLargeUid {
+    if (agoraUid.isEmpty) return false;
+    final parsed = int.tryParse(agoraUid);
+    if (parsed == null) return false;
+    return parsed > maxNativeUid || parsed < 0;
+  }
+
+  bool get requiresUserAccountJoin =>
+      usesStringUserAccount || useUserAccountForLargeUid;
+
+  String get userAccountForJoin =>
+      agoraUid.isNotEmpty ? agoraUid : (uid > 0 ? uid.toString() : '0');
 
   /// Wire value for POST /agora/join (REST).
   String get agoraUidWire {

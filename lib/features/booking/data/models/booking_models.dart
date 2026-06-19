@@ -50,6 +50,33 @@ class CreateBookingResponse {
   }
 }
 
+class CancelBookingRequest {
+  final String bookingId;
+  final String reason;
+
+  const CancelBookingRequest({
+    required this.bookingId,
+    required this.reason,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'bookingId': bookingId,
+        'reason': reason,
+      };
+}
+
+class CancelBookingResponse {
+  final String message;
+
+  const CancelBookingResponse({required this.message});
+
+  factory CancelBookingResponse.fromJson(Map<String, dynamic> json) {
+    return CancelBookingResponse(
+      message: json['message']?.toString() ?? 'Booking cancelled successfully.',
+    );
+  }
+}
+
 class BookingFlowArgs {
   final String healerId;
   final String slotId;

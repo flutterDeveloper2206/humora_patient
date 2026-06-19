@@ -48,8 +48,11 @@ class ApprovedHealersResponseModel {
       take: (json['take'] as num?)?.toInt() ?? 20,
       totalCount: (json['totalCount'] as num?)?.toInt() ?? 0,
       searchValue: json['searchValue'] as String?,
-      items: (json['items'] as List?)
-              ?.map((e) => ApprovedHealerItem.fromJson(e as Map<String, dynamic>))
+      items:
+          (json['items'] as List?)
+              ?.map(
+                (e) => ApprovedHealerItem.fromJson(e as Map<String, dynamic>),
+              )
               .toList() ??
           [],
     );
@@ -85,11 +88,15 @@ class ApprovedHealerItem {
       photo: json['photo'] as String?,
       experienceYears: (json['experienceYears'] as num?)?.toInt(),
       liveStatus: _parseLiveStatus(json['liveStatus']),
-      liveCounselling: (json['liveCounselling'] as List?)
-              ?.map((e) => LiveCounsellingItem.fromJson(e as Map<String, dynamic>))
+      liveCounselling:
+          (json['liveCounselling'] as List?)
+              ?.map(
+                (e) => LiveCounsellingItem.fromJson(e as Map<String, dynamic>),
+              )
               .toList() ??
           [],
-      sessionSlots: (json['sessionSlots'] as List?)
+      sessionSlots:
+          (json['sessionSlots'] as List?)
               ?.map((e) => SessionSlotItem.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
@@ -147,15 +154,21 @@ class SessionSlotItem {
 
   factory SessionSlotItem.fromJson(Map<String, dynamic> json) {
     return SessionSlotItem(
-      id: json['id'] ?? '',
-      availabilityType: (json['availabilityType'] as num?)?.toInt() ?? 0,
-      sessionType: (json['sessionType'] as num?)?.toInt() ?? 0,
-      date: json['date'] ?? '',
-      dayOfWeek: (json['dayOfWeek'] as num?)?.toInt() ?? 0,
-      startTime: json['startTime'] ?? '',
-      endTime: json['endTime'] ?? '',
+      id: json['id']?.toString() ?? '',
+      availabilityType: _parseInt(json['availabilityType']),
+      sessionType: _parseInt(json['sessionType']),
+      date: json['date']?.toString() ?? '',
+      dayOfWeek: _parseInt(json['dayOfWeek']),
+      startTime: json['startTime']?.toString() ?? '',
+      endTime: json['endTime']?.toString() ?? '',
     );
   }
+}
+
+int _parseInt(dynamic value, {int fallback = 0}) {
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  return int.tryParse(value?.toString() ?? '') ?? fallback;
 }
 
 class HealerDetailsResponseModel {
@@ -223,28 +236,43 @@ class HealerDetailsResponseModel {
       experienceYears: (json['experienceYears'] as num?)?.toInt(),
       onboardingStatus: (json['onboardingStatus'] as num?)?.toInt() ?? 0,
       address: json['address'] as String?,
-      languages: (json['languages'] as List?)
+      languages:
+          (json['languages'] as List?)
               ?.map((e) => LanguageItem.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
-      expertise: (json['expertise'] as List?)?.map((e) => e.toString()).toList() ?? [],
-      specializations: (json['specializations'] as List?)
-              ?.map((e) => HealerSpecializationItem.fromJson(e as Map<String, dynamic>))
+      expertise:
+          (json['expertise'] as List?)?.map((e) => e.toString()).toList() ?? [],
+      specializations:
+          (json['specializations'] as List?)
+              ?.map(
+                (e) => HealerSpecializationItem.fromJson(
+                  e as Map<String, dynamic>,
+                ),
+              )
               .toList() ??
           [],
-      certificates: (json['certificates'] as List?)
+      certificates:
+          (json['certificates'] as List?)
               ?.map((e) => CertificateItem.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
-      liveCounsellingPricing: (json['liveCounsellingPricing'] as List?)
-              ?.map((e) => LiveCounsellingItem.fromJson(e as Map<String, dynamic>))
+      liveCounsellingPricing:
+          (json['liveCounsellingPricing'] as List?)
+              ?.map(
+                (e) => LiveCounsellingItem.fromJson(e as Map<String, dynamic>),
+              )
               .toList() ??
           [],
-      sessionPricing: (json['sessionPricing'] as List?)
-              ?.map((e) => SessionPricingItem.fromJson(e as Map<String, dynamic>))
+      sessionPricing:
+          (json['sessionPricing'] as List?)
+              ?.map(
+                (e) => SessionPricingItem.fromJson(e as Map<String, dynamic>),
+              )
               .toList() ??
           [],
-      sessionSlots: (json['sessionSlots'] as List?)
+      sessionSlots:
+          (json['sessionSlots'] as List?)
               ?.map((e) => SessionSlotItem.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
@@ -260,10 +288,7 @@ class LanguageItem {
   LanguageItem({required this.id, required this.name});
 
   factory LanguageItem.fromJson(Map<String, dynamic> json) {
-    return LanguageItem(
-      id: json['id'] ?? '',
-      name: json['name'] ?? '',
-    );
+    return LanguageItem(id: json['id'] ?? '', name: json['name'] ?? '');
   }
 }
 
@@ -297,10 +322,7 @@ class CertificateItem {
   CertificateItem({required this.id, required this.name});
 
   factory CertificateItem.fromJson(Map<String, dynamic> json) {
-    return CertificateItem(
-      id: json['id'] ?? '',
-      name: json['name'] ?? '',
-    );
+    return CertificateItem(id: json['id'] ?? '', name: json['name'] ?? '');
   }
 }
 
