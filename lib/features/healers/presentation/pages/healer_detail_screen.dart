@@ -19,6 +19,8 @@ import 'package:humora_patient/features/booking/data/models/booking_models.dart'
 import 'package:humora_patient/features/booking/presentation/utils/booking_flow_helper.dart';
 import 'package:humora_patient/features/booking/presentation/utils/booking_wallet_preflight.dart';
 import 'package:humora_patient/features/live_consultation/presentation/models/live_consultation_args.dart';
+import 'package:humora_patient/features/live_consultation/presentation/utils/live_wallet_preflight.dart';
+import 'dart:developer' as developer;
 import '../../../../common/utils/common_flushbar.dart';
 import '../widgets/healer_info_node.dart';
 import '../widgets/certificate_card.dart';
@@ -945,6 +947,44 @@ class HealerDetailScreen extends StatelessWidget {
     );
   }
 
+  Future<void> _startLiveConsultation(
+    BuildContext context,
+    HealerModel healer,
+    int consultationType,
+  ) async {
+    final typeLabel = switch (consultationType) {
+      0 => 'Chat',
+      1 => 'Audio',
+      _ => 'Video',
+    };
+
+    developer.log(
+      'HealerDetailScreen → live request tapped\n'
+      '   Healer: ${healer.name} (${healer.id})\n'
+      '   Type: $typeLabel ($consultationType)\n'
+      '   Live status: ${healer.liveStatus ?? 'unknown'}',
+      name: 'HealerDetailScreen',
+    );
+
+    final canAfford = await LiveWalletPreflight.ensureCanAfford(
+      context: context,
+      liveCounselling: healer.liveCounsellingPricing,
+      consultationType: consultationType,
+      fallbackPricePerMinute: healer.feesPerMin,
+    );
+    if (!canAfford || !context.mounted) return;
+
+    final args = LiveConsultationArgs(
+      healerId: healer.id,
+      healerName: healer.name,
+      healerImage: healer.imageUrl,
+      consultationType: consultationType,
+      liveCounselling: healer.liveCounsellingPricing,
+    );
+
+    context.push('/live-request-waiting', extra: args);
+  }
+
   Future<void> _onBookNow(
     BuildContext context,
     HealerDetailLoaded state,
@@ -1303,7 +1343,7 @@ class HealerDetailScreen extends StatelessWidget {
           children: [
             // Chat Button
             GestureDetector(
-              onTap: () => context.push('/chat'),
+              onTap: () => _startLiveConsultation(context, state.healer, 0),
               child: CommonImage(
                 path: 'assets/image/grediantmessage.png',
                 height: 45.h,
