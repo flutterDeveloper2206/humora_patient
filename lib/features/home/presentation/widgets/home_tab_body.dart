@@ -18,6 +18,7 @@ import 'package:humora_patient/features/home/presentation/bloc/home_state.dart';
 import 'package:humora_patient/features/home/presentation/widgets/healer_carousel_card.dart';
 import '../../../../core/utils/session_manager.dart';
 import '../../data/models/user_profile_model.dart';
+import '../../data/datasource/user_profile_api_service.dart';
 
 class HomeTabBody extends StatefulWidget {
   final bool isLoading;
@@ -44,13 +45,37 @@ class _HomeTabBodyState extends State<HomeTabBody> {
   @override
   void initState() {
     super.initState();
-    _loadCachedProfile();
+    _loadProfile();
   }
 
   @override
   void dispose() {
     _pageController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadProfile() async {
+    await _loadCachedProfile();
+    try {
+      final token = await SessionManager.getToken();
+      if (token == null || token.isEmpty) return;
+
+      final fresh = await UserProfileApiService().getProfile();
+      await SessionManager.saveUserProfileJson(jsonEncode(fresh.toJson()));
+      final name = fresh.displayName.trim().isNotEmpty
+          ? fresh.displayName.trim()
+          : 'Meet';
+      final image = fresh.profilePic.trim().isNotEmpty
+          ? fresh.profilePic.trim()
+          : 'assets/image/doctorprofile.png';
+      if (!mounted) return;
+      setState(() {
+        _userName = name;
+        _userImage = image;
+      });
+    } catch (e) {
+      debugPrint('Error loading fresh profile: $e');
+    }
   }
 
   Future<void> _loadCachedProfile() async {
@@ -85,7 +110,7 @@ class _HomeTabBodyState extends State<HomeTabBody> {
     await bloc.stream.firstWhere(
       (s) => (s is HomeLoaded && !s.isRefreshing) || s is HomeError,
     );
-    await _loadCachedProfile();
+    await _loadProfile();
     await NotificationBadgeController.instance.refreshUnreadCount();
   }
 
