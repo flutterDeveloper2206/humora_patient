@@ -67,7 +67,7 @@ class _SplashScreenState extends State<SplashScreen>
             child: Center(
               child: CommonImage(
                 height: double.maxFinite,
-                fit: BoxFit.cover,
+                fit: BoxFit.fill,
               path:   'assets/image/splash.png',
 
               ),
