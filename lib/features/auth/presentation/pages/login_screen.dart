@@ -178,6 +178,7 @@ class _LoginScreenState extends State<LoginScreen>
                               border: Border.all(color: Colors.grey[200]!),
                             ),
                             child: TextField(
+                              controller: _inputController,
                               maxLength: !_isInputEmail ? 10 : 1000,
                               keyboardType: _isInputEmail
                                   ? TextInputType.emailAddress
