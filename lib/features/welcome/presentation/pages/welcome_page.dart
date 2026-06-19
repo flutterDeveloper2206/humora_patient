@@ -76,7 +76,9 @@ class _WelcomeViewState extends State<WelcomeView>
         child: Stack(
           children: [
             // Background with ripples
-            CommonImage(path: 'assets/image/welcombg.png', fit: BoxFit.cover),
+            CommonImage(
+              width: MediaQuery.of(context).size.width,
+                path: 'assets/image/welcombg.png', fit: BoxFit.fill),
             SafeArea(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

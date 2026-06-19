@@ -169,7 +169,6 @@ class _HomeProfileTabState extends State<HomeProfileTab> {
           onRefresh: _loadProfile,
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 120.h),
             children: [
               _buildCoverHeader(
                 coverImage,
@@ -178,71 +177,82 @@ class _HomeProfileTabState extends State<HomeProfileTab> {
                 profile?.email ?? '',
               ),
               SizedBox(height: 20.h),
-              _buildSectionCard(
-                title: 'Personal details',
-                child: Column(
-                  children: [
-                    _infoRow('First name', profile?.firstName ?? '--'),
-                    SizedBox(height: 12.h),
-                    _infoRow('Last name', profile?.lastName ?? '--'),
-                    SizedBox(height: 12.h),
-                    _infoRow('Mobile', profile?.mobile ?? '--'),
-                    SizedBox(height: 12.h),
-                    _infoRow('Email', profile?.email ?? '--'),
-                    SizedBox(height: 12.h),
-                    _infoRow('Address line 1', profile?.address1 ?? '--'),
-                    SizedBox(height: 12.h),
-                    _infoRow('Address line 2', profile?.address2 ?? '--'),
-                    SizedBox(height: 12.h),
-                    _infoRow('Gender', _genderLabel(profile?.gender)),
-                    SizedBox(height: 16.h),
-                    _infoRow('DOB', profile?.dob?.split('T').first ?? '--'),
-                  ],
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                child: _buildSectionCard(
+                  title: 'Personal details',
+                  child: Column(
+                    children: [
+                      _infoRow('First name', profile?.firstName ?? '--'),
+                      SizedBox(height: 12.h),
+                      _infoRow('Last name', profile?.lastName ?? '--'),
+                      SizedBox(height: 12.h),
+                      _infoRow('Mobile', profile?.mobile ?? '--'),
+                      SizedBox(height: 12.h),
+                      _infoRow('Email', profile?.email ?? '--'),
+                      SizedBox(height: 12.h),
+                      _infoRow('Address line 1', profile?.address1 ?? '--'),
+                      SizedBox(height: 12.h),
+                      _infoRow('Address line 2', profile?.address2 ?? '--'),
+                      SizedBox(height: 12.h),
+                      _infoRow('Gender', _genderLabel(profile?.gender)),
+                      SizedBox(height: 16.h),
+                      _infoRow('DOB', profile?.dob?.split('T').first ?? '--'),
+                    ],
+                  ),
                 ),
               ),
               SizedBox(height: 16.h),
-              CommonButton(
-                text: 'Edit Profile',
-                onPressed: () async {
-                  final updated = await context.push(
-                    '/edit-profile',
-                    extra: _profile,
-                  );
-                  if (updated is Map) {
-                    final profile = updated['profile'];
-                    final message = updated['message']?.toString();
-                    if (profile is UserProfileModel) {
-                      await _cacheProfile(profile);
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                child: CommonButton(
+                  text: 'Edit Profile',
+                  onPressed: () async {
+                    final updated = await context.push(
+                      '/edit-profile',
+                      extra: _profile,
+                    );
+                    if (updated is Map) {
+                      final profile = updated['profile'];
+                      final message = updated['message']?.toString();
+                      if (profile is UserProfileModel) {
+                        await _cacheProfile(profile);
+                        if (!mounted) return;
+                        _applyProfile(profile);
+                      } else {
+                        await _loadProfile();
+                      }
+                      if (message != null && message.isNotEmpty && mounted) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (!mounted) return;
+                          CommonFlushbar.success(context, message);
+                        });
+                      }
+                    } else if (updated is UserProfileModel) {
+                      await _cacheProfile(updated);
                       if (!mounted) return;
-                      _applyProfile(profile);
+                      _applyProfile(updated);
                     } else {
                       await _loadProfile();
                     }
-                    if (message != null && message.isNotEmpty && mounted) {
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (!mounted) return;
-                        CommonFlushbar.success(context, message);
-                      });
-                    }
-                  } else if (updated is UserProfileModel) {
-                    await _cacheProfile(updated);
-                    if (!mounted) return;
-                    _applyProfile(updated);
-                  } else {
-                    await _loadProfile();
-                  }
-                },
-                borderRadius: 12.r,
+                  },
+                  borderRadius: 12.r,
+                ),
               ),
               SizedBox(height: 16.h),
-              CommonButton(
-                text: 'Log out',
-                backgroundColor: Colors.white,
-                textColor: AppColors.error,
-                side: const BorderSide(color: AppColors.error),
-                borderRadius: 12.r,
-                onPressed: _confirmAndLogout,
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                child: CommonButton(
+                  text: 'Log out',
+                  backgroundColor: Colors.white,
+                  textColor: AppColors.error,
+                  side: const BorderSide(color: AppColors.error),
+                  borderRadius: 12.r,
+                  onPressed: _confirmAndLogout,
+                ),
               ),
+              SizedBox(height: 180.h),
+
             ],
           ),
         ),
@@ -259,21 +269,17 @@ class _HomeProfileTabState extends State<HomeProfileTab> {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(16.r),
         border: Border.all(color: AppColors.divider),
       ),
       child: Column(
         children: [
           Stack(
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.vertical(top: Radius.circular(16.r)),
-                child: CommonImage(
-                  path: coverImage,
-                  width: double.infinity,
-                  height: 120.h,
-                  fit: BoxFit.cover,
-                ),
+              CommonImage(
+                path: coverImage,
+                width: double.infinity,
+                height: 120.h,
+                fit: BoxFit.cover,
               ),
             ],
           ),

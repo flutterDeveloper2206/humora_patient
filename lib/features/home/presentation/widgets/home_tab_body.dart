@@ -191,8 +191,7 @@ class _HomeTabBodyState extends State<HomeTabBody> {
                         width: 1.5,
                       ),
                     ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(18.r),
+                    child: ClipOval(
                       child: CommonImage(path: _userImage, fit: BoxFit.cover),
                     ),
                   ),
@@ -231,6 +230,8 @@ class _HomeTabBodyState extends State<HomeTabBody> {
                 onTap: interactionsEnabled
                     ? () => context.push('/healers-list')
                     : null,
+                textAlign: TextAlign.left,
+                textAlignVertical: TextAlignVertical(y: 0),
                 decoration: InputDecoration(
                   hintText: 'Search here...',
                   hintStyle: AppTextStyles.bodyMedium.copyWith(
@@ -245,7 +246,6 @@ class _HomeTabBodyState extends State<HomeTabBody> {
                   border: InputBorder.none,
                   contentPadding: EdgeInsets.symmetric(
                     horizontal: 20.w,
-                    vertical: 16.h,
                   ),
                 ),
               ),
@@ -257,7 +257,7 @@ class _HomeTabBodyState extends State<HomeTabBody> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Continue Healing',
+                  'Explore Healing',
                   style: AppTextStyles.h3.copyWith(
                     fontWeight: FontWeight.w500,
                     fontSize: 16.sp,
@@ -279,7 +279,7 @@ class _HomeTabBodyState extends State<HomeTabBody> {
             ),
           ),
           SizedBox(
-            height: 322.h,
+            height: 352.h,
             child: PageView.builder(
               controller: _pageController,
               itemCount: widget.continueHealing.length,

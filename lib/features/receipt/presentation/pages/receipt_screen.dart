@@ -66,7 +66,11 @@ class _ReceiptViewState extends State<ReceiptView> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Download failed: ${e.toString().replaceAll('Exception: ', '')}')),
+        SnackBar(
+          content: Text(
+            'Download failed: ${e.toString().replaceAll('Exception: ', '')}',
+          ),
+        ),
       );
     } finally {
       if (mounted) {
@@ -78,17 +82,16 @@ class _ReceiptViewState extends State<ReceiptView> {
   Future<File> _saveToLocalFile(Uint8List bytes, String receiptId) async {
     final filename = _safeReceiptFilename(receiptId);
     final downloadsDir = await getDownloadsDirectory();
-    final directory =
-        downloadsDir ??
-        await getApplicationDocumentsDirectory();
+    final directory = downloadsDir ?? await getApplicationDocumentsDirectory();
     final file = File('${directory.path}/$filename');
     return file.writeAsBytes(bytes, flush: true);
   }
 
   String _safeReceiptFilename(String receiptId) {
-    final cleaned = receiptId
-        .trim()
-        .replaceAll(RegExp(r'[^a-zA-Z0-9_-]+'), '_');
+    final cleaned = receiptId.trim().replaceAll(
+      RegExp(r'[^a-zA-Z0-9_-]+'),
+      '_',
+    );
     return 'receipt_${cleaned.isEmpty ? DateTime.now().millisecondsSinceEpoch : cleaned}.png';
   }
 
@@ -186,17 +189,17 @@ class _ReceiptViewState extends State<ReceiptView> {
           Expanded(
             child: GestureDetector(
               onTap: () => context.push(
-    '/success',
-    extra: {
-    'imagePath': 'assets/image/paid.png',
-    'icon': 'assets/images/right.png',
-    'title': "Thank You!",
-      'buttonText': "Got it!",
-
-      'subtitle': "Your session payment has been\ncompleted successfully. We look\nforward to serving you.",
-    'onButtonPressed': () => context.go('/home')
-                ,
-    },),
+                '/success',
+                extra: {
+                  'imagePath': 'assets/image/paid.png',
+                  'icon': 'assets/images/right.png',
+                  'title': "Thank You!",
+                  'buttonText': "Got it!",
+                  'subtitle':
+                      "Your session payment has been completed successfully. We look forward to serving you.",
+                  'onButtonPressed': () => context.go('/home'),
+                },
+              ),
               child: Container(
                 height: 54.h,
                 decoration: BoxDecoration(

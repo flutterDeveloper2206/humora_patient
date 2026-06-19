@@ -131,7 +131,7 @@ class _LoginScreenState extends State<LoginScreen>
                           ),
                           SizedBox(height: 4.h),
                           Text(
-                            'Welcome back. Please enter your details',
+                            'Please enter your details',
                             style: AppTextStyles.bodyMedium.copyWith(
                               color: Colors.grey[500],
                               fontSize: 14.sp,
@@ -178,14 +178,15 @@ class _LoginScreenState extends State<LoginScreen>
                               border: Border.all(color: Colors.grey[200]!),
                             ),
                             child: TextField(
-                              controller: _inputController,
+                              maxLength: !_isInputEmail ? 10 : 1000,
                               keyboardType: _isInputEmail
                                   ? TextInputType.emailAddress
                                   : TextInputType.phone,
                               style: AppTextStyles.bodyMedium,
                               decoration: InputDecoration(
+                                counterText: "",
                                 hintText: _isInputEmail
-                                    ? 'ronakpatel@gmail.com'
+                                    ? 'Enter email address or phone'
                                     : 'Enter mobile number',
                                 hintStyle: AppTextStyles.bodyMedium.copyWith(
                                   color: Colors.grey[400],
@@ -296,49 +297,49 @@ class _LoginScreenState extends State<LoginScreen>
                           ),
                           SizedBox(height: 10.h),
 
-                          // Divider
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Divider(color: AppColors.divider),
-                              ),
-                              Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 16.w),
-                                child: Text(
-                                  'Or Continue With',
-                                  style: AppTextStyles.bodySmall.copyWith(
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              ),
-                              Expanded(
-                                child: Divider(color: AppColors.divider),
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: 10.h),
-
-                          // Social Buttons
-                          _buildSocialButton(
-                            'Continue with Google',
-                            'assets/images/google.png',
-                            backgroundColor: Colors.white,
-                            textColor: Colors.black,
-                            hasBorder: true,
-                            onTap: () => context.read<AuthBloc>().add(
-                              GoogleLoginRequested(),
-                            ),
-                          ),
-                          SizedBox(height: 12.h),
-                          _buildSocialButton(
-                            'Continue with Apple',
-                            'assets/images/apple.png',
-                            backgroundColor: Colors.black,
-                            textColor: Colors.white,
-                            onTap: () => context.read<AuthBloc>().add(
-                              AppleLoginRequested(),
-                            ),
-                          ),
+                          // // Divider
+                          // Row(
+                          //   children: [
+                          //     Expanded(
+                          //       child: Divider(color: AppColors.divider),
+                          //     ),
+                          //     Padding(
+                          //       padding: EdgeInsets.symmetric(horizontal: 16.w),
+                          //       child: Text(
+                          //         'Or Continue With',
+                          //         style: AppTextStyles.bodySmall.copyWith(
+                          //           color: Colors.grey,
+                          //         ),
+                          //       ),
+                          //     ),
+                          //     Expanded(
+                          //       child: Divider(color: AppColors.divider),
+                          //     ),
+                          //   ],
+                          // ),
+                          // SizedBox(height: 10.h),
+                          //
+                          // // Social Buttons
+                          // _buildSocialButton(
+                          //   'Continue with Google',
+                          //   'assets/images/google.png',
+                          //   backgroundColor: Colors.white,
+                          //   textColor: Colors.black,
+                          //   hasBorder: true,
+                          //   onTap: () => context.read<AuthBloc>().add(
+                          //     GoogleLoginRequested(),
+                          //   ),
+                          // ),
+                          // SizedBox(height: 12.h),
+                          // _buildSocialButton(
+                          //   'Continue with Apple',
+                          //   'assets/images/apple.png',
+                          //   backgroundColor: Colors.black,
+                          //   textColor: Colors.white,
+                          //   onTap: () => context.read<AuthBloc>().add(
+                          //     AppleLoginRequested(),
+                          //   ),
+                          // ),
                         ],
                       ),
                     ),

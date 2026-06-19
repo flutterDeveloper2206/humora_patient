@@ -16,34 +16,36 @@ class HealerRatingRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         ...List.generate(5, (index) {
           final isFull = index < rating.floor();
           final isHalf = index == rating.floor() && rating % 1 != 0;
           return Icon(
             isFull
-                ? Icons.star
+                ? Icons.star_rounded
                 : isHalf
-                ? Icons.star_half
-                : Icons.star_border,
+                ? Icons.star_half_rounded
+                : Icons.star_border_rounded,
             color: const Color(0xFFFCBF20),
-            size: 16.sp,
+            size: 18.sp,
           );
         }),
-        SizedBox(width: 4.w),
+        SizedBox(width: 8.w),
         Text(
-          rating.toString(),
+          rating.toStringAsFixed(1),
           style: AppTextStyles.bodyMedium.copyWith(
-            fontWeight: FontWeight.w500,
-            fontSize: 14.sp,
+            fontWeight: FontWeight.w600,
+            fontSize: 13.sp,
+            color: AppColors.textPrimary,
           ),
         ),
         SizedBox(width: 4.w),
         Text(
-          "($reviewsCount)",
+          "($reviewsCount reviews)",
           style: AppTextStyles.bodySmall.copyWith(
             color: AppColors.textSecondary,
-            fontSize: 14.sp,
+            fontSize: 13.sp,
           ),
         ),
       ],

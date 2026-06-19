@@ -6,59 +6,77 @@ import '../../../../core/constants/app_text_styles.dart';
 class AvailabilityChip extends StatelessWidget {
   final String label;
   final bool isAvailable;
+  final String? time;
 
   const AvailabilityChip({
     super.key,
     required this.label,
     required this.isAvailable,
+    this.time,
   });
 
   @override
   Widget build(BuildContext context) {
     final Color bgColor = isAvailable
         ? const Color(0xFFFFF2F5)
-        : AppColors.transparent;
-    // final Color textColor = isAvailable
-    //     ? AppColors.primary
-    //     : AppColors.textSecondary;
+        : const Color(0xFFF5F5F5);
     final Color borderColor = isAvailable
-        ? AppColors.primary.withOpacity(0.2)
-        : Color(0xffE6E8EA);
+        ? AppColors.primary.withValues(alpha: 0.15)
+        : const Color(0xFFE6E8EA);
 
     return Container(
-      width: 84.w,
-      padding: EdgeInsets.symmetric(vertical: 5.h, horizontal: 10.w),
+      padding: EdgeInsets.symmetric(vertical: 8.h, horizontal: 10.w),
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(8.r),
+        borderRadius: BorderRadius.circular(12.r),
         border: Border.all(color: borderColor),
       ),
-      child: Column(
+      child: Row(
         mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppTextStyles.bodySmall.copyWith(
-              color: isAvailable ? AppColors.textPrimary : Color(0xff989C9F),
-              fontSize: 11.sp,
-              height: 1.15,
+          Container(
+            width: 28.w,
+            height: 28.w,
+            decoration: BoxDecoration(
+              color: isAvailable
+                  ? const Color(0xFFFDE8EB)
+                  : const Color(0xFFE6E8EA),
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: Icon(
+              Icons.calendar_month_rounded,
+              color: isAvailable ? AppColors.primary : AppColors.textSecondary,
+              size: 14.sp,
             ),
           ),
-          SizedBox(height: 1.h),
-          Text(
-            isAvailable ? 'Available' : 'Unavailable',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppTextStyles.bodySmall.copyWith(
-              color: isAvailable ? Color(0xffE81848) : Color(0xff989C9F),
-              fontWeight: FontWeight.w400,
-              fontSize: 10.sp,
-              height: 1.15,
-            ),
+          SizedBox(width: 8.w),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                label,
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: isAvailable ? AppColors.textPrimary : const Color(0xFF989C9F),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 11.sp,
+                  height: 1.15,
+                ),
+              ),
+              if (time != null) ...[
+                SizedBox(height: 2.h),
+                Text(
+                  time!,
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: isAvailable ? AppColors.primary : const Color(0xFF989C9F),
+                    fontWeight: FontWeight.w500,
+                    fontSize: 10.sp,
+                    height: 1.15,
+                  ),
+                ),
+              ],
+            ],
           ),
         ],
       ),

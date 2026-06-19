@@ -193,14 +193,27 @@ class HealerModel extends Equatable {
     // Map session slots to availability
     // Note: this is a simple mapping. A full implementation would group by date.
     final availability = item.sessionSlots.map((slot) {
-      DateTime dt;
+      DateTime? dt;
       String dayStr = '';
       String dateStr = '';
-      try {
-        dt = DateTime.parse(slot.date);
-        dayStr = DateFormat('E').format(dt);
-        dateStr = DateFormat('MMM dd').format(dt);
-      } catch (_) {}
+      if (slot.date.isNotEmpty && slot.date != 'null') {
+        try {
+          dt = DateTime.parse(slot.date);
+          dayStr = DateFormat('E').format(dt);
+          dateStr = DateFormat('MMM dd').format(dt);
+        } catch (_) {}
+      }
+
+      if (dateStr.isEmpty) {
+        if (slot.dayOfWeek > 0 && slot.dayOfWeek <= 7) {
+          final weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+          dayStr = weekdays[slot.dayOfWeek - 1];
+          dateStr = dayStr;
+        } else {
+          dayStr = 'Slot';
+          dateStr = 'Slot';
+        }
+      }
 
       // Convert startTime to a string period based on hour
       String period = 'Morning';
@@ -213,11 +226,24 @@ class HealerModel extends Equatable {
         }
       } catch (_) {}
 
+      String timeRange = '';
+      if (slot.startTime.isNotEmpty && slot.endTime.isNotEmpty) {
+        String formatTime(String timeStr) {
+          final parts = timeStr.split(':');
+          if (parts.length >= 2) {
+            return '${parts[0]}:${parts[1]}';
+          }
+          return timeStr;
+        }
+        timeRange = '${formatTime(slot.startTime)} - ${formatTime(slot.endTime)}';
+      }
+
       return HealerAvailability(
         date: dateStr,
         day: dayStr,
         isAvailable: slot.availabilityType == 1,
         periods: [period],
+        time: timeRange,
       );
     }).toList();
 
@@ -249,14 +275,27 @@ class HealerModel extends Equatable {
     }
 
     final availability = item.sessionSlots.map((slot) {
-      DateTime dt;
+      DateTime? dt;
       String dayStr = '';
       String dateStr = '';
-      try {
-        dt = DateTime.parse(slot.date);
-        dayStr = DateFormat('E').format(dt);
-        dateStr = DateFormat('MMM dd').format(dt);
-      } catch (_) {}
+      if (slot.date.isNotEmpty && slot.date != 'null') {
+        try {
+          dt = DateTime.parse(slot.date);
+          dayStr = DateFormat('E').format(dt);
+          dateStr = DateFormat('MMM dd').format(dt);
+        } catch (_) {}
+      }
+
+      if (dateStr.isEmpty) {
+        if (slot.dayOfWeek > 0 && slot.dayOfWeek <= 7) {
+          final weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+          dayStr = weekdays[slot.dayOfWeek - 1];
+          dateStr = dayStr;
+        } else {
+          dayStr = 'Slot';
+          dateStr = 'Slot';
+        }
+      }
 
       String period = 'Morning';
       try {
@@ -268,11 +307,24 @@ class HealerModel extends Equatable {
         }
       } catch (_) {}
 
+      String timeRange = '';
+      if (slot.startTime.isNotEmpty && slot.endTime.isNotEmpty) {
+        String formatTime(String timeStr) {
+          final parts = timeStr.split(':');
+          if (parts.length >= 2) {
+            return '${parts[0]}:${parts[1]}';
+          }
+          return timeStr;
+        }
+        timeRange = '${formatTime(slot.startTime)} - ${formatTime(slot.endTime)}';
+      }
+
       return HealerAvailability(
         date: dateStr,
         day: dayStr,
         isAvailable: slot.availabilityType == 1,
         periods: [period],
+        time: timeRange,
       );
     }).toList();
 
@@ -366,6 +418,7 @@ class HealerModel extends Equatable {
           periods: ['Morning', 'Evening'],
           date: 'Mar 01',
           isAvailable: true,
+          time: '09:00 - 17:00',
         ),
       ],
       description: 'A dedicated learning space designed to help individuals understand healing practices.',
@@ -403,9 +456,16 @@ class HealerAvailability extends Equatable {
   final bool isAvailable;
   final String day;
   final List<String> periods;
+  final String? time;
 
-  const HealerAvailability({required this.date, required this.isAvailable,required this.day, required this.periods});
+  const HealerAvailability({
+    required this.date,
+    required this.isAvailable,
+    required this.day,
+    required this.periods,
+    this.time,
+  });
 
   @override
-  List<Object?> get props => [date, isAvailable];
+  List<Object?> get props => [date, isAvailable, day, periods, time];
 }

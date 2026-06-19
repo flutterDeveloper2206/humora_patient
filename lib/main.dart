@@ -114,8 +114,10 @@ class MyApp extends StatelessWidget {
               ),
               routerConfig: AppRouter.router,
               builder: (context, child) {
-                return SessionReminderCoordinator(
-                  child: child ?? const SizedBox.shrink(),
+                return SafeArea(
+                  child: SessionReminderCoordinator(
+                    child: child ?? const SizedBox.shrink(),
+                  ),
                 );
               },
             ),

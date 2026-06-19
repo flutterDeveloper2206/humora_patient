@@ -56,6 +56,7 @@ class _HealerCarouselCardState extends State<HealerCarouselCard> {
       decoration: BoxDecoration(
         image: const DecorationImage(
           image: AssetImage('assets/image/cardbg.png'),
+          fit: BoxFit.fill,
         ),
         borderRadius: BorderRadius.circular(28.r),
       ),
@@ -89,7 +90,7 @@ class _HealerCarouselCardState extends State<HealerCarouselCard> {
 
           // Content Layout
           Padding(
-            padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 20.h),
+            padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 16.h),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -120,7 +121,7 @@ class _HealerCarouselCardState extends State<HealerCarouselCard> {
                     ),
                   ],
                 ),
-                SizedBox(height: 16.h),
+                SizedBox(height: 12.h),
                 Text(
                   widget.healer.name,
                   style: AppTextStyles.h2.copyWith(
@@ -129,25 +130,7 @@ class _HealerCarouselCardState extends State<HealerCarouselCard> {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                SizedBox(height: 4.h),
-                Row(
-                  children: [
-                    CommonImage(
-                      path: 'assets/image/solar_star-bold-duotone.png',
-                      height: 18.h,
-                      width: 18.w,
-                    ),
-                    SizedBox(width: 4.w),
-                    Text(
-                      "${widget.healer.rating} (${widget.healer.reviewsCount})",
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: const Color(0XFFFDFFFB),
-                        fontWeight: FontWeight.w500,
-                        fontSize: 15.sp,
-                      ),
-                    ),
-                  ],
-                ),
+                // Hidden rating/reviews for now
                 const Spacer(),
                 // Glassmorphism Availability Panel
                 ClipRRect(
@@ -287,7 +270,7 @@ class _HealerCarouselCardState extends State<HealerCarouselCard> {
             margin: EdgeInsets.all(2.w),
             padding: EdgeInsets.all(4.w),
             decoration: BoxDecoration(
-              color: isSelected ? Colors.white : Colors.white.withOpacity(0.4),
+              color: isSelected ? Colors.white : Colors.transparent,
               borderRadius: BorderRadius.circular(10.r),
             ),
             child: Column(
@@ -295,8 +278,9 @@ class _HealerCarouselCardState extends State<HealerCarouselCard> {
                 Text(
                   dayName,
                   style: AppTextStyles.bodyMedium.copyWith(
-                    color: isSelected ? AppColors.primary : Colors.white,
+                    color: isSelected ? AppColors.primary : Colors.white.withOpacity(0.9),
                     fontSize: 11.sp,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                   ),
                 ),
                 SizedBox(height: 6.h),
@@ -306,7 +290,7 @@ class _HealerCarouselCardState extends State<HealerCarouselCard> {
                   decoration: BoxDecoration(
                     color: isSelected
                         ? AppColors.primary
-                        : Colors.white.withOpacity(0.4),
+                        : Colors.transparent,
                     shape: BoxShape.circle,
                   ),
                   child: Center(
@@ -315,6 +299,7 @@ class _HealerCarouselCardState extends State<HealerCarouselCard> {
                       style: AppTextStyles.bodyMedium.copyWith(
                         color: Colors.white,
                         fontSize: 11.sp,
+                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                       ),
                     ),
                   ),
