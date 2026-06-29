@@ -4,8 +4,11 @@ import 'package:go_router/go_router.dart';
 import 'package:humora_patient/common/widgets/common_image.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../../../core/utils/session_manager.dart';
 import '../../../../core/notifications/notification_badge_controller.dart';
+import '../../../../core/utils/session_manager.dart';
+import '../../../auth/data/repositories/auth_repository_impl.dart';
+import '../../../auth/domain/usecases/verify_token_usecase.dart';
+import '../../../auth/presentation/utils/onboarding_navigator.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -34,16 +37,36 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _checkLoginState() async {
-    // Delay to show splash screen animation
     await Future.delayed(const Duration(seconds: 3));
 
     if (!mounted) return;
 
     final hasToken = await SessionManager.hasToken();
-    if (hasToken) {
+    if (!mounted) return;
+    if (!hasToken) {
+      context.go('/welcome');
+      return;
+    }
+
+    try {
+      final token = await SessionManager.getToken();
+      if (token == null || token.isEmpty) {
+        await SessionManager.clearSession();
+        if (!mounted) return;
+        context.go('/welcome');
+        return;
+      }
+
+      final verifyResult =
+          await VerifyTokenUseCase(AuthRepositoryImpl())(token);
+      await OnboardingNavigator.persistUserData(verifyResult.userData);
       await NotificationBadgeController.instance.refreshUnreadCount();
-      context.go('/home');
-    } else {
+
+      if (!mounted) return;
+      OnboardingNavigator.go(context, verifyResult.userData.onboardingStep);
+    } catch (_) {
+      await SessionManager.clearSession();
+      if (!mounted) return;
       context.go('/welcome');
     }
   }
@@ -62,11 +85,11 @@ class _SplashScreenState extends State<SplashScreen>
         children: [
           FadeTransition(
             opacity: _fadeAnimation,
-            child: Center(
+            child: SizedBox.expand(
               child: CommonImage(
-                height: double.maxFinite,
-                width: MediaQuery.of(context).size.width,
-                fit: BoxFit.fill,
+                width: double.infinity,
+                height: double.infinity,
+                fit: BoxFit.cover,
                 path: 'assets/image/splash.png',
               ),
             ),

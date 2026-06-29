@@ -8,14 +8,17 @@ import 'package:auto_skeleton/auto_skeleton.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'firebase_options.dart';
 import 'routes/app_router.dart';
-import 'core/constants/app_colors.dart';
 import 'core/constants/stripe_config.dart';
+import 'core/layout/app_layout.dart';
+import 'core/theme/app_theme.dart';
 import 'core/network/app_hub_lifecycle.dart';
 import 'core/network/connectivity_service.dart';
 import 'core/network/signalr_logging.dart';
+import 'core/incoming_call/callkit_incoming_service.dart';
 import 'core/notifications/firebase_background_handler.dart';
 import 'core/notifications/notification_service.dart';
 import 'core/notifications/session_reminder_coordinator.dart';
+import 'features/incoming_call/presentation/coordinators/incoming_call_coordinator.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
 
 import 'package:flutter/services.dart';
@@ -37,6 +40,7 @@ Future<void> main() async {
     );
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
     await NotificationService.instance.init();
+    await CallKitIncomingService.instance.init();
   }
 
   Stripe.publishableKey = StripeConfig.publishableKey;
@@ -45,16 +49,13 @@ Future<void> main() async {
 
   ConnectivityService.instance.bindNavigatorKey(AppRouter.rootNavigatorKey);
   await ConnectivityService.instance.init();
-
   SignalRLogging.init(enabled: kDebugMode);
-
   // Intercept the low-level keyevent message channel to catch and suppress the framework desync assertion error
   SystemChannels.keyEvent.setMessageHandler((dynamic message) async {
     try {
       return await ServicesBinding.instance.keyEventManager.handleRawKeyMessage(message);
     } catch (e) {
       if (_isBenignDebugAssertion(e)) {
-        // Suppress this transient framework assertion crash gracefully during debugging
         return {'handled': true};
       }
       rethrow;
@@ -105,19 +106,45 @@ class MyApp extends StatelessWidget {
             child: MaterialApp.router(
               title: 'Humora Patient',
               debugShowCheckedModeBanner: false,
-              theme: ThemeData(
-                primaryColor: AppColors.primary,
-                scaffoldBackgroundColor: AppColors.background,
-                colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primary),
-                useMaterial3: true,
-                fontFamily: 'GeneralSans',
-              ),
+              theme: AppTheme.light(),
               routerConfig: AppRouter.router,
               builder: (context, child) {
-                return SafeArea(
-                  child: SessionReminderCoordinator(
-                    child: child ?? const SizedBox.shrink(),
-                  ),
+                return ListenableBuilder(
+                  listenable: AppRouter.router.routeInformationProvider,
+                  builder: (context, _) {
+                    final routePath = AppRouter
+                        .router.routeInformationProvider.value.uri.path;
+                    final fullBleed = AppLayout.isFullBleedRoute(routePath);
+                    final isHome = AppLayout.isHomeRoute(routePath);
+
+                    final scaled = MediaQuery(
+                      data: MediaQuery.of(context).copyWith(
+                        textScaler: AppLayout.clampTextScaler(
+                          MediaQuery.textScalerOf(context),
+                        ),
+                      ),
+                      child: child ?? const SizedBox.shrink(),
+                    );
+
+                    if (fullBleed || isHome) {
+                      return IncomingCallCoordinator(
+                        child: SessionReminderCoordinator(child: scaled),
+                      );
+                    }
+
+                    return IncomingCallCoordinator(
+                      child: SessionReminderCoordinator(
+                        child: scaled
+                        // SafeArea(
+                        //   top: true,
+                        //   bottom: !isHome,
+                        //   left: true,
+                        //   right: true,
+                        //   child: scaled,
+                        // ),
+                      ),
+                    );
+                  },
                 );
               },
             ),

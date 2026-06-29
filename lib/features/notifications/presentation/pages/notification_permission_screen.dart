@@ -20,14 +20,18 @@ class NotificationPermissionScreen extends StatelessWidget {
       create: (context) => NotificationPermissionBloc(),
       child:
           BlocListener<NotificationPermissionBloc, NotificationPermissionState>(
+            listenWhen: (previous, current) =>
+                previous.status != current.status &&
+                current.status != NotificationPermissionStatus.loading &&
+                current.status != NotificationPermissionStatus.initial,
             listener: (context, state) {
               if (state.status == NotificationPermissionStatus.granted ||
                   state.status == NotificationPermissionStatus.denied ||
                   state.status == NotificationPermissionStatus.skipped) {
                 if (fromSignup) {
-                  context.push('/finish-signup');
+                  context.pushReplacement('/permissions');
                 } else {
-                  context.push('/healing-focus');
+                  context.pushReplacement('/healing-focus');
                 }
               }
             },

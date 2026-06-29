@@ -9,6 +9,8 @@ import 'package:humora_patient/features/auth/domain/repositories/auth_repository
 import 'package:humora_patient/features/auth/domain/usecases/save_profile_usecase.dart';
 import 'package:humora_patient/features/auth/domain/usecases/send_otp_usecase.dart';
 import 'package:humora_patient/features/auth/domain/usecases/verify_otp_usecase.dart';
+import 'package:humora_patient/features/auth/domain/usecases/verify_token_usecase.dart';
+import 'package:humora_patient/features/auth/presentation/utils/onboarding_navigator.dart';
 
 import 'auth_event.dart';
 import 'auth_state.dart';
@@ -16,11 +18,13 @@ import 'auth_state.dart';
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final SendOtpUseCase _sendOtp;
   final VerifyOtpUseCase _verifyOtp;
+  final VerifyTokenUseCase _verifyToken;
   final SaveProfileUseCase _saveProfile;
 
   AuthBloc({AuthRepository? repository})
     : _sendOtp = SendOtpUseCase(repository ?? AuthRepositoryImpl()),
       _verifyOtp = VerifyOtpUseCase(repository ?? AuthRepositoryImpl()),
+      _verifyToken = VerifyTokenUseCase(repository ?? AuthRepositoryImpl()),
       _saveProfile = SaveProfileUseCase(repository ?? AuthRepositoryImpl()),
       super(AuthInitial()) {
     on<SendOtpRequested>((event, emit) async {
@@ -57,7 +61,18 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         if (response.currencyId.isNotEmpty) {
           await SessionManager.saveCurrencyId(response.currencyId);
         }
-        emit(OtpVerificationSuccess(response.onboardingStep));
+
+        final token = response.token.isNotEmpty
+            ? response.token
+            : await SessionManager.getToken();
+        if (token == null || token.isEmpty) {
+          emit(const AuthError('Authentication token not found'));
+          return;
+        }
+
+        final verifyResult = await _verifyToken(token);
+        await OnboardingNavigator.persistUserData(verifyResult.userData);
+        emit(OtpVerificationSuccess(verifyResult.userData.onboardingStep));
       } catch (e) {
         emit(AuthError(e.toString()));
       }

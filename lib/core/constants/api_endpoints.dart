@@ -12,6 +12,7 @@ class ApiEndpoints {
 
   static const String sendOtp = '$baseUrl/Patient/send-otp';
   static const String verifyOtp = '$baseUrl/Patient/verify-otp';
+  static const String verifyToken = '$baseUrl/Patient/verify-token';
 
   static String saveProfile(String patientId) =>
       '$baseUrl/Patient/profile/$patientId';
@@ -34,6 +35,8 @@ class ApiEndpoints {
 
   static String myBookings({bool isHealer = false}) =>
       '$baseUrl/booking/my?isHealer=$isHealer';
+
+  static const String healerCalendar = '$baseUrl/HealerCalendar';
 
   static String bookingDetail(String bookingId) =>
       '$baseUrl/booking/$bookingId';
@@ -64,6 +67,8 @@ class ApiEndpoints {
       '$baseUrl/agora/$bookingId/state';
 
   // Live consultation
+  static const String liveAccept = '$baseUrl/live/accept';
+  static const String liveReject = '$baseUrl/live/reject';
   static const String liveRequest = '$baseUrl/live/request';
   static String liveRequestStatus(String requestId) =>
       '$baseUrl/live/request/$requestId';

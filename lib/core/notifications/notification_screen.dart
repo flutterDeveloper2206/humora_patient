@@ -10,6 +10,8 @@ class NotificationScreen {
   static const walletEarnings = 'wallet_earnings';
   static const dashboard = 'dashboard';
   static const healerOnboarding = 'healer_onboarding';
+  static const incomingCall = 'incoming_call';
+  static const notifications = 'notifications';
 
   static String normalize(String? raw) {
     final value = raw?.trim().toLowerCase() ?? '';

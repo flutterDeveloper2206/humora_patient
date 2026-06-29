@@ -105,6 +105,32 @@ class AuthApiService {
     }
   }
 
+  /// Validates the stored JWT and returns current onboarding state.
+  Future<VerifyTokenResponse> verifyToken(String token) async {
+    if (token.isEmpty) {
+      throw Exception('Authentication token not found');
+    }
+
+    final url = Uri.parse(ApiEndpoints.verifyToken);
+    final headers = {
+      'accept': '*/*',
+      'Authorization': 'Bearer $token',
+    };
+
+    developer.log('--- API REQUEST ---', name: 'AuthApiService');
+    developer.log('URL: $url', name: 'AuthApiService');
+    developer.log('Headers: $headers', name: 'AuthApiService');
+
+    try {
+      final response = await _client.get(url, headers: headers);
+      final responseData = _parseResponse(response, url);
+      return VerifyTokenResponse.fromJson(responseData);
+    } catch (e) {
+      developer.log('API Error: $e', name: 'AuthApiService', error: e);
+      throw Exception(e.toString().replaceAll('Exception: ', ''));
+    }
+  }
+
   /// Saves patient profile data
   Future<SaveProfileResponse> saveProfile(
       SaveProfileRequest request, String token, String patientId) async {

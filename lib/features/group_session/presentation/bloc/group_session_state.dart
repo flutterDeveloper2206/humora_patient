@@ -51,6 +51,7 @@ class GroupSessionState extends Equatable {
   final bool isMyMuted;
   final bool isMyVideoOff;
   final String sessionTitle;
+  final String healerImage;
   final String? errorMessage;
   final RtcEngine? engine;
   final GroupSessionEndedPayload? endSummary;
@@ -64,6 +65,7 @@ class GroupSessionState extends Equatable {
     this.isMyMuted = false,
     this.isMyVideoOff = false,
     this.sessionTitle = 'Group Session',
+    this.healerImage = 'assets/image/doctorprofile.png',
     this.errorMessage,
     this.engine,
     this.endSummary,
@@ -88,6 +90,7 @@ class GroupSessionState extends Equatable {
     bool? isMyMuted,
     bool? isMyVideoOff,
     String? sessionTitle,
+    String? healerImage,
     String? errorMessage,
     RtcEngine? engine,
     GroupSessionEndedPayload? endSummary,
@@ -103,6 +106,7 @@ class GroupSessionState extends Equatable {
       isMyMuted: isMyMuted ?? this.isMyMuted,
       isMyVideoOff: isMyVideoOff ?? this.isMyVideoOff,
       sessionTitle: sessionTitle ?? this.sessionTitle,
+      healerImage: healerImage ?? this.healerImage,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       engine: clearEngine ? null : (engine ?? this.engine),
       endSummary: endSummary ?? this.endSummary,
@@ -121,6 +125,7 @@ class GroupSessionState extends Equatable {
         isMyMuted,
         isMyVideoOff,
         sessionTitle,
+        healerImage,
         errorMessage,
         engine,
         endSummary,

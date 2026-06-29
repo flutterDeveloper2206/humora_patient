@@ -1,4 +1,3 @@
-import 'package:auto_skeleton/auto_skeleton.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -10,8 +9,10 @@ import '../../../agora/presentation/models/call_phase.dart';
 import '../../../agora/presentation/models/call_route_args.dart';
 import '../../../agora/presentation/widgets/call_error_body.dart';
 import '../../../agora/presentation/widgets/call_missing_args_screen.dart';
+import '../../../agora/presentation/widgets/call_ringing_body.dart';
 import '../../../live_consultation/presentation/utils/live_end_navigator.dart';
 import '../../../live_consultation/presentation/bloc/live_session_cubit.dart';
+import '../../../live_consultation/presentation/widgets/live_outbound_ringing_host.dart';
 import '../../../../../common/widgets/common_image.dart';
 import '../bloc/voice_call_bloc.dart';
 import '../bloc/voice_call_event.dart';
@@ -26,6 +27,17 @@ class VoiceCallScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final callArgs = args;
     if (callArgs == null) {
+      return const CallMissingArgsScreen(title: 'Voice call unavailable');
+    }
+
+    if (callArgs.isPendingLiveRequest) {
+      return LiveOutboundRingingHost(
+        args: callArgs.pendingConsultation!,
+        mode: CallMode.audio,
+      );
+    }
+
+    if (callArgs.bookingId.isEmpty) {
       return const CallMissingArgsScreen(title: 'Voice call unavailable');
     }
 
@@ -52,136 +64,145 @@ class VoiceCallView extends StatelessWidget {
   final bool isLive;
   final String bookingId;
 
-  const VoiceCallView({
-    super.key,
-    this.isLive = false,
-    this.bookingId = '',
-  });
+  const VoiceCallView({super.key, this.isLive = false, this.bookingId = ''});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Stack(
-        children: [
-          const GridBackground(),
-          SafeArea(
-            child: MultiBlocListener(
-              listeners: [
-                if (isLive) ...[
-                  BlocListener<LiveSessionCubit, LiveSessionState>(
-                    listenWhen: (prev, curr) =>
-                        curr.sessionEnded != null &&
-                        prev.sessionEnded != curr.sessionEnded,
-                    listener: (context, state) async {
-                      final summary = state.sessionEnded;
-                      if (summary == null || !context.mounted) return;
-                      await finishLiveSessionFromSummary(
-                        context: context,
-                        bookingId: bookingId,
-                        summary: summary,
-                        healerName: context.read<VoiceCallBloc>().state.callerName,
-                        healerImage: context.read<VoiceCallBloc>().state.callerImage,
-                        healerRole: 'Healer',
-                        sessionType: 'Live',
-                      );
-                    },
-                  ),
-                  BlocListener<LiveSessionCubit, LiveSessionState>(
-                    listenWhen: (prev, curr) =>
-                        curr.lowBalanceWarning != null &&
-                        prev.lowBalanceWarning != curr.lowBalanceWarning,
-                    listener: (context, state) {
-                      final warning = state.lowBalanceWarning;
-                      if (warning != null && context.mounted) {
-                        CommonFlushbar.error(
-                          context,
-                          'Low wallet balance. About ${warning.estimatedMinutesLeft} minutes left.',
-                        );
-                      }
-                    },
-                  ),
-                ],
-                BlocListener<VoiceCallBloc, VoiceCallState>(
-                  listenWhen: (prev, curr) =>
-                      curr.phase == CallPhase.ended && !isLive,
-                  listener: (context, state) {
-                    if (context.mounted) context.pop();
-                  },
-                ),
-                BlocListener<VoiceCallBloc, VoiceCallState>(
-                  listenWhen: (prev, curr) =>
-                      isLive &&
-                      curr.phase == CallPhase.ended &&
-                      prev.phase != CallPhase.ended,
-                  listener: (context, state) async {
-                    await finishLiveSessionFromSummary(
-                      context: context,
-                      bookingId: bookingId,
-                      summary: state.sessionSummary,
-                      healerName: state.callerName,
-                      healerImage: state.callerImage,
-                      healerRole: 'Healer',
-                      sessionType: 'Live',
-                    );
-                  },
-                ),
-              ],
-              child: BlocBuilder<VoiceCallBloc, VoiceCallState>(
-                builder: (context, state) {
-                  if (state.phase == CallPhase.error) {
-                    return CallErrorBody(
-                      message: state.errorMessage ?? 'Something went wrong',
-                      onRetry: () =>
-                          context.read<VoiceCallBloc>().add(RetryCall()),
-                    );
-                  }
-
-                  return AutoSkeleton(
-                    enabled: state.isLoading,
-                    child: Column(
-                      children: [
-                        SizedBox(height: 10.h),
-                        Text(
-                          state.isLoading ? 'Connecting…' : 'Voice Call',
-                          style: AppTextStyles.bodyMedium.copyWith(
-                            color: const Color(0xff262A2D),
-                            fontSize: 16.sp,
-                          ),
-                        ),
-                        const Spacer(flex: 2),
-                        _buildAvatar(state.callerImage),
-                        SizedBox(height: 16.h),
-                        Text(
-                          state.callerName,
-                          style: AppTextStyles.h2.copyWith(
-                            fontSize: 28.sp,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFF0C0C1C),
-                          ),
-                        ),
-                        SizedBox(height: 16.h),
-                        _buildTimerChip(state.duration),
-                        const Spacer(flex: 3),
-                        if (state.phase == CallPhase.inProgress) ...[
-                          Text(
-                            'ACTIONS',
-                            style: AppTextStyles.bodyMedium.copyWith(
-                              color: const Color(0xff656565),
-                            ),
-                          ),
-                          SizedBox(height: 20.h),
-                          _buildControlButtons(context, state),
-                        ] else
-                          SizedBox(height: 120.h),
-                      ],
-                    ),
+      body: SafeArea(
+        child: MultiBlocListener(
+          listeners: [
+            if (isLive) ...[
+              BlocListener<LiveSessionCubit, LiveSessionState>(
+                listenWhen: (prev, curr) =>
+                    curr.sessionEnded != null &&
+                    prev.sessionEnded != curr.sessionEnded,
+                listener: (context, state) async {
+                  final summary = state.sessionEnded;
+                  if (summary == null || !context.mounted) return;
+                  await finishLiveSessionFromSummary(
+                    context: context,
+                    bookingId: bookingId,
+                    summary: summary,
+                    healerName: context.read<VoiceCallBloc>().state.callerName,
+                    healerImage: context
+                        .read<VoiceCallBloc>()
+                        .state
+                        .callerImage,
+                    healerRole: 'Healer',
+                    sessionType: 'Live',
                   );
                 },
               ),
+              BlocListener<LiveSessionCubit, LiveSessionState>(
+                listenWhen: (prev, curr) =>
+                    curr.lowBalanceWarning != null &&
+                    prev.lowBalanceWarning != curr.lowBalanceWarning,
+                listener: (context, state) {
+                  final warning = state.lowBalanceWarning;
+                  if (warning != null && context.mounted) {
+                    CommonFlushbar.error(
+                      context,
+                      'Low wallet balance. About ${warning.estimatedMinutesLeft} minutes left.',
+                    );
+                  }
+                },
+              ),
+            ],
+            BlocListener<VoiceCallBloc, VoiceCallState>(
+              listenWhen: (prev, curr) =>
+                  curr.phase == CallPhase.ended && !isLive,
+              listener: (context, state) {
+                if (context.mounted) context.pop();
+              },
             ),
+            BlocListener<VoiceCallBloc, VoiceCallState>(
+              listenWhen: (prev, curr) =>
+                  isLive &&
+                  curr.phase == CallPhase.ended &&
+                  prev.phase != CallPhase.ended,
+              listener: (context, state) async {
+                await finishLiveSessionFromSummary(
+                  context: context,
+                  bookingId: bookingId,
+                  summary: state.sessionSummary,
+                  healerName: state.callerName,
+                  healerImage: state.callerImage,
+                  healerRole: 'Healer',
+                  sessionType: 'Live',
+                );
+              },
+            ),
+          ],
+          child: BlocBuilder<VoiceCallBloc, VoiceCallState>(
+            builder: (context, state) {
+              if (state.phase == CallPhase.error) {
+                return CallErrorBody(
+                  message: state.errorMessage ?? 'Something went wrong',
+                  onRetry: () => context.read<VoiceCallBloc>().add(RetryCall()),
+                );
+              }
+
+              if (state.phase != CallPhase.inProgress) {
+                return CallRingingBody(
+                  sessionLabel: 'Voice Call',
+                  name: state.callerName,
+                  imagePath: state.callerImage,
+                  mode:
+                      state.phase == CallPhase.loadingToken ||
+                          state.phase == CallPhase.initial
+                      ? CallRingingMode.connecting
+                      : CallRingingMode.ringing,
+                  bottom: Padding(
+                    padding: EdgeInsets.only(bottom: 32.h),
+                    child: Center(
+                      child: CallRingingEndButton(
+                        onPressed: () =>
+                            context.read<VoiceCallBloc>().add(EndCall()),
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              return Column(
+                children: [
+                  SizedBox(height: 10.h),
+                  Text(
+                    'Voice Call',
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: const Color(0xff262A2D),
+                      fontSize: 16.sp,
+                    ),
+                  ),
+                  const Spacer(flex: 2),
+                  _buildAvatar(state.callerImage),
+                  SizedBox(height: 16.h),
+                  Text(
+                    state.callerName,
+                    style: AppTextStyles.h2.copyWith(
+                      fontSize: 28.sp,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF0C0C1C),
+                    ),
+                  ),
+                  SizedBox(height: 16.h),
+                  _buildTimerChip(state.duration),
+                  const Spacer(flex: 3),
+                  Text(
+                    'ACTIONS',
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: const Color(0xff656565),
+                    ),
+                  ),
+                  SizedBox(height: 20.h),
+                  _buildControlButtons(context, state),
+                ],
+              );
+            },
           ),
-        ],
+        ),
       ),
     );
   }
@@ -256,8 +277,7 @@ class VoiceCallView extends StatelessWidget {
           SizedBox(width: 32.w),
           _buildCircleButton(
             icon: 'PhoneDisconnect.png',
-            onPressed: () =>
-                context.read<VoiceCallBloc>().add(EndCall()),
+            onPressed: () => context.read<VoiceCallBloc>().add(EndCall()),
             backgroundColor: const Color(0xFFF52D56),
             iconColor: Colors.white,
             isLarge: true,
@@ -267,8 +287,7 @@ class VoiceCallView extends StatelessWidget {
           SizedBox(width: 32.w),
           _buildCircleButton(
             icon: 'humbleicons_volume-1.png',
-            onPressed: () =>
-                context.read<VoiceCallBloc>().add(ToggleSpeaker()),
+            onPressed: () => context.read<VoiceCallBloc>().add(ToggleSpeaker()),
             backgroundColor: state.isSpeakerOn
                 ? const Color(0xFF1E1E1E)
                 : const Color(0xFFF5F7F9),
@@ -319,35 +338,4 @@ class VoiceCallView extends StatelessWidget {
       ),
     );
   }
-}
-
-class GridBackground extends StatelessWidget {
-  const GridBackground({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(painter: GridPainter(), child: Container());
-  }
-}
-
-class GridPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFFF1F5F9).withOpacity(0.5)
-      ..strokeWidth = 1.0;
-
-    const double step = 35.0;
-
-    for (double i = 0; i < size.width; i += step) {
-      canvas.drawLine(Offset(i, 0), Offset(i, size.height), paint);
-    }
-
-    for (double i = 0; i < size.height; i += step) {
-      canvas.drawLine(Offset(0, i), Offset(size.width, i), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }

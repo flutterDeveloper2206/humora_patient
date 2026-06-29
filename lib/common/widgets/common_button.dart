@@ -37,7 +37,8 @@ class CommonButton extends StatelessWidget {
       width: width ?? double.infinity,
       height: height ?? 52.h,
       child: ElevatedButton(
-        onPressed: ( isDisabled) ? null : onPressed,
+        onPressed: isLoading ? () {} : onPressed,
+
         style: ElevatedButton.styleFrom(
           backgroundColor: backgroundColor ?? AppColors.primary,
           foregroundColor: textColor ?? AppColors.white,
@@ -59,7 +60,11 @@ class CommonButton extends StatelessWidget {
               )
             : Text(
                 text,
-                style: textStyle??AppTextStyles.button.copyWith(color:isDisabled?AppColors.black: textColor),
+                style:
+                    textStyle ??
+                    AppTextStyles.button.copyWith(
+                      color: isDisabled ? AppColors.black : textColor,
+                    ),
               ),
       ),
     );

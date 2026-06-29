@@ -7,6 +7,7 @@ import '../../../../../common/utils/common_flushbar.dart';
 import '../../../../../common/widgets/common_button.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
+import '../../../../core/layout/app_layout.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
@@ -96,7 +97,10 @@ class _FinishSignupScreenState extends State<FinishSignupScreen>
                 context,
                 state.message ?? "Signup Completed!",
               );
-              context.push('/permissions');
+              context.pushReplacement(
+                '/notification-permission',
+                extra: {'fromSignup': true},
+              );
             } else if (state is AuthError) {
               CommonFlushbar.error(context, state.message);
             }
@@ -272,6 +276,7 @@ class _FinishSignupScreenState extends State<FinishSignupScreen>
               hintStyle: AppTextStyles.bodyMedium.copyWith(
                 color: AppColors.textHint,
               ),
+
               border: InputBorder.none,
               contentPadding: EdgeInsets.symmetric(
                 horizontal: 16.w,
@@ -315,7 +320,10 @@ class _FinishSignupScreenState extends State<FinishSignupScreen>
           hintStyle: AppTextStyles.bodyMedium.copyWith(
             color: AppColors.textHint,
           ),
+          focusedBorder: InputBorder.none,
           border: InputBorder.none,
+          disabledBorder: InputBorder.none,
+          fillColor: Colors.transparent,
           contentPadding: EdgeInsets.symmetric(
             horizontal: 16.w,
             vertical: 16.h,
@@ -363,11 +371,11 @@ class _FinishSignupScreenState extends State<FinishSignupScreen>
             padding: EdgeInsets.all(1.w),
             child: isSelected
                 ? Container(
-                    decoration: const BoxDecoration(
-                      color: AppColors.black,
-                      shape: BoxShape.circle,
-                    ),
-                  )
+              decoration: const BoxDecoration(
+                color: AppColors.black,
+                shape: BoxShape.circle,
+              ),
+            )
                 : null,
           ),
           SizedBox(width: 8.w),
@@ -410,14 +418,14 @@ class _FinishSignupScreenState extends State<FinishSignupScreen>
                     primary: AppColors.primary,
                   ),
                 ),
-                child: child!,
+                child: AppLayout.datePickerBuilder(context, child),
               );
             },
           );
           if (date != null) {
             setState(() {
               _birthdateController.text =
-                  "${date.month}/${date.day}/${date.year}";
+              "${date.month}/${date.day}/${date.year}";
             });
           }
         },

@@ -13,10 +13,15 @@ class PermissionInitial extends PermissionState {}
 
 class ShowingPermissionDialog extends PermissionState {
   final PermissionType type;
-  const ShowingPermissionDialog(this.type);
+  final bool isDenied;
+
+  const ShowingPermissionDialog(
+    this.type, {
+    this.isDenied = false,
+  });
 
   @override
-  List<Object?> get props => [type];
+  List<Object?> get props => [type, isDenied];
 }
 
 class PermissionGranted extends PermissionState {

@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart';
+
+import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
 
 class DateSelector extends StatelessWidget {
   final DateTime selectedDate;
-  final Function(DateTime) onDateSelected;
+  final ValueChanged<DateTime> onDateSelected;
 
   const DateSelector({
     super.key,
@@ -13,24 +15,22 @@ class DateSelector extends StatelessWidget {
     required this.onDateSelected,
   });
 
+  List<DateTime> get _displayDates => List.generate(
+        5,
+        (index) => selectedDate.add(Duration(days: index - 2)),
+      );
+
   @override
   Widget build(BuildContext context) {
-    // Special case for the design date (Wednesday 25th) if not in range
-    final displayDates = [
-      DateTime(2025, 9, 23),
-      DateTime(2025, 9, 24),
-      DateTime(2025, 9, 25),
-      DateTime(2025, 9, 26),
-      DateTime(2025, 9, 27),
-    ];
-
     return Container(
       padding: EdgeInsets.symmetric(vertical: 16.h, horizontal: 8.w),
       decoration: const BoxDecoration(color: Colors.white),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: displayDates.map((date) {
+        children: _displayDates.map((date) {
           final isSelected = DateUtils.isSameDay(date, selectedDate);
+          final isToday = DateUtils.isSameDay(date, DateTime.now());
+
           return GestureDetector(
             onTap: () => onDateSelected(date),
             child: AnimatedContainer(
@@ -38,39 +38,32 @@ class DateSelector extends StatelessWidget {
               width: 58.w,
               padding: EdgeInsets.symmetric(vertical: 10.h),
               decoration: BoxDecoration(
-                color: isSelected ? const Color(0xFF1E1E1E) : Colors.white,
                 gradient: isSelected
                     ? const LinearGradient(
-                  // begin: Alignment.topLeft,
-                  // end: Alignment.bottomRight,
-                  transform: GradientRotation(6.6),
-                  colors: [
-                    Color(0xFF1F1F1F), // Base Dark
-                    Color(0xFF333333), // Base Dark
-                    Color(0xFF525252), // Central Shine
-                    Color(0xFF333333), // Base Dark
-                    Color(0xFF1F1F1F), // Base Dark
-                  ],
-                  stops: [0.0, 0.35, 0.55, 0.75, 1.0],
-                )
+                        transform: GradientRotation(6.6),
+                        colors: [
+                          Color(0xFF1F1F1F),
+                          Color(0xFF333333),
+                          Color(0xFF525252),
+                          Color(0xFF333333),
+                          Color(0xFF1F1F1F),
+                        ],
+                        stops: [0.0, 0.35, 0.55, 0.75, 1.0],
+                      )
                     : null,
+                color: isSelected ? null : Colors.white,
                 borderRadius: BorderRadius.circular(28.r),
-                // border: Border.all(
-                //   color: isSelected
-                //       ? const Color(0xFF1E1E1E)
-                //       : const Color(0xFFF1F1F1),
-                //   width: 1.w,
-                // ),
-                border: Border.all(color: const Color(0xFFF0F0F0)),
+                border: Border.all(
+                  color: isToday && !isSelected
+                      ? AppColors.primaryLiteChip
+                      : const Color(0xFFF0F0F0),
+                ),
                 boxShadow: [
                   BoxShadow(
-                    color: Color(0xfFFB5B5B26).withOpacity(0.15),
+                    color: const Color(0xFFB5B5B5).withValues(alpha: 0.15),
                     blurRadius: 1.5,
-                    spreadRadius: 0,
-                    offset: const Offset(0, 0),
                   ),
                 ],
-
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -89,11 +82,10 @@ class DateSelector extends StatelessWidget {
                   Text(
                     date.day.toString(),
                     style: AppTextStyles.h3.copyWith(
-                      color: isSelected
-                          ? Colors.white
-                          : const Color(0xFF1E1E1E),
+                      color:
+                          isSelected ? Colors.white : const Color(0xFF1E1E1E),
                       fontSize: 18.sp,
-                      fontWeight:FontWeight.w500,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],

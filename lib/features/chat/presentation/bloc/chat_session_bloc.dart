@@ -260,6 +260,7 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
     } else {
       await _loadSession(emit);
     }
+    if (isClosed) return;
     add(const MarkConversationReadOnEnter());
   }
 
@@ -497,13 +498,16 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
     // Writable window — connect hub + JoinChat (ChatFlow Steps 4–5).
     if (access.canWrite || (isLive && access.canRead && code == 'OK')) {
       final joined = await _joinHub();
+      final canCompose = isLive
+          ? (access.canRead && code == 'OK' && !_isPastClose(access))
+          : (access.canWrite && !_isPastClose(access));
       emit(
         ChatSessionActive(
           access: access,
           messages: _messages,
           healerName: healerName,
           isLiveSession: isLive,
-          canCompose: access.canWrite && !_isPastClose(access),
+          canCompose: canCompose,
           hasMoreHistory: _hasMoreHistory,
           bookingGroups: groups,
           activeBookingId: activeId,
@@ -516,6 +520,7 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
           name: 'ChatSessionBloc',
         );
       }
+      _flushInitialDraftMessages();
       return;
     }
 
@@ -1575,7 +1580,10 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
     _accessPollTimer?.cancel();
     _accessPollTimer = Timer.periodic(
       const Duration(seconds: 30),
-      (_) => add(const RefreshChatAccess()),
+      (_) {
+        if (isClosed) return;
+        add(const RefreshChatAccess());
+      },
     );
   }
 
@@ -1583,7 +1591,10 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
     _countdownTimer?.cancel();
     _countdownTimer = Timer.periodic(
       const Duration(seconds: 1),
-      (_) => add(const ChatWindowTick()),
+      (_) {
+        if (isClosed) return;
+        add(const ChatWindowTick());
+      },
     );
   }
 
@@ -1595,7 +1606,18 @@ class ChatSessionBloc extends Bloc<ChatSessionEvent, ChatSessionState> {
     final delay = closesAt.toUtc().difference(_adjustedNow());
     if (delay.isNegative) return;
 
-    _closeTimer = Timer(delay, () => add(const ChatComposerLocked()));
+    _closeTimer = Timer(delay, () {
+      if (isClosed) return;
+      add(const ChatComposerLocked());
+    });
+  }
+
+  void _flushInitialDraftMessages() {
+    for (final text in _args.initialDraftMessages) {
+      final trimmed = text.trim();
+      if (trimmed.isEmpty) continue;
+      add(SendChatMessage(trimmed));
+    }
   }
 
   Future<bool> _joinHub() async {

@@ -1,4 +1,3 @@
-import 'package:auto_skeleton/auto_skeleton.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -11,12 +10,12 @@ import '../../../agora/presentation/models/call_phase.dart';
 import '../../../agora/presentation/models/call_route_args.dart';
 import '../../../agora/presentation/widgets/call_error_body.dart';
 import '../../../agora/presentation/widgets/call_missing_args_screen.dart';
+import '../../../agora/presentation/widgets/call_ringing_body.dart';
 import '../../../receipt/presentation/models/receipt_args.dart';
 import '../bloc/group_session_bloc.dart';
 import '../bloc/group_session_event.dart';
 import '../bloc/group_session_state.dart';
 import '../widgets/group_participant_card.dart';
-import '../widgets/group_session_healer_waiting_body.dart';
 import '../widgets/main_speaker_card.dart';
 
 class GroupSessionScreen extends StatelessWidget {
@@ -44,10 +43,7 @@ class GroupSessionView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: _buildAppBar(context),
-      body: BlocConsumer<GroupSessionBloc, GroupSessionState>(
+    return BlocConsumer<GroupSessionBloc, GroupSessionState>(
         listenWhen: (prev, curr) =>
             curr.phase == CallPhase.ended && prev.phase != CallPhase.ended,
         listener: (context, state) {
@@ -100,35 +96,58 @@ class GroupSessionView extends StatelessWidget {
           context.pop();
         },
         builder: (context, state) {
+          final isRinging = state.isLoading || state.isWaitingForHealer;
+
           if (state.phase == CallPhase.error) {
-            return CallErrorBody(
-              message: state.errorMessage ?? 'Something went wrong',
-              onRetry: () =>
-                  context.read<GroupSessionBloc>().add(RetrySession()),
+            return Scaffold(
+              backgroundColor: Colors.white,
+              appBar: _buildAppBar(context),
+              body: CallErrorBody(
+                message: state.errorMessage ?? 'Something went wrong',
+                onRetry: () =>
+                    context.read<GroupSessionBloc>().add(RetrySession()),
+              ),
             );
           }
 
-          if (state.isLoading) {
-            return AutoSkeleton(
-              enabled: true,
-              child: const Center(child: Text('Connecting to group session…')),
+          if (isRinging) {
+            final healerName = state.sessionTitle.trim().isEmpty
+                ? 'Your healer'
+                : state.sessionTitle.trim();
+
+            return Scaffold(
+              backgroundColor: Colors.white,
+              body: Stack(
+                children: [
+                  CallRingingBody(
+                    sessionLabel: 'Group Session',
+                    name: healerName,
+                    imagePath: state.healerImage,
+                    mode: state.isLoading
+                        ? CallRingingMode.connecting
+                        : CallRingingMode.ringing,
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: _buildBottomControlBar(context, state),
+                  ),
+                ],
+              ),
             );
           }
 
-          if (state.isWaitingForHealer) {
-            return Stack(
-              children: [
-                GroupSessionHealerWaitingBody(state: state),
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: _buildBottomControlBar(context, state),
-                ),
-              ],
-            );
-          }
+          return Scaffold(
+            backgroundColor: Colors.white,
+            appBar: _buildAppBar(context),
+            body: _buildSessionBody(context, state),
+          );
+        },
+    );
+  }
 
+  Widget _buildSessionBody(BuildContext context, GroupSessionState state) {
           if (state.participants.isEmpty) {
             return Center(
               child: Padding(
@@ -198,9 +217,6 @@ class GroupSessionView extends StatelessWidget {
               ),
             ],
           );
-        },
-      ),
-    );
   }
 
   PreferredSizeWidget _buildAppBar(BuildContext context) {

@@ -13,6 +13,7 @@ import '../../../agora/presentation/utils/agora_token_refresh_scheduler.dart';
 import '../../../agora/presentation/utils/call_permissions.dart';
 import '../../../live_consultation/data/datasource/live_api_service.dart';
 import '../../../live_consultation/data/models/live_models.dart';
+import '../../../../core/incoming_call/incoming_call_remote_end_bus.dart';
 import '../../../../core/network/connectivity_service.dart';
 import 'voice_call_event.dart';
 import 'voice_call_state.dart';
@@ -28,10 +29,12 @@ class VoiceCallBloc extends Bloc<VoiceCallEvent, VoiceCallState> {
   StreamSubscription<AgoraCallEvent>? _rtcSub;
   String? _agoraUid;
   bool _backendJoinNotified = false;
-  bool _rtcJoinNotified = false;
+  bool _localJoinHandled = false;
+  bool _callTimerStarted = false;
   bool _tokenRetried = false;
   AgoraTokenRefreshScheduler? _tokenRefresh;
   bool _isEnding = false;
+  StreamSubscription<IncomingCallRemoteEnd>? _remoteEndSub;
 
   VoiceCallBloc({
     required CallRouteArgs args,
@@ -58,6 +61,12 @@ class VoiceCallBloc extends Bloc<VoiceCallEvent, VoiceCallState> {
     on<ToggleMute>(_onToggleMute);
     on<ToggleSpeaker>(_onToggleSpeaker);
     on<EndCall>(_onEndCall);
+
+    _remoteEndSub = IncomingCallRemoteEndBus.instance.stream.listen((remote) {
+      if (remote.bookingId == _args.bookingId) {
+        add(EndCall());
+      }
+    });
   }
 
   Future<void> _onLoadCall(LoadCall event, Emitter<VoiceCallState> emit) async {
@@ -106,7 +115,8 @@ class VoiceCallBloc extends Bloc<VoiceCallEvent, VoiceCallState> {
       await _rtc.leaveAndDispose();
       _rtc.dispose();
       _rtc = AgoraRtcService();
-      _rtcJoinNotified = false;
+      _localJoinHandled = false;
+      _callTimerStarted = false;
       _backendJoinNotified = false;
 
       final tokenResponse = await AgoraCallTokenResolver.resolve(
@@ -166,7 +176,8 @@ class VoiceCallBloc extends Bloc<VoiceCallEvent, VoiceCallState> {
       return;
     }
     _tokenRetried = true;
-    _rtcJoinNotified = false;
+    _localJoinHandled = false;
+    _callTimerStarted = false;
     _backendJoinNotified = false;
 
     try {
@@ -194,9 +205,9 @@ class VoiceCallBloc extends Bloc<VoiceCallEvent, VoiceCallState> {
     }
   }
 
-  Future<void> _markInCall(Emitter<VoiceCallState> emit) async {
-    if (_rtcJoinNotified) return;
-    _rtcJoinNotified = true;
+  Future<void> _onLocalJoined(Emitter<VoiceCallState> emit) async {
+    if (_localJoinHandled) return;
+    _localJoinHandled = true;
 
     if (_agoraUid != null && _agoraUid!.isNotEmpty && !_backendJoinNotified) {
       _backendJoinNotified = true;
@@ -208,12 +219,31 @@ class VoiceCallBloc extends Bloc<VoiceCallEvent, VoiceCallState> {
       );
     }
 
-    emit(state.copyWith(phase: CallPhase.inProgress));
+    emit(state.copyWith(phase: CallPhase.connecting));
     await _setSpeakerphone(emit, enabled: state.isSpeakerOn);
+  }
+
+  void _startCallTimer() {
+    if (_callTimerStarted) return;
+    _callTimerStarted = true;
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (t) {
       add(UpdateDuration(Duration(seconds: t.tick)));
     });
+  }
+
+  Future<void> _onRemoteJoined(
+    AgoraEngineEvent event,
+    Emitter<VoiceCallState> emit,
+  ) async {
+    emit(
+      state.copyWith(
+        remoteUid: event.event.uid,
+        phase: CallPhase.inProgress,
+      ),
+    );
+    await _setSpeakerphone(emit, enabled: state.isSpeakerOn);
+    _startCallTimer();
   }
 
   Future<void> _setSpeakerphone(
@@ -236,10 +266,10 @@ class VoiceCallBloc extends Bloc<VoiceCallEvent, VoiceCallState> {
   ) async {
     switch (event.event.type) {
       case AgoraCallEventType.joinSuccess:
-        await _markInCall(emit);
+        await _onLocalJoined(emit);
         break;
       case AgoraCallEventType.userJoined:
-        emit(state.copyWith(remoteUid: event.event.uid));
+        await _onRemoteJoined(event, emit);
         break;
       case AgoraCallEventType.userOffline:
         final offlineUid = event.event.uid;
@@ -313,6 +343,7 @@ class VoiceCallBloc extends Bloc<VoiceCallEvent, VoiceCallState> {
   @override
   Future<void> close() {
     _timer?.cancel();
+    _remoteEndSub?.cancel();
     _tokenRefresh?.dispose();
     _rtcSub?.cancel();
     _rtc.leaveAndDispose();

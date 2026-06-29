@@ -15,6 +15,8 @@ class HomeBottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
+
     return Container(
       height: 100.h,
       color: Colors.transparent,
@@ -32,7 +34,7 @@ class HomeBottomNavBar extends StatelessWidget {
           Positioned(
             left: 0,
             right: 0,
-            bottom: 20.h,
+            bottom: bottomInset > 0 ? bottomInset : 20.h,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               crossAxisAlignment: CrossAxisAlignment.end,

@@ -8,6 +8,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import 'package:humora_patient/features/live_consultation/presentation/models/live_consultation_args.dart';
 import 'package:humora_patient/features/live_consultation/presentation/utils/live_wallet_preflight.dart';
+import 'package:humora_patient/features/live_consultation/presentation/utils/live_request_routing.dart';
 import 'package:humora_patient/features/live_counselling_session/data/models/live_counselling_session_model.dart';
 import '../bloc/live_counselling_session_bloc.dart';
 import '../bloc/live_counselling_session_event.dart';
@@ -164,7 +165,10 @@ class LiveCounsellingSessionView extends StatelessWidget {
               );
               if (!canAfford || !context.mounted) return;
 
-              context.push('/live-request-waiting', extra: waitingArgs);
+              await navigateToLiveConsultation(
+                context: context,
+                args: waitingArgs,
+              );
             },
             borderRadius: 12.r,
           );

@@ -3,9 +3,8 @@ import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:go_router/go_router.dart';
-import 'package:humora_patient/common/utils/common_flushbar.dart';
 import 'package:humora_patient/core/constants/app_colors.dart';
+import 'package:humora_patient/features/live_consultation/presentation/utils/live_request_routing.dart';
 import 'package:humora_patient/core/constants/app_text_styles.dart';
 import 'package:humora_patient/common/widgets/common_image.dart';
 import 'package:humora_patient/features/healers/data/models/healer_model.dart';
@@ -28,8 +27,6 @@ class HealerCard extends StatelessWidget {
     required this.onTap,
   });
 
-  bool get _showLiveActions => healer.isLiveOnline && !healer.isLiveBusy;
-
   Future<void> _startLiveConsultation(
     BuildContext context,
     int consultationType,
@@ -48,14 +45,6 @@ class HealerCard extends StatelessWidget {
       name: 'HealerCard',
     );
 
-    // if (!healer.isLiveOnline) {
-    //   CommonFlushbar.error(
-    //     context,
-    //     'This healer is not online for live sessions right now.',
-    //   );
-    //   return;
-    // }
-
     final canAfford = await LiveWalletPreflight.ensureCanAfford(
       context: context,
       liveCounselling: healer.liveCounsellingPricing,
@@ -70,9 +59,10 @@ class HealerCard extends StatelessWidget {
       healerImage: healer.imageUrl,
       consultationType: consultationType,
       liveCounselling: healer.liveCounsellingPricing,
+      isHealerOnline: healer.isLiveOnline,
     );
 
-    context.push('/live-request-waiting', extra: args);
+    await navigateToLiveConsultation(context: context, args: args);
   }
 
   @override
@@ -108,9 +98,7 @@ class HealerCard extends StatelessWidget {
                     Container(
                       width: 50.w,
                       height: 50.w,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                      ),
+                      decoration: const BoxDecoration(shape: BoxShape.circle),
                       child: ClipOval(
                         child: CommonImage(
                           path: healer.imageUrl,
@@ -125,6 +113,8 @@ class HealerCard extends StatelessWidget {
                         children: [
                           Text(
                             healer.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: AppTextStyles.bodyLarge.copyWith(
                               fontWeight: FontWeight.w600,
                               fontSize: 16.sp,
@@ -158,11 +148,12 @@ class HealerCard extends StatelessWidget {
                                         child: Text(
                                           healer.specialization,
                                           overflow: TextOverflow.ellipsis,
-                                          style: AppTextStyles.bodySmall.copyWith(
-                                            color: AppColors.primary,
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: 11.sp,
-                                          ),
+                                          style: AppTextStyles.bodySmall
+                                              .copyWith(
+                                                color: AppColors.primary,
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 11.sp,
+                                              ),
                                         ),
                                       ),
                                     ],
@@ -214,7 +205,11 @@ class HealerCard extends StatelessWidget {
                 ),
                 SizedBox(height: 10.h),
                 // 3. Divider
-                const Divider(color: AppColors.divider, thickness: 1, height: 1),
+                const Divider(
+                  color: AppColors.divider,
+                  thickness: 1,
+                  height: 1,
+                ),
                 SizedBox(height: 12.h),
                 // 4. Price & Status Row
                 Row(
@@ -245,9 +240,7 @@ class HealerCard extends StatelessWidget {
                       ),
                     ),
                     SizedBox(width: 8.w),
-                    Flexible(
-                      child: _HealerAvailabilityRow(healer: healer),
-                    ),
+                    Flexible(child: _HealerAvailabilityRow(healer: healer)),
                   ],
                 ),
               ],
@@ -273,12 +266,11 @@ class HealerCard extends StatelessWidget {
               ),
             ),
           ],
-          // if (_showLiveActions)
-            _LiveConsultationFooter(
-              onChat: () => _startLiveConsultation(context, 0),
-              onAudio: () => _startLiveConsultation(context, 1),
-              onVideo: () => _startLiveConsultation(context, 2),
-            ),
+          _LiveConsultationFooter(
+            onChat: () => _startLiveConsultation(context, 0),
+            onAudio: () => _startLiveConsultation(context, 1),
+            onVideo: () => _startLiveConsultation(context, 2),
+          ),
         ],
       ),
     );
@@ -385,9 +377,7 @@ class _LiveActionButton extends StatelessWidget {
             child: Container(
               width: 44.w,
               height: 44.w,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-              ),
+              decoration: const BoxDecoration(shape: BoxShape.circle),
               alignment: Alignment.center,
               child: CommonImage(
                 path: iconPath,
@@ -420,7 +410,6 @@ class _HealerAvailabilityRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     if (healer.isLiveOnline) {
       return _StatusChip(
         emoji: '🟢',

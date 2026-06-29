@@ -8,6 +8,7 @@ class LiveConsultationArgs extends Equatable {
   final String healerImage;
   final int consultationType;
   final List<LiveCounsellingItem> liveCounselling;
+  final bool isHealerOnline;
 
   const LiveConsultationArgs({
     required this.healerId,
@@ -15,6 +16,7 @@ class LiveConsultationArgs extends Equatable {
     required this.healerImage,
     required this.consultationType,
     required this.liveCounselling,
+    this.isHealerOnline = false,
   });
 
   LiveConsultationArgs copyWith({
@@ -23,6 +25,7 @@ class LiveConsultationArgs extends Equatable {
     String? healerImage,
     int? consultationType,
     List<LiveCounsellingItem>? liveCounselling,
+    bool? isHealerOnline,
   }) {
     return LiveConsultationArgs(
       healerId: healerId ?? this.healerId,
@@ -30,6 +33,7 @@ class LiveConsultationArgs extends Equatable {
       healerImage: healerImage ?? this.healerImage,
       consultationType: consultationType ?? this.consultationType,
       liveCounselling: liveCounselling ?? this.liveCounselling,
+      isHealerOnline: isHealerOnline ?? this.isHealerOnline,
     );
   }
 
@@ -40,5 +44,6 @@ class LiveConsultationArgs extends Equatable {
         healerImage,
         consultationType,
         liveCounselling,
+        isHealerOnline,
       ];
 }

@@ -151,6 +151,14 @@ class MySessionsView extends StatelessWidget {
         ],
       ),
       actions: [
+        IconButton(
+          onPressed: () => context.push('/scheduled-sessions'),
+          icon: Icon(
+            Icons.calendar_today_outlined,
+            size: 22.sp,
+            color: AppColors.textPrimary,
+          ),
+        ),
         BlocBuilder<MySessionsBloc, MySessionsState>(
           builder: (context, state) {
             return IconButton(

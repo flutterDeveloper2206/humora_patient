@@ -18,6 +18,10 @@ class AuthRepositoryImpl implements AuthRepository {
       _apiService.verifyOtp(request);
 
   @override
+  Future<VerifyTokenResponse> verifyToken(String token) =>
+      _apiService.verifyToken(token);
+
+  @override
   Future<SaveProfileResponse> saveProfile(
     SaveProfileRequest request,
     String token,

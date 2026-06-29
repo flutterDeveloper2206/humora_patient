@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../incoming_call/incoming_call_service.dart';
 import '../utils/session_manager.dart';
 import 'notification_payload.dart';
 import 'notification_router.dart';
@@ -39,7 +40,7 @@ class NotificationService {
 
     final initialMessage = await _messaging.getInitialMessage();
     if (initialMessage != null) {
-      _scheduleNavigation(NotificationPayload.fromRemoteMessage(initialMessage));
+      await _handleOpenedMessage(initialMessage);
     }
 
     _initialized = true;
@@ -108,6 +109,16 @@ class NotificationService {
   }
 
   static Future<void> handleBackgroundMessage(RemoteMessage message) async {
+    final handled =
+        await IncomingCallService.instance.handleRemoteMessage(message);
+    if (handled) {
+      developer.log(
+        'Background call push handled type=${message.data['type']}',
+        name: 'NotificationService',
+      );
+      return;
+    }
+
     final payload = NotificationPayload.fromRemoteMessage(message);
     developer.log(
       'Background message screen=${payload.screen}',
@@ -130,9 +141,11 @@ class NotificationService {
         android: androidSettings,
         iOS: iosSettings,
       ),
-      onDidReceiveNotificationResponse: (response) {
+      onDidReceiveNotificationResponse: (response) async {
         final payload = NotificationPayload.fromLocalResponse(response);
-        _scheduleNavigation(payload);
+        if (!payload.isCallPush) {
+          _scheduleNavigation(payload);
+        }
       },
     );
 
@@ -163,14 +176,26 @@ class NotificationService {
 
   void _listenForMessages() {
     FirebaseMessaging.onMessage.listen((message) async {
+      final handled =
+          await IncomingCallService.instance.handleRemoteMessage(message);
+      if (handled) return;
+
       final payload = NotificationPayload.fromRemoteMessage(message);
       await _showLocalNotification(payload);
     });
 
-    FirebaseMessaging.onMessageOpenedApp.listen((message) {
-      final payload = NotificationPayload.fromRemoteMessage(message);
-      _scheduleNavigation(payload);
+    FirebaseMessaging.onMessageOpenedApp.listen((message) async {
+      await _handleOpenedMessage(message);
     });
+  }
+
+  Future<void> _handleOpenedMessage(RemoteMessage message) async {
+    final handled =
+        await IncomingCallService.instance.handleRemoteMessage(message);
+    if (handled) return;
+
+    final payload = NotificationPayload.fromRemoteMessage(message);
+    _scheduleNavigation(payload);
   }
 
   void _listenForTokenRefresh() {
@@ -181,6 +206,8 @@ class NotificationService {
   }
 
   Future<void> _showLocalNotification(NotificationPayload payload) async {
+    if (payload.isCallPush) return;
+
     final androidDetails = AndroidNotificationDetails(
       _androidChannelId,
       _androidChannelName,

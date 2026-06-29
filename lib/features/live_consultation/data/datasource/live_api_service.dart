@@ -24,6 +24,28 @@ class LiveApiException implements Exception {
 
   @override
   String toString() => message;
+
+  bool get isInsufficientWallet => walletError != null;
+
+  bool get isWaitlistConflict =>
+      statusCode == 409 && queuePosition != null;
+
+  /// Healer offline/busy or transient failure — keep calling UI, retry in background.
+  bool get shouldContinueWaiting {
+    if (isInsufficientWallet || isWaitlistConflict) return false;
+    final m = message.toLowerCase();
+    if (m.contains('offline') ||
+        m.contains('busy') ||
+        m.contains('unavailable') ||
+        m.contains('not online') ||
+        m.contains('not available')) {
+      return true;
+    }
+    if (statusCode == 409) return true;
+    if (statusCode == 400 && !m.contains('balance')) return true;
+    if (statusCode == 404 || statusCode == 503) return true;
+    return false;
+  }
 }
 
 class LiveApiService {
@@ -197,6 +219,39 @@ class LiveApiService {
       params: {'healerId': healerId},
     );
     final response = await _client.delete(url, headers: _headers(token));
+    _parseSuccess(response, url);
+  }
+
+  Future<RequestAcceptedPayload> acceptLiveRequest(String requestId) async {
+    final token = await _requireToken();
+    final url = Uri.parse(ApiEndpoints.liveAccept);
+    final encodedBody = jsonEncode({'requestId': requestId});
+    _logRequest(method: 'POST', url: url, body: encodedBody);
+    final response = await _client.post(
+      url,
+      headers: _headers(token, json: true),
+      body: encodedBody,
+    );
+    final data = _parseSuccess(response, url);
+    return RequestAcceptedPayload.fromJson(data);
+  }
+
+  Future<void> rejectLiveRequest(
+    String requestId, {
+    String reason = 'Declined',
+  }) async {
+    final token = await _requireToken();
+    final url = Uri.parse(ApiEndpoints.liveReject);
+    final encodedBody = jsonEncode({
+      'requestId': requestId,
+      'reason': reason,
+    });
+    _logRequest(method: 'POST', url: url, body: encodedBody);
+    final response = await _client.post(
+      url,
+      headers: _headers(token, json: true),
+      body: encodedBody,
+    );
     _parseSuccess(response, url);
   }
 }

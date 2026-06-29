@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../../../../common/widgets/common_button.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
+import '../../../../core/layout/app_layout.dart';
 import '../bloc/sessions_bloc.dart';
 import '../widgets/day_chip.dart';
 import '../widgets/session_timeline_item.dart';
@@ -253,6 +254,7 @@ class SessionsView extends StatelessWidget {
                               lastDate: DateTime.now().add(
                                 const Duration(days: 365 * 2),
                               ),
+                              builder: AppLayout.datePickerBuilder,
                             );
                             if (picked != null) {
                               context.read<SessionsBloc>().add(

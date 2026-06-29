@@ -66,14 +66,11 @@ class _HealingFocusScreenState extends State<HealingFocusScreen> {
                 ),
               ),
             ),
-            body: SafeArea(
-              child:
-                  state is HealingFocusLoading || state is HealingFocusInitial
-                  ? const Center(child: CircularProgressIndicator())
-                  : state is HealingFocusLoaded
-                  ? _buildContent(context, state)
-                  : const Center(child: Text("Error loading data")),
-            ),
+            body: state is HealingFocusLoading || state is HealingFocusInitial
+            ? const Center(child: CircularProgressIndicator())
+            : state is HealingFocusLoaded
+            ? _buildContent(context, state)
+            : const Center(child: Text("Error loading data")),
           );
         },
       ),

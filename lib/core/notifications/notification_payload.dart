@@ -4,6 +4,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'notification_screen.dart';
+import '../incoming_call/models/call_push_type.dart';
 
 class NotificationPayload {
   final String screen;
@@ -17,6 +18,10 @@ class NotificationPayload {
     required this.title,
     required this.body,
   });
+
+  String? get eventType => data['type']?.toString();
+
+  bool get isCallPush => CallPushType.isCallEvent(eventType);
 
   String? get bookingId {
     final value = data['bookingId'] ?? data['booking_id'] ?? data['sessionId'];

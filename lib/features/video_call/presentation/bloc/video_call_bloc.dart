@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/incoming_call/incoming_call_remote_end_bus.dart';
+
 import '../../../agora/data/models/agora_token_models.dart';
 import '../../../agora/domain/usecases/agora_session_usecase.dart';
 import '../../../agora/domain/usecases/fetch_agora_token_usecase.dart';
@@ -28,10 +30,12 @@ class VideoCallBloc extends Bloc<VideoCallEvent, VideoCallState> {
   StreamSubscription<AgoraCallEvent>? _rtcSub;
   String? _agoraUid;
   bool _backendJoinNotified = false;
-  bool _rtcJoinNotified = false;
+  bool _localJoinHandled = false;
+  bool _callTimerStarted = false;
   bool _tokenRetried = false;
   AgoraTokenRefreshScheduler? _tokenRefresh;
   bool _isEnding = false;
+  StreamSubscription<IncomingCallRemoteEnd>? _remoteEndSub;
 
   VideoCallBloc({
     required CallRouteArgs args,
@@ -59,6 +63,12 @@ class VideoCallBloc extends Bloc<VideoCallEvent, VideoCallState> {
     on<ToggleCamera>(_onToggleCamera);
     on<ToggleSpeaker>(_onToggleSpeaker);
     on<SwitchCamera>(_onSwitchCamera);
+
+    _remoteEndSub = IncomingCallRemoteEndBus.instance.stream.listen((remote) {
+      if (remote.bookingId == _args.bookingId) {
+        add(EndCall());
+      }
+    });
   }
 
   Future<void> _onLoadCall(LoadCall event, Emitter<VideoCallState> emit) async {
@@ -102,7 +112,8 @@ class VideoCallBloc extends Bloc<VideoCallEvent, VideoCallState> {
       await _rtc.leaveAndDispose();
       _rtc.dispose();
       _rtc = AgoraRtcService();
-      _rtcJoinNotified = false;
+      _localJoinHandled = false;
+      _callTimerStarted = false;
       _backendJoinNotified = false;
 
       final tokenResponse = await AgoraCallTokenResolver.resolve(
@@ -164,7 +175,8 @@ class VideoCallBloc extends Bloc<VideoCallEvent, VideoCallState> {
       return;
     }
     _tokenRetried = true;
-    _rtcJoinNotified = false;
+    _localJoinHandled = false;
+    _callTimerStarted = false;
     _backendJoinNotified = false;
 
     try {
@@ -193,9 +205,9 @@ class VideoCallBloc extends Bloc<VideoCallEvent, VideoCallState> {
     }
   }
 
-  Future<void> _markInCall(Emitter<VideoCallState> emit) async {
-    if (_rtcJoinNotified) return;
-    _rtcJoinNotified = true;
+  Future<void> _onLocalJoined(Emitter<VideoCallState> emit) async {
+    if (_localJoinHandled) return;
+    _localJoinHandled = true;
 
     if (_agoraUid != null && _agoraUid!.isNotEmpty && !_backendJoinNotified) {
       _backendJoinNotified = true;
@@ -209,15 +221,35 @@ class VideoCallBloc extends Bloc<VideoCallEvent, VideoCallState> {
 
     emit(
       state.copyWith(
+        phase: CallPhase.connecting,
+        engine: _rtc.engine,
+      ),
+    );
+    await _setSpeakerphone(enabled: state.isSpeakerOn, emit: emit);
+  }
+
+  void _startCallTimer() {
+    if (_callTimerStarted) return;
+    _callTimerStarted = true;
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
+      add(UpdateTimer(Duration(seconds: t.tick)));
+    });
+  }
+
+  Future<void> _onRemoteJoined(
+    AgoraEngineEvent event,
+    Emitter<VideoCallState> emit,
+  ) async {
+    emit(
+      state.copyWith(
+        remoteUid: event.event.uid,
         phase: CallPhase.inProgress,
         engine: _rtc.engine,
       ),
     );
     await _setSpeakerphone(enabled: state.isSpeakerOn, emit: emit);
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
-      add(UpdateTimer(Duration(seconds: t.tick)));
-    });
+    _startCallTimer();
   }
 
   Future<void> _onAgoraEngineEvent(
@@ -226,10 +258,10 @@ class VideoCallBloc extends Bloc<VideoCallEvent, VideoCallState> {
   ) async {
     switch (event.event.type) {
       case AgoraCallEventType.joinSuccess:
-        await _markInCall(emit);
+        await _onLocalJoined(emit);
         break;
       case AgoraCallEventType.userJoined:
-        emit(state.copyWith(remoteUid: event.event.uid));
+        await _onRemoteJoined(event, emit);
         break;
       case AgoraCallEventType.userOffline:
         final offlineUid = event.event.uid;
@@ -329,6 +361,7 @@ class VideoCallBloc extends Bloc<VideoCallEvent, VideoCallState> {
   @override
   Future<void> close() {
     _timer?.cancel();
+    _remoteEndSub?.cancel();
     _tokenRefresh?.dispose();
     _rtcSub?.cancel();
     _rtc.leaveAndDispose();

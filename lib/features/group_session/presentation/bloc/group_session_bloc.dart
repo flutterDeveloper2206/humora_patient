@@ -44,6 +44,7 @@ class GroupSessionBloc extends Bloc<GroupSessionEvent, GroupSessionState> {
         super(
           GroupSessionState(
             sessionTitle: args.healerName,
+            healerImage: _healerImageFromArgs(args),
           ),
         ) {
     on<LoadSession>(_onLoadSession);
@@ -371,4 +372,10 @@ class GroupSessionBloc extends Bloc<GroupSessionEvent, GroupSessionState> {
     _rtc.dispose();
     return super.close();
   }
+}
+
+String _healerImageFromArgs(CallRouteArgs args) {
+  final url = args.healerImageUrl?.trim();
+  if (url != null && url.isNotEmpty) return url;
+  return 'assets/image/doctorprofile.png';
 }

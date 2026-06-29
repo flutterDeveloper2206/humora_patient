@@ -55,8 +55,7 @@ class _OtpScreenState extends State<OtpScreen> {
           child: Divider(height: 1, color: AppColors.divider.withOpacity(0.5)),
         ),
       ),
-      body: SafeArea(
-        child: Column(
+      body: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
@@ -188,7 +187,6 @@ class _OtpScreenState extends State<OtpScreen> {
             SizedBox(height: 24.h),
           ],
         ),
-      ),
     );
   }
 }

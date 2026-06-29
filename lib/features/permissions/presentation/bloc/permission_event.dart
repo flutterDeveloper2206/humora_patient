@@ -15,4 +15,6 @@ class RequestCameraPermission extends PermissionEvent {}
 
 class SkipPermission extends PermissionEvent {}
 
+class OpenPermissionSettings extends PermissionEvent {}
+
 class PermissionFlowCompleted extends PermissionEvent {}

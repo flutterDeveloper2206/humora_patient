@@ -8,6 +8,8 @@ class PermissionDialog extends StatelessWidget {
   final String title;
   final String description;
   final IconData icon;
+  final String confirmText;
+  final bool isDenied;
   final VoidCallback onConfirm;
   final VoidCallback onSkip;
   final VoidCallback onClose;
@@ -17,6 +19,8 @@ class PermissionDialog extends StatelessWidget {
     required this.title,
     required this.description,
     required this.icon,
+    this.confirmText = 'Allow access',
+    this.isDenied = false,
     required this.onConfirm,
     required this.onSkip,
     required this.onClose,
@@ -101,7 +105,7 @@ class PermissionDialog extends StatelessWidget {
                   width: double.infinity,
                   height: 52.h,
                   child: CommonButton(
-                    text: 'Go to settings',
+                    text: confirmText,
                     backgroundColor: const Color(0xFF1A1A1A),
                     borderRadius: 12.r,
                     textStyle: AppTextStyles.bodyLarge.copyWith(

@@ -26,6 +26,7 @@ class SessionManager {
     await prefs.remove(_keyUserProfileJson);
     await prefs.remove(_keyFcmToken);
     await prefs.remove(_keyLastSyncedFcmToken);
+    await prefs.remove(_keyVoipToken);
   }
 
   static Future<bool> hasToken() async {
@@ -63,9 +64,21 @@ class SessionManager {
     return prefs.getString(_keyUserProfileJson);
   }
 
+  static const String _keyVoipToken = 'voip_token';
+
   static Future<void> saveFcmToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyFcmToken, token);
+  }
+
+  static Future<void> saveVoipToken(String token) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyVoipToken, token);
+  }
+
+  static Future<String?> getVoipToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyVoipToken);
   }
 
   static Future<String?> getFcmToken() async {

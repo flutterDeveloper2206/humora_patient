@@ -4,11 +4,16 @@ import 'package:equatable/equatable.dart';
 class PendingLiveChatRequest extends Equatable {
   final String healerId;
   final String? healerImage;
+  final bool isHealerOnline;
 
-  const PendingLiveChatRequest({required this.healerId, this.healerImage});
+  const PendingLiveChatRequest({
+    required this.healerId,
+    this.healerImage,
+    this.isHealerOnline = false,
+  });
 
   @override
-  List<Object?> get props => [healerId, healerImage];
+  List<Object?> get props => [healerId, healerImage, isHealerOnline];
 }
 
 class ChatSessionArgs extends Equatable {
@@ -19,6 +24,8 @@ class ChatSessionArgs extends Equatable {
   final PendingLiveChatRequest? pendingLiveRequest;
   final int bookingCount;
   final String? otherPartyUserId;
+  /// Outbound texts typed while waiting for live accept — sent after session opens.
+  final List<String> initialDraftMessages;
 
   const ChatSessionArgs({
     this.bookingId = '',
@@ -28,6 +35,7 @@ class ChatSessionArgs extends Equatable {
     this.pendingLiveRequest,
     this.bookingCount = 1,
     this.otherPartyUserId,
+    this.initialDraftMessages = const [],
   });
 
   bool get isGroupedHealerChat =>
@@ -43,6 +51,7 @@ class ChatSessionArgs extends Equatable {
     PendingLiveChatRequest? pendingLiveRequest,
     int? bookingCount,
     String? otherPartyUserId,
+    List<String>? initialDraftMessages,
     bool clearPendingLiveRequest = false,
   }) {
     return ChatSessionArgs(
@@ -55,6 +64,7 @@ class ChatSessionArgs extends Equatable {
           : (pendingLiveRequest ?? this.pendingLiveRequest),
       bookingCount: bookingCount ?? this.bookingCount,
       otherPartyUserId: otherPartyUserId ?? this.otherPartyUserId,
+      initialDraftMessages: initialDraftMessages ?? this.initialDraftMessages,
     );
   }
 
@@ -67,5 +77,6 @@ class ChatSessionArgs extends Equatable {
     pendingLiveRequest,
     bookingCount,
     otherPartyUserId,
+    initialDraftMessages,
   ];
 }

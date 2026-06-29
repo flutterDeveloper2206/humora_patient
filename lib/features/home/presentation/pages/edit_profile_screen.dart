@@ -11,6 +11,7 @@ import '../../../../common/widgets/common_image.dart';
 import '../../../../common/widgets/common_textfield.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
+import '../../../../core/layout/app_layout.dart';
 import '../../../../core/utils/session_manager.dart';
 import '../../data/datasource/user_profile_api_service.dart';
 import '../../data/models/user_profile_model.dart';
@@ -102,6 +103,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       initialDate: DateTime(now.year - 20, now.month, now.day),
       firstDate: DateTime(1900),
       lastDate: now,
+      builder: AppLayout.datePickerBuilder,
     );
     if (selected == null) return;
     _dob.text = selected.toIso8601String().split('T').first;

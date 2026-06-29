@@ -46,8 +46,7 @@ class _CommonSuccessScreenState extends State<CommonSuccessScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.primaryLite,
-      body: SafeArea(
-        child: Column(
+      body: Column(
           children: [
             Expanded(
               child: SingleChildScrollView(
@@ -158,7 +157,6 @@ class _CommonSuccessScreenState extends State<CommonSuccessScreen> {
             },
           ],
         ),
-      ),
     );
   }
 }

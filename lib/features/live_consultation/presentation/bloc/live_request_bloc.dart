@@ -20,6 +20,7 @@ class LiveRequestBloc extends Bloc<LiveRequestEvent, LiveRequestState> {
   StreamSubscription<Map<String, dynamic>>? _expiredSub;
   StreamSubscription<String>? _hubErrorSub;
   Timer? _pollTimer;
+  Timer? _unavailableRetryTimer;
 
   String? _lastHealerId;
   int? _lastConsultationType;
@@ -98,7 +99,11 @@ class LiveRequestBloc extends Bloc<LiveRequestEvent, LiveRequestState> {
       }
 
       _activeRequestId = response.requestId;
-      _activeWaitlistId = null;
+      _unavailableRetryTimer?.cancel();
+      if (response.requestId.isEmpty) {
+        _emitWaitingForHealer(emit, event);
+        return;
+      }
       emit(
         LiveRequestWaiting(
           requestId: response.requestId,
@@ -113,7 +118,7 @@ class LiveRequestBloc extends Bloc<LiveRequestEvent, LiveRequestState> {
     } on LiveApiException catch (e) {
       if (e.walletError != null) {
         emit(LiveRequestWalletError(e.walletError!));
-      } else if (e.statusCode == 409 && e.queuePosition != null) {
+      } else if (e.isWaitlistConflict) {
         _activeRequestId = null;
         _activeWaitlistId = null;
         emit(
@@ -125,20 +130,56 @@ class LiveRequestBloc extends Bloc<LiveRequestEvent, LiveRequestState> {
           ),
         );
         _startWaitlistPoll();
-      }
-      // else if (e.statusCode == 409) {
-      //   emit(
-      //     const LiveRequestError(
-      //       'This healer is busy or your request expired. Please try again.',
-      //     ),
-      //   );
-      // }
-    else {
+      } else if (e.shouldContinueWaiting) {
+        _emitWaitingForHealer(emit, event);
+      } else {
         emit(LiveRequestError(e.message));
       }
     } catch (e) {
-      emit(LiveRequestError(_cleanError(e)));
+      final msg = _cleanError(e);
+      if (_isAuthError(msg)) {
+        emit(LiveRequestError(msg));
+      } else {
+        _emitWaitingForHealer(emit, event);
+      }
     }
+  }
+
+  bool _isAuthError(String message) {
+    final m = message.toLowerCase();
+    return m.contains('token') ||
+        m.contains('auth') ||
+        m.contains('unauthorized');
+  }
+
+  void _emitWaitingForHealer(
+    Emitter<LiveRequestState> emit,
+    StartRequest event,
+  ) {
+    _activeRequestId = null;
+    _activeWaitlistId = null;
+    emit(
+      LiveRequestWaiting(
+        requestId: '',
+        expiresAt: DateTime.now().add(const Duration(seconds: 60)),
+        hubConnected: _hub.isConnected,
+      ),
+    );
+    _startWaitlistPoll();
+    _startUnavailableRetry();
+  }
+
+  void _startUnavailableRetry() {
+    _unavailableRetryTimer?.cancel();
+    _unavailableRetryTimer = Timer.periodic(const Duration(seconds: 25), (_) {
+      if (isClosed) return;
+      final s = state;
+      final awaitingRequest = s is LiveRequestWaiting &&
+          (_activeRequestId == null || _activeRequestId!.isEmpty);
+      if (awaitingRequest || s is LiveRequestQueued) {
+        add(const RetryRequest());
+      }
+    });
   }
 
   Future<void> _onPollRequest(
@@ -146,7 +187,11 @@ class LiveRequestBloc extends Bloc<LiveRequestEvent, LiveRequestState> {
     Emitter<LiveRequestState> emit,
   ) async {
     final requestId = _activeRequestId;
-    if (requestId == null || state is! LiveRequestWaiting) return;
+    if (requestId == null ||
+        requestId.isEmpty ||
+        state is! LiveRequestWaiting) {
+      return;
+    }
 
     try {
       final response = await _api.getRequestStatus(requestId);
@@ -155,18 +200,16 @@ class LiveRequestBloc extends Bloc<LiveRequestEvent, LiveRequestState> {
           response.bookingId!.isNotEmpty) {
         await _cancelSubscriptions();
         _activeRequestId = null;
-        emit(
-          LiveRequestAccepted(
-            enrichAcceptedPayload(
-              payload: RequestAcceptedPayload(
-                bookingId: response.bookingId!,
-                bookingReference: response.bookingReference ?? '',
-                consultationType: response.consultationType,
-              ),
-              requestedType: _lastConsultationType ?? 0,
-            ),
+        final payload = enrichAcceptedPayload(
+          payload: RequestAcceptedPayload(
+            bookingId: response.bookingId!,
+            bookingReference: response.bookingReference ?? '',
+            consultationType: response.consultationType,
           ),
+          requestedType: _lastConsultationType ?? 0,
         );
+        _rememberAcceptedBookingType(payload);
+        emit(LiveRequestAccepted(payload));
       } else if (LiveRequestStatus.isRejected(response.status)) {
         await _cancelSubscriptions();
         _activeRequestId = null;
@@ -265,21 +308,25 @@ class LiveRequestBloc extends Bloc<LiveRequestEvent, LiveRequestState> {
     add(StartRequest(healerId: healerId, consultationType: consultationType));
   }
 
+  void _rememberAcceptedBookingType(RequestAcceptedPayload payload) {
+    final type = _lastConsultationType;
+    if (type == null || payload.bookingId.isEmpty) return;
+    LiveWaitlistCache.instance.rememberBookingType(payload.bookingId, type);
+  }
+
   Future<void> _onAcceptedHub(
     _AcceptedHubEvent event,
     Emitter<LiveRequestState> emit,
   ) async {
-    if (state is! LiveRequestWaiting) return;
+    if (state is! LiveRequestWaiting && state is! LiveRequestQueued) return;
     await _cancelSubscriptions();
     _activeRequestId = null;
-    emit(
-      LiveRequestAccepted(
-        enrichAcceptedPayload(
-          payload: event.payload,
-          requestedType: _lastConsultationType ?? 0,
-        ),
-      ),
+    final payload = enrichAcceptedPayload(
+      payload: event.payload,
+      requestedType: _lastConsultationType ?? 0,
     );
+    _rememberAcceptedBookingType(payload);
+    emit(LiveRequestAccepted(payload));
   }
 
   Future<void> _onRejectedHub(
@@ -304,14 +351,12 @@ class LiveRequestBloc extends Bloc<LiveRequestEvent, LiveRequestState> {
     _ErrorHubEvent event,
     Emitter<LiveRequestState> emit,
   ) async {
-    if (state is! LiveRequestWaiting) return;
-    // Ignore stale hub invoke errors; request status comes from REST poll or events.
-    final msg = event.message.toLowerCase();
-    if (msg.contains('hubmethod does not exist') ||
-        msg.contains('sendrequest')) {
-      return;
-    }
-    emit(LiveRequestError(event.message));
+    if (state is! LiveRequestWaiting && state is! LiveRequestQueued) return;
+    // Hub invoke noise — REST poll / retry handles request status.
+    developer.log(
+      'LiveRequestBloc → hub error ignored while waiting: ${event.message}',
+      name: 'LiveRequestBloc',
+    );
   }
 
   void _listenToHub() {
@@ -350,6 +395,8 @@ class LiveRequestBloc extends Bloc<LiveRequestEvent, LiveRequestState> {
   Future<void> _cancelSubscriptions() async {
     _pollTimer?.cancel();
     _pollTimer = null;
+    _unavailableRetryTimer?.cancel();
+    _unavailableRetryTimer = null;
     await _acceptedSub?.cancel();
     await _rejectedSub?.cancel();
     await _expiredSub?.cancel();

@@ -6,11 +6,12 @@ abstract class ScheduledSessionsEvent extends Equatable {
   List<Object?> get props => [];
 }
 
-class LoadSessions extends ScheduledSessionsEvent {
-  final DateTime date;
-  const LoadSessions(this.date);
-  @override
-  List<Object?> get props => [date];
+class LoadCalendar extends ScheduledSessionsEvent {
+  const LoadCalendar();
+}
+
+class RefreshCalendar extends ScheduledSessionsEvent {
+  const RefreshCalendar();
 }
 
 class SelectDate extends ScheduledSessionsEvent {

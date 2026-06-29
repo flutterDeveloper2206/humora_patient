@@ -20,6 +20,7 @@ import 'package:humora_patient/features/booking/presentation/utils/booking_flow_
 import 'package:humora_patient/features/booking/presentation/utils/booking_wallet_preflight.dart';
 import 'package:humora_patient/features/live_consultation/presentation/models/live_consultation_args.dart';
 import 'package:humora_patient/features/live_consultation/presentation/utils/live_wallet_preflight.dart';
+import 'package:humora_patient/features/live_consultation/presentation/utils/live_request_routing.dart';
 import 'dart:developer' as developer;
 import '../../../../common/utils/common_flushbar.dart';
 import '../widgets/healer_info_node.dart';
@@ -982,7 +983,7 @@ class HealerDetailScreen extends StatelessWidget {
       liveCounselling: healer.liveCounsellingPricing,
     );
 
-    context.push('/live-request-waiting', extra: args);
+    await navigateToLiveConsultation(context: context, args: args);
   }
 
   Future<void> _onBookNow(

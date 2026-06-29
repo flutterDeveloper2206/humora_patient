@@ -128,12 +128,12 @@ class _HomeTabBodyState extends State<HomeTabBody> {
         physics: const AlwaysScrollableScrollPhysics(
           parent: BouncingScrollPhysics(),
         ),
-        padding: EdgeInsets.only(bottom: 120.h),
+        padding: EdgeInsets.only(bottom: 120.h + MediaQuery.viewPaddingOf(context).bottom),
         child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: EdgeInsets.fromLTRB(20.w, 10.h, 20.w, 0),
+            padding: EdgeInsets.fromLTRB(20.w, 8.h, 20.w, 0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -221,21 +221,27 @@ class _HomeTabBodyState extends State<HomeTabBody> {
                     ),
                   ),
                   SizedBox(width: 16.w),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
-                    children: [
-                      Text(
-                        'Hello, $_userName!',
-                        style: AppTextStyles.h1.copyWith(
-                          fontSize: 20.sp,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF1E1E1E),
+                  Expanded(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            'Hello, $_userName!',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.h1.copyWith(
+                              fontSize: 20.sp,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF1E1E1E),
+                            ),
+                          ),
                         ),
-                      ),
-                      SizedBox(width: 6.w),
-                      Text(' 👋🏻', style: TextStyle(fontSize: 22.sp)),
-                    ],
+                        SizedBox(width: 6.w),
+                        Text(' 👋🏻', style: TextStyle(fontSize: 22.sp)),
+                      ],
+                    ),
                   ),
                 ],
               ),

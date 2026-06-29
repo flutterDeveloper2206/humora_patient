@@ -6,15 +6,17 @@ import '../../../chat/presentation/models/chat_session_args.dart';
 import '../../data/datasource/live_hub_service.dart';
 import '../../data/models/live_models.dart';
 import '../models/live_consultation_args.dart';
+import 'live_waitlist_cache.dart';
 
-/// When hub/REST omit consultationType it defaults to 0 — keep the type the patient requested.
+/// Patient-selected modality (0 chat, 1 audio, 2 video) wins over hub/REST payload
+/// when the server omits or returns a generic type.
 int resolveLiveConsultationType({
   required int requestedType,
   required int payloadType,
 }) {
-  if (payloadType == 1 || payloadType == 2) return payloadType;
-  if (requestedType == 1 || requestedType == 2) return requestedType;
-  return payloadType;
+  if (requestedType >= 0 && requestedType <= 2) return requestedType;
+  if (payloadType >= 0 && payloadType <= 2) return payloadType;
+  return 0;
 }
 
 CallMode callModeForConsultationType(int consultationType) =>
@@ -46,15 +48,78 @@ RequestAcceptedPayload enrichAcceptedPayload({
   );
 }
 
-/// After healer accepts: join live hub and open chat / voice / video UI.
+/// Start live consultation — opens chat / voice / video directly (no waiting screen).
+Future<void> navigateToLiveConsultation({
+  required BuildContext context,
+  required LiveConsultationArgs args,
+  bool replaceCurrent = false,
+}) async {
+  LiveWaitlistCache.instance.remember(args);
+
+  void go(String location, {Object? extra}) {
+    if (replaceCurrent) {
+      context.pushReplacement(location, extra: extra);
+    } else {
+      context.push(location, extra: extra);
+    }
+  }
+
+  switch (args.consultationType.clamp(0, 2)) {
+    case 0:
+      go(
+        '/chat/pending',
+        extra: ChatSessionArgs(
+          healerName: args.healerName,
+          otherUserProfile: args.healerImage,
+          isLiveSession: true,
+          pendingLiveRequest: PendingLiveChatRequest(
+            healerId: args.healerId,
+            healerImage: args.healerImage,
+            isHealerOnline: args.isHealerOnline,
+          ),
+        ),
+      );
+      break;
+    case 1:
+      go(
+        '/voice-call',
+        extra: CallRouteArgs(
+          bookingId: '',
+          healerName: args.healerName,
+          healerImageUrl: args.healerImage,
+          mode: CallMode.audio,
+          isLive: true,
+          pendingConsultation: args,
+        ),
+      );
+      break;
+    case 2:
+      go(
+        '/video-call',
+        extra: CallRouteArgs(
+          bookingId: '',
+          healerName: args.healerName,
+          healerImageUrl: args.healerImage,
+          mode: CallMode.video,
+          isLive: true,
+          pendingConsultation: args,
+        ),
+      );
+      break;
+  }
+}
+
 Future<void> navigateAfterLiveRequestAccepted({
   required BuildContext context,
   required LiveConsultationArgs args,
   required RequestAcceptedPayload payload,
+  List<String> initialDraftMessages = const [],
 }) async {
-  final consultationType = resolveLiveConsultationType(
-    requestedType: args.consultationType,
-    payloadType: payload.consultationType,
+  // Args carry the modality the patient tapped on the healer card / waitlist.
+  final consultationType = args.consultationType.clamp(0, 2);
+  LiveWaitlistCache.instance.rememberBookingType(
+    payload.bookingId,
+    consultationType,
   );
 
   try {
@@ -71,6 +136,8 @@ Future<void> navigateAfterLiveRequestAccepted({
           bookingId: payload.bookingId,
           isLiveSession: true,
           healerName: args.healerName,
+          otherUserProfile: args.healerImage,
+          initialDraftMessages: initialDraftMessages,
         ),
       );
       break;

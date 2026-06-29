@@ -2,13 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../common/widgets/common_button.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import '../../data/models/live_models.dart';
 import '../models/live_consultation_args.dart';
+import '../utils/live_request_routing.dart';
 import '../utils/live_waitlist_cache.dart';
 
 class WaitlistYourTurnDialog extends StatefulWidget {
@@ -96,7 +96,10 @@ class _WaitlistYourTurnDialogState extends State<WaitlistYourTurnDialog> {
     _timer?.cancel();
     Navigator.of(context, rootNavigator: true).pop();
     if (!context.mounted) return;
-    context.push('/live-request-waiting', extra: widget.consultationArgs);
+    navigateToLiveConsultation(
+      context: context,
+      args: widget.consultationArgs,
+    );
   }
 
   void _onReject() {

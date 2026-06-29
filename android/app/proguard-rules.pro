@@ -10,3 +10,6 @@
 # Agora RTC (agora_rtc_engine)
 -keep class io.agora.** { *; }
 -dontwarn io.agora.**
+
+# flutter_callkit_incoming
+-keep class com.hiennv.flutter_callkit_incoming.** { *; }

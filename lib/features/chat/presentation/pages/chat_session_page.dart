@@ -30,6 +30,9 @@ import '../bloc/chat_session_bloc.dart';
 import '../bloc/chat_session_event.dart';
 import '../bloc/chat_session_state.dart';
 import '../models/chat_session_args.dart';
+import '../../../live_consultation/presentation/models/live_consultation_args.dart';
+import '../../../live_consultation/presentation/utils/live_request_routing.dart';
+import '../../../live_consultation/presentation/utils/live_waitlist_cache.dart';
 import '../widgets/chat_booking_group_header.dart';
 import '../widgets/chat_composer.dart';
 import '../widgets/chat_waiting_room.dart';
@@ -37,39 +40,39 @@ import '../widgets/session_message_bubble.dart';
 import '../widgets/system_message_bubble.dart';
 import '../widgets/typing_indicator.dart';
 
-class ChatSessionPage extends StatelessWidget {
+class ChatSessionPage extends StatefulWidget {
   final String bookingId;
   final ChatSessionArgs? args;
 
   const ChatSessionPage({super.key, required this.bookingId, this.args});
 
-  ChatSessionArgs get _resolvedArgs =>
-      args ?? ChatSessionArgs(bookingId: bookingId);
-
   @override
-  Widget build(BuildContext context) {
-    final resolved = _resolvedArgs.copyWith(bookingId: bookingId);
-    final pending = resolved.pendingLiveRequest;
+  State<ChatSessionPage> createState() => _ChatSessionPageState();
+}
 
-    if (pending != null) {
-      return BlocProvider(
-        create: (_) => LiveRequestBloc()
-          ..add(StartRequest(healerId: pending.healerId, consultationType: 0)),
-        child: ChatSessionView(
-          bookingId: bookingId,
-          healerName: resolved.healerName,
-          otherUserProfile: resolved.otherUserProfile,
-          isLiveSession: true,
-          pendingLiveRequest: pending,
-        ),
-      );
-    }
+class _ChatSessionPageState extends State<ChatSessionPage> {
+  /// Once a pending live chat request is accepted we swap to the live session
+  /// in place (same route) instead of navigating again to a new chat page.
+  String? _acceptedBookingId;
+  List<String> _acceptedDrafts = const [];
 
+  ChatSessionArgs get _resolvedArgs =>
+      widget.args ?? ChatSessionArgs(bookingId: widget.bookingId);
+
+  void _onPendingRequestAccepted(String bookingId, List<String> drafts) {
+    if (!mounted || bookingId.isEmpty) return;
+    setState(() {
+      _acceptedBookingId = bookingId;
+      _acceptedDrafts = drafts;
+    });
+  }
+
+  Widget _buildLiveSessionTree(ChatSessionArgs resolved) {
     final chatTree = BlocProvider(
       create: (_) =>
           ChatSessionBloc(args: resolved)..add(const StartChatSession()),
       child: ChatSessionView(
-        bookingId: bookingId,
+        bookingId: resolved.bookingId,
         healerName: resolved.healerName,
         otherUserProfile: resolved.otherUserProfile,
         isLiveSession: resolved.isLiveSession,
@@ -79,9 +82,45 @@ class ChatSessionPage extends StatelessWidget {
     if (!resolved.isLiveSession || resolved.bookingId.isEmpty) return chatTree;
 
     return BlocProvider(
-      create: (_) => LiveSessionCubit()..startMonitoring(bookingId),
+      create: (_) => LiveSessionCubit()..startMonitoring(resolved.bookingId),
       child: chatTree,
     );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final resolved = _resolvedArgs.copyWith(bookingId: widget.bookingId);
+
+    // Accepted in place — render the real live chat without re-navigating.
+    if (_acceptedBookingId != null) {
+      return _buildLiveSessionTree(
+        resolved.copyWith(
+          bookingId: _acceptedBookingId,
+          isLiveSession: true,
+          initialDraftMessages: _acceptedDrafts,
+          clearPendingLiveRequest: true,
+        ),
+      );
+    }
+
+    final pending = resolved.pendingLiveRequest;
+
+    if (pending != null) {
+      return BlocProvider(
+        create: (_) => LiveRequestBloc()
+          ..add(StartRequest(healerId: pending.healerId, consultationType: 0)),
+        child: ChatSessionView(
+          bookingId: widget.bookingId,
+          healerName: resolved.healerName,
+          otherUserProfile: resolved.otherUserProfile,
+          isLiveSession: true,
+          pendingLiveRequest: pending,
+          onPendingRequestAccepted: _onPendingRequestAccepted,
+        ),
+      );
+    }
+
+    return _buildLiveSessionTree(resolved);
   }
 }
 
@@ -92,6 +131,11 @@ class ChatSessionView extends StatefulWidget {
   final bool isLiveSession;
   final PendingLiveChatRequest? pendingLiveRequest;
 
+  /// Called when a pending live chat request is accepted so the parent can
+  /// swap to the live session in place (instead of navigating again).
+  final void Function(String bookingId, List<String> drafts)?
+  onPendingRequestAccepted;
+
   const ChatSessionView({
     super.key,
     required this.bookingId,
@@ -99,6 +143,7 @@ class ChatSessionView extends StatefulWidget {
     this.otherUserProfile,
     this.isLiveSession = false,
     this.pendingLiveRequest,
+    this.onPendingRequestAccepted,
   });
 
   @override
@@ -123,6 +168,7 @@ class _ChatSessionViewState extends State<ChatSessionView>
   late final AnimationController _recordingWaveController;
   Timer? _liveRequestCountdownTimer;
   int _liveRequestSecondsLeft = 60;
+  final List<String> _pendingDraftMessages = [];
 
   @override
   void initState() {
@@ -134,6 +180,28 @@ class _ChatSessionViewState extends State<ChatSessionView>
     );
     _scrollController.addListener(_onScroll);
     _loadPatientId();
+    _restorePendingDrafts();
+  }
+
+  /// Restore any messages the patient typed earlier for this healer while the
+  /// live chat request was still pending (so they survive leaving + reopening).
+  void _restorePendingDrafts() {
+    final pending = widget.pendingLiveRequest;
+    if (pending == null || pending.healerId.isEmpty) return;
+    final cached = LiveWaitlistCache.instance.draftsFor(pending.healerId);
+    if (cached.isEmpty) return;
+    _pendingDraftMessages
+      ..clear()
+      ..addAll(cached);
+  }
+
+  void _persistPendingDrafts() {
+    final pending = widget.pendingLiveRequest;
+    if (pending == null || pending.healerId.isEmpty) return;
+    LiveWaitlistCache.instance.rememberDrafts(
+      pending.healerId,
+      _pendingDraftMessages,
+    );
   }
 
   @override
@@ -839,6 +907,11 @@ class _ChatSessionViewState extends State<ChatSessionView>
     final chatBody = BlocConsumer<ChatSessionBloc, ChatSessionState>(
       listenWhen: (prev, curr) {
         if (curr is ChatSessionActive &&
+            prev is ChatSessionAccessLoading &&
+            _pendingDraftMessages.isNotEmpty) {
+          return true;
+        }
+        if (curr is ChatSessionActive &&
             curr.sendError != null &&
             (prev is! ChatSessionActive || prev.sendError != curr.sendError)) {
           return true;
@@ -851,6 +924,13 @@ class _ChatSessionViewState extends State<ChatSessionView>
         return false;
       },
       listener: (context, state) {
+        if (state is ChatSessionActive && _pendingDraftMessages.isNotEmpty) {
+          final bloc = context.read<ChatSessionBloc>();
+          for (final text in _pendingDraftMessages) {
+            bloc.add(SendChatMessage(text));
+          }
+          _pendingDraftMessages.clear();
+        }
         if (state is ChatSessionActive && state.sendError != null) {
           CommonFlushbar.error(context, state.sendError!);
         }
@@ -866,8 +946,32 @@ class _ChatSessionViewState extends State<ChatSessionView>
           return _buildScaffold(
             title: widget.healerName ?? state.healerName ?? 'Chat',
             showEndSession: widget.isLiveSession,
-            body: const Center(
-              child: CircularProgressIndicator(color: AppColors.primary),
+            showPresence: widget.isLiveSession,
+            isOtherPartyOnline: false,
+            body: Column(
+              children: [
+                Expanded(
+                  child: Stack(
+                    children: [
+                      _buildBackground(),
+                      if (!widget.isLiveSession)
+                        const Center(
+                          child: CircularProgressIndicator(
+                            color: AppColors.primary,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                if (widget.isLiveSession)
+                  ChatComposer(
+                    controller: _controller,
+                    focusNode: _composerFocusNode,
+                    enabled: true,
+                    hintText: 'Write a message',
+                    onSend: _submitEarlyDraftMessage,
+                  ),
+              ],
             ),
           );
         }
@@ -941,6 +1045,7 @@ class _ChatSessionViewState extends State<ChatSessionView>
             banner: state.isLiveSession ? _liveBanner() : null,
             canCompose: state.canCompose,
             showEndSession: state.isLiveSession && state.canCompose,
+            showPresence: state.isLiveSession,
             activeState: state,
           );
         }
@@ -995,6 +1100,40 @@ class _ChatSessionViewState extends State<ChatSessionView>
     );
   }
 
+  void _submitEarlyDraftMessage() {
+    final text = _controller.text.trim();
+    if (text.isEmpty) return;
+    _pendingDraftMessages.add(text);
+    _persistPendingDrafts();
+    _controller.clear();
+  }
+
+  void _submitPendingComposer() {
+    final text = _controller.text.trim();
+    if (text.isEmpty) return;
+    setState(() {
+      _pendingDraftMessages.add(text);
+      _controller.clear();
+    });
+    _persistPendingDrafts();
+  }
+
+  bool _pendingComposerEnabled(LiveRequestState state) =>
+      state is! LiveRequestWalletError;
+
+  ChatMessageDto _pendingDraftMessage(String content) {
+    return ChatMessageDto(
+      messageId: 'draft-${content.hashCode}',
+      bookingId: '',
+      senderId: _patientId ?? 'patient',
+      senderName: 'You',
+      senderRole: 'Patient',
+      content: content,
+      createdAt: DateTime.now(),
+      isPending: true,
+    );
+  }
+
   void _startLiveRequestCountdown(DateTime? expiresAt) {
     _liveRequestCountdownTimer?.cancel();
     if (expiresAt != null) {
@@ -1045,9 +1184,12 @@ class _ChatSessionViewState extends State<ChatSessionView>
     }
 
     if (state is LiveRequestWaiting) {
+      final awaitingHealer = state.requestId.isEmpty;
       final messages = <ChatMessageDto>[
         _liveRequestSystemMessage(
-          'Live chat request sent. Waiting for $healerName to accept.',
+          awaitingHealer
+              ? 'Waiting for $healerName. We will keep trying — you can still write messages below.'
+              : 'Live chat request sent. Waiting for $healerName to accept.',
         ),
       ];
       if (!state.hubConnected) {
@@ -1063,6 +1205,15 @@ class _ChatSessionViewState extends State<ChatSessionView>
         ),
       );
       return messages;
+    }
+
+    if (state is LiveRequestQueued) {
+      final rank = state.position <= 1 ? '1st' : '${state.position}th';
+      return [
+        _liveRequestSystemMessage(
+          'You are $rank in queue for $healerName. You can write messages below while you wait.',
+        ),
+      ];
     }
 
     if (state is LiveRequestRejected) {
@@ -1084,7 +1235,11 @@ class _ChatSessionViewState extends State<ChatSessionView>
     }
 
     if (state is LiveRequestError) {
-      return [_liveRequestSystemMessage(state.message)];
+      return [
+        _liveRequestSystemMessage(
+          'Still trying to reach $healerName. You can write messages below.',
+        ),
+      ];
     }
 
     if (state is LiveRequestWalletError) {
@@ -1099,8 +1254,8 @@ class _ChatSessionViewState extends State<ChatSessionView>
   }
 
   String _liveRequestComposerHint(LiveRequestState state) {
-    if (state is LiveRequestWaiting || state is LiveRequestLoading) {
-      return 'Messages unlock when the healer accepts';
+    if (_pendingComposerEnabled(state)) {
+      return 'Write a message';
     }
     return 'Chat is unavailable';
   }
@@ -1111,24 +1266,43 @@ class _ChatSessionViewState extends State<ChatSessionView>
       state is LiveRequestRejected;
 
   Widget _buildPendingLiveRequest(BuildContext context) {
-    final pending = widget.pendingLiveRequest!;
-
     return BlocConsumer<LiveRequestBloc, LiveRequestState>(
       listenWhen: (prev, curr) => curr is! LiveRequestLoading,
       listener: (context, state) {
         if (state is LiveRequestWaiting) {
           _startLiveRequestCountdown(state.expiresAt);
-        } else if (state is LiveRequestAccepted) {
-          final bookingId = state.payload.bookingId;
-          context.pushReplacement(
-            '/chat/$bookingId',
-            extra: ChatSessionArgs(
-              bookingId: bookingId,
-              isLiveSession: true,
-              healerName: widget.healerName,
-              otherUserProfile: widget.pendingLiveRequest?.healerImage,
-            ),
+        } else if (state is LiveRequestQueued) {
+          _startLiveRequestCountdown(
+            DateTime.now().add(const Duration(seconds: 60)),
           );
+        } else if (state is LiveRequestAccepted) {
+          final pending = widget.pendingLiveRequest!;
+          final bookingId = state.payload.bookingId;
+          final drafts = List<String>.from(_pendingDraftMessages);
+          // Drafts are now handed to the active session to be delivered;
+          // clear the durable copy so they are not re-sent on a later open.
+          LiveWaitlistCache.instance.forgetDrafts(pending.healerId);
+
+          // Prefer an in-place swap (no second navigation) when the parent
+          // supports it; fall back to navigation otherwise.
+          if (widget.onPendingRequestAccepted != null && bookingId.isNotEmpty) {
+            LiveWaitlistCache.instance.rememberBookingType(bookingId, 0);
+            widget.onPendingRequestAccepted!(bookingId, drafts);
+          } else {
+            navigateAfterLiveRequestAccepted(
+              context: context,
+              args: LiveConsultationArgs(
+                healerId: pending.healerId,
+                healerName: widget.healerName ?? 'Healer',
+                healerImage: pending.healerImage ?? '',
+                consultationType: 0,
+                liveCounselling: const [],
+                isHealerOnline: pending.isHealerOnline,
+              ),
+              payload: state.payload,
+              initialDraftMessages: drafts,
+            );
+          }
         } else if (state is LiveRequestWalletError) {
           final wallet = state.walletError;
           InsufficientWalletDialog.show(
@@ -1142,25 +1316,38 @@ class _ChatSessionViewState extends State<ChatSessionView>
         }
       },
       builder: (context, state) {
-        final messages = _liveRequestMessagesForState(state);
-        final isWaiting =
-            state is LiveRequestLoading || state is LiveRequestWaiting;
+        final systemMessages = _liveRequestMessagesForState(state);
+        final draftMessages = _pendingDraftMessages
+            .map(_pendingDraftMessage)
+            .toList();
+        final pending = widget.pendingLiveRequest!;
+        final healerOnline = pending.isHealerOnline;
+        final messages = [
+          ...systemMessages,
+          ...draftMessages,
+          if (draftMessages.isNotEmpty && state is! LiveRequestWalletError)
+            _liveRequestSystemMessage(
+              'Your message${draftMessages.length > 1 ? 's are' : ' is'} saved and '
+              'will be delivered as soon as ${widget.healerName ?? 'the healer'} joins.',
+            ),
+        ];
         final hubBanner = state is LiveRequestWaiting && !state.hubConnected;
 
         return PopScope(
           canPop: false,
           onPopInvokedWithResult: (didPop, _) {
             if (didPop) return;
-            if (isWaiting) {
+            if (state is LiveRequestWaiting) {
               context.read<LiveRequestBloc>().add(const CancelRequest());
             }
             safePop(context);
           },
           child: _buildScaffold(
             title: widget.healerName ?? 'Chat',
-            isOtherPartyOnline: isWaiting,
+            showPresence: true,
+            isOtherPartyOnline: healerOnline,
             onBack: () {
-              if (isWaiting) {
+              if (state is LiveRequestWaiting) {
                 context.read<LiveRequestBloc>().add(const CancelRequest());
               }
               safePop(context);
@@ -1183,36 +1370,16 @@ class _ChatSessionViewState extends State<ChatSessionView>
                           horizontal: 20.w,
                           vertical: 16.h,
                         ),
-                        itemCount: messages.length + (isWaiting ? 1 : 0),
+                        itemCount: messages.length,
                         itemBuilder: (context, index) {
-                          if (isWaiting && index == messages.length) {
-                            return Padding(
-                              padding: EdgeInsets.only(top: 24.h),
-                              child: Column(
-                                children: [
-                                  if (pending.healerImage != null &&
-                                      pending.healerImage!.isNotEmpty)
-                                    CommonImage(
-                                      path: pending.healerImage!,
-                                      width: 72.w,
-                                      height: 72.w,
-                                      fit: BoxFit.cover,
-                                      borderRadius: 36.r,
-                                    ),
-                                  SizedBox(height: 12.h),
-                                  SizedBox(
-                                    width: 48.w,
-                                    height: 48.w,
-                                    child: const CircularProgressIndicator(
-                                      color: AppColors.primary,
-                                      strokeWidth: 3,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                          final message = messages[index];
+                          if (message.senderRole == 'Patient') {
+                            return SessionMessageBubble(
+                              message: message,
+                              isMe: true,
                             );
                           }
-                          return SystemMessageBubble(message: messages[index]);
+                          return SystemMessageBubble(message: message);
                         },
                       ),
                     ],
@@ -1243,9 +1410,9 @@ class _ChatSessionViewState extends State<ChatSessionView>
                   ),
                 ChatComposer(
                   controller: _controller,
-                  enabled: false,
+                  enabled: _pendingComposerEnabled(state),
                   hintText: _liveRequestComposerHint(state),
-                  onSend: () {},
+                  onSend: _submitPendingComposer,
                 ),
               ],
             ),
@@ -1260,6 +1427,7 @@ class _ChatSessionViewState extends State<ChatSessionView>
     required bool canCompose,
     Widget? banner,
     bool showEndSession = false,
+    bool showPresence = false,
     ChatSessionActive? activeState,
   }) {
     final messages = switch (state) {
@@ -1285,6 +1453,7 @@ class _ChatSessionViewState extends State<ChatSessionView>
     return _buildScaffold(
       title: healerName ?? widget.healerName ?? 'Chat',
       showEndSession: showEndSession,
+      showPresence: showPresence,
       isOtherPartyOnline: activeState?.isOtherPartyOnline ?? false,
       showSearch: activeState != null || state is ChatSessionHistoryOnly,
       body: Column(
@@ -1551,6 +1720,7 @@ class _ChatSessionViewState extends State<ChatSessionView>
     required String title,
     required Widget body,
     bool showEndSession = false,
+    bool showPresence = false,
     bool isOtherPartyOnline = false,
     bool showSearch = false,
     VoidCallback? onBack,
@@ -1579,11 +1749,13 @@ class _ChatSessionViewState extends State<ChatSessionView>
                 fontWeight: FontWeight.w600,
               ),
             ),
-            if (isOtherPartyOnline)
+            if (showPresence)
               Text(
-                'Online',
+                isOtherPartyOnline ? 'Online' : 'Offline',
                 style: AppTextStyles.caption.copyWith(
-                  color: const Color(0xFF16B783),
+                  color: isOtherPartyOnline
+                      ? const Color(0xFF16B783)
+                      : AppColors.textSecondary,
                   fontSize: 11.sp,
                 ),
               ),
